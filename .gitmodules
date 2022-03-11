@@ -1,0 +1,7 @@
+[submodule "packages/Ignis"]
+	path = packages/Ignis
+	url = https://github.com/oliverjakobs/Ignis
+
+[submodule "packages/glfw"]
+	path = packages/glfw
+	url = https://github.com/glfw/glfw
