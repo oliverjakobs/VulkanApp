@@ -6,18 +6,7 @@
 
 #include <string.h>
 
-static VkInstance instance;
-static VkDebugUtilsMessengerEXT debugMessenger;
-VkSurfaceKHR surface;
-
-VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-VkDevice device;
-
-VkSwapchainKHR swapChain;
-SwapChainImages swapChainImages;
-
-VkQueue graphicsQueue;
-VkQueue presentQueue;
+static VulkanContext context = { 0 };
 
 const int enableValidationLayers = 1;
 
@@ -135,7 +124,7 @@ VkResult CreateVulkanInstance(const char* appName, const char* engine) {
         createInfo.pNext = NULL;
     }
 
-    VkResult result = vkCreateInstance(&createInfo, NULL, &instance);
+    VkResult result = vkCreateInstance(&createInfo, NULL, &context.instance);
 
     free(extensions);
 
@@ -153,44 +142,47 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     if (enableValidationLayers) {
         VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = { 0 };
         populateDebugMessengerCreateInfo(&debugCreateInfo, NULL);
-        if (CreateDebugUtilsMessengerEXT(instance, &debugCreateInfo, NULL, &debugMessenger) != VK_SUCCESS) {
+        if (CreateDebugUtilsMessengerEXT(context.instance, &debugCreateInfo, NULL, &context.debugMessenger) != VK_SUCCESS) {
             MINIMAL_ERROR("failed to set up debug messenger!");
             return MINIMAL_FAIL;
         }
     }
 
     /* create surface */
-    if (glfwCreateWindowSurface(instance, app->window, NULL, &surface) != VK_SUCCESS) {
+    if (glfwCreateWindowSurface(context.instance, app->window, NULL, &context.surface) != VK_SUCCESS) {
         MINIMAL_ERROR("failed to create window surface!");
         return MINIMAL_FAIL;
     }
 
     /* pick physical device */
     QueueFamilyIndices indices;
-    physicalDevice = PickPhysicalDevice(instance, surface, &indices);
-    if (physicalDevice == VK_NULL_HANDLE) {
+    if (!pickPhysicalDevice(&context, &indices)) {
         MINIMAL_ERROR("failed to find a suitable GPU!");
         return MINIMAL_FAIL;
     }
 
     /* create logical device */
-    device = CreateLogicalDevice(physicalDevice, indices);
-    if (device == VK_NULL_HANDLE) {
+    if (!createLogicalDevice(&context, indices)) {
         MINIMAL_ERROR("failed to create logical device!");
         return MINIMAL_FAIL;
     }
 
-    /* get queues */
-    vkGetDeviceQueue(device, indices.graphicsFamily, 0, &graphicsQueue);
-    vkGetDeviceQueue(device, indices.presentFamily, 0, &presentQueue);
-
     /* create swap chain */
+    VkSurfaceCapabilitiesKHR capabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.physicalDevice, context.surface, &capabilities);
+
     int width, height;
     glfwGetFramebufferSize(app->window, &width, &height);
 
-    swapChain = createSwapChain(device, physicalDevice, surface, (uint32_t)width, (uint32_t)height, &swapChainImages);
-    if (swapChain == VK_NULL_HANDLE && swapChainImages.data) {
+    VkExtent2D extent = getSwapChainExtent(&capabilities, (uint32_t)width, (uint32_t)height);
+
+    if (!createSwapChain(&context, &capabilities, extent)) {
         MINIMAL_ERROR("failed to create swap chain!");
+        return MINIMAL_FAIL;
+    }
+
+    if (!createSwapChainImages(&context)) {
+        MINIMAL_ERROR("failed to create swap chain images!");
         return MINIMAL_FAIL;
     }
 
@@ -199,18 +191,18 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 
 void OnDestroy(MinimalApp* app) {
     /* destroy swap chain */
-    free(swapChainImages.data);
-    vkDestroySwapchainKHR(device, swapChain, NULL);
+    destroySwapChainImages(&context);
+    vkDestroySwapchainKHR(context.device, context.swapChain, NULL);
 
     /* destroy device */
-    vkDestroyDevice(device, NULL);
+    vkDestroyDevice(context.device, NULL);
 
     /* destroy debug messenger */
-    if (enableValidationLayers) DestroyDebugUtilsMessengerEXT(instance, debugMessenger, NULL);
+    if (enableValidationLayers) DestroyDebugUtilsMessengerEXT(context.instance, context.debugMessenger, NULL);
 
     /* destroy surface and instance */
-    vkDestroySurfaceKHR(instance, surface, NULL);
-    vkDestroyInstance(instance, NULL);
+    vkDestroySurfaceKHR(context.instance, context.surface, NULL);
+    vkDestroyInstance(context.instance, NULL);
 }
 
 int OnEvent(MinimalApp* app, const MinimalEvent* e) {

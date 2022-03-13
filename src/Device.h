@@ -9,11 +9,11 @@ typedef struct {
     uint32_t presentFamily;
 } QueueFamilyIndices;
 
-int QueueFamilyIndicesComplete(QueueFamilyIndices indices);
-QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
+int queueFamilyIndicesComplete(QueueFamilyIndices indices);
+QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
 
-VkPhysicalDevice PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, QueueFamilyIndices* indices);
+int pickPhysicalDevice(VulkanContext* context, QueueFamilyIndices* indices);
 
-VkDevice CreateLogicalDevice(VkPhysicalDevice physicalDevice, QueueFamilyIndices indices);
+int createLogicalDevice(VulkanContext* context, QueueFamilyIndices indices);
 
 #endif // !IGNIS_DEVICE_H
