@@ -44,10 +44,10 @@ QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surfa
             indices.familiesSet |= IGNIS_QUEUE_FAMILY_PRESENT;
         }
 
-        if (queueFamilyIndicesComplete(indices))
-            break;
+        if (queueFamilyIndicesComplete(indices)) break;
     }
 
+    free(properties);
     return indices;
 }
 
@@ -91,12 +91,12 @@ static int querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) 
     return formatCount > 0 && presentModeCount > 0;
 }
 
-int IsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
+static int isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
     if (!checkDeviceExtensionSupport(device)) return 0;
     return querySwapChainSupport(device, surface);
 }
 
-int pickPhysicalDevice(VulkanContext* context, QueueFamilyIndices* pIndices) {
+int pickPhysicalDevice(VulkanContext* context, QueueFamilyIndices* indices) {
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(context->instance, &device_count, NULL);
     if (!device_count) return MINIMAL_FAIL;
@@ -107,10 +107,10 @@ int pickPhysicalDevice(VulkanContext* context, QueueFamilyIndices* pIndices) {
     vkEnumeratePhysicalDevices(context->instance, &device_count, devices);
 
     for (uint32_t i = 0; i < device_count; ++i) {
-        QueueFamilyIndices indices = findQueueFamilies(devices[i], context->surface);
-        if (queueFamilyIndicesComplete(indices) && IsDeviceSuitable(devices[i], context->surface)) {
+        QueueFamilyIndices ind = findQueueFamilies(devices[i], context->surface);
+        if (queueFamilyIndicesComplete(ind) && isDeviceSuitable(devices[i], context->surface)) {
             context->physicalDevice = devices[i];
-            *pIndices = indices;
+            *indices = ind;
             break;
         }
     }
@@ -140,12 +140,12 @@ int createLogicalDevice(VulkanContext* context, QueueFamilyIndices indices) {
         if (!arrayCheckUnique(indexValues + i, indexValueCount - i))
             continue;
 
-        VkDeviceQueueCreateInfo queueCreateInfo = { 0 };
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = indexValues[i];
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
-        queueCreateInfos[queueCreateInfoCount++] = queueCreateInfo;
+        queueCreateInfos[queueCreateInfoCount++] = (VkDeviceQueueCreateInfo){
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .queueFamilyIndex = indexValues[i],
+            .queueCount = 1,
+            .pQueuePriorities = &queuePriority,
+        };
     }
 
     VkPhysicalDeviceFeatures deviceFeatures = { 0 };

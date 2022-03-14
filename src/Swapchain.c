@@ -1,6 +1,5 @@
 #include "Swapchain.h"
 
-#include "Device.h"
 #include "Minimal/Utils.h"
 
 
@@ -63,8 +62,7 @@ VkExtent2D getSwapChainExtent(const VkSurfaceCapabilitiesKHR* capabilities, uint
     return extent;
 }
 
-
-int createSwapChain(VulkanContext* context, const VkSurfaceCapabilitiesKHR* capabilities, VkExtent2D extent) {
+int createSwapChain(VulkanContext* context, const VkSurfaceCapabilitiesKHR* capabilities, QueueFamilyIndices indices) {
     /* choose swap chain surface format */
     VkSurfaceFormatKHR surfaceFormat;
     if (!chooseSwapSurfaceFormat(context->physicalDevice, context->surface, &surfaceFormat))
@@ -87,13 +85,11 @@ int createSwapChain(VulkanContext* context, const VkSurfaceCapabilitiesKHR* capa
     createInfo.minImageCount = imageCount;
     createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
-    createInfo.imageExtent = extent;
+    createInfo.imageExtent = context->swapChainExtent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    QueueFamilyIndices indices = findQueueFamilies(context->physicalDevice, context->surface);
     uint32_t queueFamilyIndices[] = { indices.graphicsFamily, indices.presentFamily };
-
     if (indices.graphicsFamily != indices.presentFamily) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
@@ -116,7 +112,6 @@ int createSwapChain(VulkanContext* context, const VkSurfaceCapabilitiesKHR* capa
 
     context->swapChainImageCount = imageCount;
     context->swapChainImageFormat = surfaceFormat.format;
-    context->swapChainExtent = extent;
     
     return MINIMAL_OK;
 }

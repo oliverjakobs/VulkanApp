@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-uint32_t clamp32(uint32_t val, uint32_t min, uint32_t max);
-
 typedef struct {
     VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -26,5 +24,10 @@ typedef struct {
     VkQueue graphicsQueue;
     VkQueue presentQueue;
 } VulkanContext;
+
+
+uint32_t clamp32(uint32_t val, uint32_t min, uint32_t max);
+char* readSPIRV(const char* path, size_t* sizeptr);
+
 
 #endif // !COMMON_H

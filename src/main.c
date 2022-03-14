@@ -3,6 +3,7 @@
 
 #include "Device.h"
 #include "Swapchain.h"
+#include "Pipeline.h"
 
 #include <string.h>
 
@@ -173,10 +174,9 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 
     int width, height;
     glfwGetFramebufferSize(app->window, &width, &height);
+    context.swapChainExtent = getSwapChainExtent(&capabilities, (uint32_t)width, (uint32_t)height);
 
-    VkExtent2D extent = getSwapChainExtent(&capabilities, (uint32_t)width, (uint32_t)height);
-
-    if (!createSwapChain(&context, &capabilities, extent)) {
+    if (!createSwapChain(&context, &capabilities, indices)) {
         MINIMAL_ERROR("failed to create swap chain!");
         return MINIMAL_FAIL;
     }
@@ -185,6 +185,8 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         MINIMAL_ERROR("failed to create swap chain images!");
         return MINIMAL_FAIL;
     }
+
+    createGraphicsPipeline(&context);
 
     return MINIMAL_OK;
 }
