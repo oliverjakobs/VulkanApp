@@ -7,8 +7,6 @@
 
 #include <string.h>
 
-static VulkanContext context = { 0 };
-
 const int enableValidationLayers = 1;
 
 const char* const validationLayers[] = {
@@ -90,7 +88,7 @@ void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT* create
     createInfo->pUserData = userData;
 }
 
-VkResult CreateVulkanInstance(const char* appName, const char* engine) {
+VkResult CreateVulkanInstance(VulkanContext* context, const char* appName, const char* engine) {
     if (enableValidationLayers && !checkValidationLayerSupport()) {
         MINIMAL_ERROR("validation layers requested, but not available!");
         return VK_ERROR_UNKNOWN;
@@ -126,7 +124,7 @@ VkResult CreateVulkanInstance(const char* appName, const char* engine) {
         createInfo.pNext = NULL;
     }
 
-    VkResult result = vkCreateInstance(&createInfo, NULL, &context.instance);
+    VkResult result = vkCreateInstance(&createInfo, NULL, &context->instance);
 
     free(extensions);
 
@@ -134,7 +132,7 @@ VkResult CreateVulkanInstance(const char* appName, const char* engine) {
 }
 
 int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
-    if (CreateVulkanInstance("VulkanApp", "Ignis") != VK_SUCCESS) {
+    if (CreateVulkanInstance(&app->context, "VulkanApp", "Ignis") != VK_SUCCESS) {
         MINIMAL_ERROR("Failed to create vulkan instance!");
         return MINIMAL_FAIL;
     }
@@ -143,75 +141,70 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     if (enableValidationLayers) {
         VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = { 0 };
         populateDebugMessengerCreateInfo(&debugCreateInfo, NULL);
-        if (CreateDebugUtilsMessengerEXT(context.instance, &debugCreateInfo, NULL, &context.debugMessenger) != VK_SUCCESS) {
+        if (CreateDebugUtilsMessengerEXT(app->context.instance, &debugCreateInfo, NULL, &app->context.debugMessenger) != VK_SUCCESS) {
             MINIMAL_ERROR("failed to set up debug messenger!");
             return MINIMAL_FAIL;
         }
     }
 
     /* create surface */
-    if (glfwCreateWindowSurface(context.instance, app->window, NULL, &context.surface) != VK_SUCCESS) {
+    if (glfwCreateWindowSurface(app->context.instance, app->window, NULL, &app->context.surface) != VK_SUCCESS) {
         MINIMAL_ERROR("failed to create window surface!");
         return MINIMAL_FAIL;
     }
 
     /* pick physical device */
     QueueFamilyIndices indices;
-    if (!pickPhysicalDevice(&context, &indices)) {
+    if (!pickPhysicalDevice(&app->context, &indices)) {
         MINIMAL_ERROR("failed to find a suitable GPU!");
         return MINIMAL_FAIL;
     }
 
     /* create logical device */
-    if (!createLogicalDevice(&context, indices)) {
+    if (!createLogicalDevice(&app->context, indices)) {
         MINIMAL_ERROR("failed to create logical device!");
         return MINIMAL_FAIL;
     }
 
     /* create swap chain */
-    VkSurfaceCapabilitiesKHR capabilities;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.physicalDevice, context.surface, &capabilities);
-
     int width, height;
     glfwGetFramebufferSize(app->window, &width, &height);
-    context.swapchain.extent = getSwapChainExtent(&capabilities, (uint32_t)width, (uint32_t)height);
-
-    if (!createSwapChain(&context, &capabilities, indices)) {
+    if (!createSwapChain(&app->context, (uint32_t)width, (uint32_t)height, indices)) {
         MINIMAL_ERROR("failed to create swap chain!");
         return MINIMAL_FAIL;
     }
 
-    if (!createSwapChainImages(&context)) {
+    if (!createSwapChainImages(&app->context)) {
         MINIMAL_ERROR("failed to create swap chain images!");
         return MINIMAL_FAIL;
     }
 
-    if (!createRenderPass(&context)) {
+    if (!createRenderPass(&app->context)) {
         MINIMAL_ERROR("failed to create render pass!");
         return MINIMAL_FAIL;
     }
 
-    if (!createGraphicsPipeline(&context)) {
+    if (!createGraphicsPipeline(&app->context)) {
         MINIMAL_ERROR("failed to create graphics pipeline!");
         return MINIMAL_FAIL;
     }
 
-    if (!createFramebuffers(&context)) {
+    if (!createFramebuffers(&app->context)) {
         MINIMAL_ERROR("failed to create framebuffer!");
         return MINIMAL_FAIL;
     }
 
-    if (!createCommandPool(&context, indices)) {
+    if (!createCommandPool(&app->context, indices)) {
         MINIMAL_ERROR("failed to create command pool!");
         return MINIMAL_FAIL;
     }
 
-    if (!createCommandBuffer(&context)) {
+    if (!createCommandBuffer(&app->context)) {
         MINIMAL_ERROR("failed to allocate command buffers!");
         return MINIMAL_FAIL;
     }
 
-    if (!createSyncObjects(&context)) {
+    if (!createSyncObjects(&app->context)) {
         MINIMAL_ERROR("failed to create synchronization objects for a frame!");
         return MINIMAL_FAIL;
     }
@@ -220,33 +213,21 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 }
 
 void OnDestroy(MinimalApp* app) {
+    destroySwapChain(&app->context);
 
-    vkDeviceWaitIdle(context.device);
+    destroySyncObjects(&app->context);
 
-    destroySyncObjects(&context);
-
-    vkDestroyCommandPool(context.device, context.commandPool, NULL);
-
-    destroyFramebuffers(&context);
-
-    /* destroy pipeline */
-    vkDestroyPipeline(context.device, context.graphicsPipeline, NULL);
-    vkDestroyRenderPass(context.device, context.renderPass, NULL);
-    vkDestroyPipelineLayout(context.device, context.pipelineLayout, NULL);
-
-    /* destroy swap chain */
-    destroySwapChainImages(&context);
-    vkDestroySwapchainKHR(context.device, context.swapchain.handle, NULL);
+    vkDestroyCommandPool(app->context.device, app->context.commandPool, NULL);
 
     /* destroy device */
-    vkDestroyDevice(context.device, NULL);
+    vkDestroyDevice(app->context.device, NULL);
 
     /* destroy debug messenger */
-    if (enableValidationLayers) DestroyDebugUtilsMessengerEXT(context.instance, context.debugMessenger, NULL);
+    if (enableValidationLayers) DestroyDebugUtilsMessengerEXT(app->context.instance, app->context.debugMessenger, NULL);
 
     /* destroy surface and instance */
-    vkDestroySurfaceKHR(context.instance, context.surface, NULL);
-    vkDestroyInstance(context.instance, NULL);
+    vkDestroySurfaceKHR(app->context.instance, app->context.surface, NULL);
+    vkDestroyInstance(app->context.instance, NULL);
 }
 
 int OnEvent(MinimalApp* app, const MinimalEvent* e) {
@@ -255,32 +236,41 @@ int OnEvent(MinimalApp* app, const MinimalEvent* e) {
 }
 
 void OnUpdate(MinimalApp* app, float deltatime) {
-    vkWaitForFences(context.device, 1, &context.inFlightFences[context.currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(context.device, 1, &context.inFlightFences[context.currentFrame]);
+    vkWaitForFences(app->context.device, 1, &app->context.inFlightFences[app->context.currentFrame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(context.device, context.swapchain.handle, UINT64_MAX, context.imageAvailableSemaphores[context.currentFrame], VK_NULL_HANDLE, &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(app->context.device, app->context.swapchain.handle, UINT64_MAX, app->context.imageAvailableSemaphores[app->context.currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-    vkResetCommandBuffer(context.commandBuffers[context.currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
-    recordCommandBuffer(&context, context.commandBuffers[context.currentFrame], imageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapChain(&app->context, app->window);
+        return;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        MINIMAL_ERROR("failed to acquire swap chain image!");
+        return;
+    }
+
+    vkResetFences(app->context.device, 1, &app->context.inFlightFences[app->context.currentFrame]);
+
+    vkResetCommandBuffer(app->context.commandBuffers[app->context.currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+    recordCommandBuffer(&app->context, app->context.commandBuffers[app->context.currentFrame], imageIndex);
 
     VkSubmitInfo submitInfo = { 0 };
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = { context.imageAvailableSemaphores[context.currentFrame] };
+    VkSemaphore waitSemaphores[] = { app->context.imageAvailableSemaphores[app->context.currentFrame] };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.waitSemaphoreCount = 1;
 
-    submitInfo.pCommandBuffers = &context.commandBuffers[context.currentFrame];
+    submitInfo.pCommandBuffers = &app->context.commandBuffers[app->context.currentFrame];
     submitInfo.commandBufferCount = 1;
 
-    VkSemaphore signalSemaphores[] = { context.renderFinishedSemaphores[context.currentFrame] };
+    VkSemaphore signalSemaphores[] = { app->context.renderFinishedSemaphores[app->context.currentFrame] };
     submitInfo.pSignalSemaphores = signalSemaphores;
     submitInfo.signalSemaphoreCount = 1;
 
-    if (vkQueueSubmit(context.graphicsQueue, 1, &submitInfo, context.inFlightFences[context.currentFrame]) != VK_SUCCESS) {
+    if (vkQueueSubmit(app->context.graphicsQueue, 1, &submitInfo, app->context.inFlightFences[app->context.currentFrame]) != VK_SUCCESS) {
         MINIMAL_WARN("failed to submit draw command buffer!");
     }
 
@@ -290,15 +280,22 @@ void OnUpdate(MinimalApp* app, float deltatime) {
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = signalSemaphores;
 
-    VkSwapchainKHR swapChains[] = { context.swapchain.handle };
+    VkSwapchainKHR swapChains[] = { app->context.swapchain.handle };
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
 
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(context.presentQueue, &presentInfo);
+    result = vkQueuePresentKHR(app->context.presentQueue, &presentInfo);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || app->context.framebufferResized) {
+        app->context.framebufferResized = 0;
+        recreateSwapChain(&app->context, app->window);
+    } else if (result != VK_SUCCESS) {
+        MINIMAL_ERROR("failed to present swap chain image!");
+        return;
+    }
 
-    context.currentFrame = (context.currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    app->context.currentFrame = (app->context.currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 int main() {

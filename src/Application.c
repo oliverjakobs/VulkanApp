@@ -28,13 +28,13 @@ void MinimalTimerEnd(MinimalTimer* timer, double seconds) {
 
 uint32_t MinimalGetFps(const MinimalApp* app) { return app->timer.fps; }
 
-
 /* --------------------------| minimal app |----------------------------- */
 void MinimalGLFWErrorCallback(int error, const char* desc) {
     MINIMAL_ERROR("[GLFW] (%d) %s", error, desc);
 }
 
 void MinimalGLFWWindowSizeCallback(GLFWwindow* window, int width, int height);
+void MinimalGLFWFramebufferSizeCallbak(GLFWwindow* window, int width, int height);
 
 void MinimalGLFWKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void MinimalGLFWCharCallback(GLFWwindow* window, unsigned int keycode);
@@ -46,7 +46,6 @@ static int MinimalInitGlfw(MinimalApp* app, const char* title, uint32_t w, uint3
     if (!glfwInit()) return MINIMAL_FAIL;
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     glfwSetErrorCallback(MinimalGLFWErrorCallback);
 
@@ -54,16 +53,16 @@ static int MinimalInitGlfw(MinimalApp* app, const char* title, uint32_t w, uint3
     app->window = glfwCreateWindow(w, h, title, NULL, NULL);
     if (!app->window) return MINIMAL_FAIL;
 
-    glfwMakeContextCurrent(app->window);
     glfwSetWindowUserPointer(app->window, app);
 
     /* set GLFW callbacks */
-    glfwSetWindowSizeCallback(app->window,  MinimalGLFWWindowSizeCallback);
-    glfwSetKeyCallback(app->window,         MinimalGLFWKeyCallback);
-    glfwSetCharCallback(app->window,        MinimalGLFWCharCallback);
-    glfwSetMouseButtonCallback(app->window, MinimalGLFWMouseButtonCallback);
-    glfwSetCursorPosCallback(app->window,   MinimalGLFWCursorPosCallback);
-    glfwSetScrollCallback(app->window,      MinimalGLFWScrollCallback);
+    glfwSetWindowSizeCallback(app->window,      MinimalGLFWWindowSizeCallback);
+    glfwSetFramebufferSizeCallback(app->window, MinimalGLFWFramebufferSizeCallbak);
+    glfwSetKeyCallback(app->window,             MinimalGLFWKeyCallback);
+    glfwSetCharCallback(app->window,            MinimalGLFWCharCallback);
+    glfwSetMouseButtonCallback(app->window,     MinimalGLFWMouseButtonCallback);
+    glfwSetCursorPosCallback(app->window,       MinimalGLFWCursorPosCallback);
+    glfwSetScrollCallback(app->window,          MinimalGLFWScrollCallback);
 
     return MINIMAL_OK;
 }
@@ -104,6 +103,8 @@ void MinimalRun(MinimalApp* app) {
 
         MinimalTimerEnd(&app->timer, glfwGetTime());
     }
+
+    vkDeviceWaitIdle(app->context.device);
 }
 
 void MinimalClose(MinimalApp* app) { glfwSetWindowShouldClose(app->window, GLFW_TRUE); }
@@ -215,6 +216,11 @@ float MinimalCursorY() {
 void MinimalGLFWWindowSizeCallback(GLFWwindow* window, int width, int height) {
     MinimalApp* app = (MinimalApp*)glfwGetWindowUserPointer(window);
     if (app) MinimalDispatchEvent(app, MINIMAL_EVENT_WINDOW_SIZE, 0, width, height);
+}
+
+void MinimalGLFWFramebufferSizeCallbak(GLFWwindow* window, int width, int height) {
+    MinimalApp* app = (MinimalApp*)glfwGetWindowUserPointer(window);
+    if (app) app->context.framebufferResized = 1;
 }
 
 void MinimalGLFWKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {

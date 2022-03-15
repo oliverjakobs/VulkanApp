@@ -1,5 +1,7 @@
 #include "Swapchain.h"
 
+#include "Pipeline.h"
+
 static int chooseSwapSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR surface, VkSurfaceFormatKHR* format) {
     uint32_t count;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, NULL);
@@ -46,7 +48,7 @@ static int chooseSwapPresentMode(VkPhysicalDevice device, VkSurfaceKHR surface, 
     return MINIMAL_OK;
 }
 
-VkExtent2D getSwapChainExtent(const VkSurfaceCapabilitiesKHR* capabilities, uint32_t w, uint32_t h) {
+static VkExtent2D getSwapChainExtent(const VkSurfaceCapabilitiesKHR* capabilities, uint32_t w, uint32_t h) {
     if (capabilities->currentExtent.width != UINT32_MAX)
         return capabilities->currentExtent;
 
@@ -58,20 +60,28 @@ VkExtent2D getSwapChainExtent(const VkSurfaceCapabilitiesKHR* capabilities, uint
     return extent;
 }
 
-int createSwapChain(VulkanContext* context, const VkSurfaceCapabilitiesKHR* capabilities, QueueFamilyIndices indices) {
+int createSwapChain(VulkanContext* context, uint32_t width, uint32_t height, QueueFamilyIndices indices) {
+    VkSurfaceCapabilitiesKHR capabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->physicalDevice, context->surface, &capabilities);
+    context->swapchain.extent = getSwapChainExtent(&capabilities, width, height);
+
     /* choose swap chain surface format */
     VkSurfaceFormatKHR surfaceFormat;
-    if (!chooseSwapSurfaceFormat(context->physicalDevice, context->surface, &surfaceFormat))
+    if (!chooseSwapSurfaceFormat(context->physicalDevice, context->surface, &surfaceFormat)) {
+        MINIMAL_ERROR("failed to choose swap chain surface format!");
         return MINIMAL_FAIL;
+    }
 
     /* choose swap chain presentation mode */
     VkPresentModeKHR presentMode;
-    if (!chooseSwapPresentMode(context->physicalDevice, context->surface, &presentMode))
+    if (!chooseSwapPresentMode(context->physicalDevice, context->surface, &presentMode)) {
+        MINIMAL_ERROR("failed to choose swap chain presentation mode!");
         return MINIMAL_FAIL;
+    }
 
-    uint32_t imageCount = capabilities->minImageCount + 1;
-    if (capabilities->maxImageCount > 0 && imageCount > capabilities->maxImageCount) {
-        imageCount = capabilities->maxImageCount;
+    uint32_t imageCount = capabilities.minImageCount + 1;
+    if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount) {
+        imageCount = capabilities.maxImageCount;
     }
 
     VkSwapchainCreateInfoKHR createInfo = {
@@ -96,20 +106,91 @@ int createSwapChain(VulkanContext* context, const VkSurfaceCapabilitiesKHR* capa
         createInfo.pQueueFamilyIndices = NULL; // Optional
     }
 
-    createInfo.preTransform = capabilities->currentTransform;
+    createInfo.preTransform = capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
 
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(context->device, &createInfo, NULL, &context->swapchain.handle) != VK_SUCCESS)
+    if (vkCreateSwapchainKHR(context->device, &createInfo, NULL, &context->swapchain.handle) != VK_SUCCESS) {
+        MINIMAL_ERROR("failed to create swap chain!");
         return MINIMAL_FAIL;
+    }
 
     context->swapchain.count = imageCount;
     context->swapchain.format = surfaceFormat.format;
     
     return MINIMAL_OK;
+}
+
+int recreateSwapChain(VulkanContext* context, GLFWwindow* window) {
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(context->device);
+
+    destroySwapChain(context);
+
+    QueueFamilyIndices indices = findQueueFamilies(context->physicalDevice, context->surface);
+    if (!createSwapChain(context, (uint32_t)width, (uint32_t)height, indices)) {
+        MINIMAL_ERROR("failed to create swap chain!");
+        return MINIMAL_FAIL;
+    }
+
+    if (!createSwapChainImages(context)) {
+        MINIMAL_ERROR("failed to create swap chain images!");
+        return MINIMAL_FAIL;
+    }
+
+    if (!createRenderPass(context)) {
+        MINIMAL_ERROR("failed to create render pass!");
+        return MINIMAL_FAIL;
+    }
+
+    if (!createGraphicsPipeline(context)) {
+        MINIMAL_ERROR("failed to create graphics pipeline!");
+        return MINIMAL_FAIL;
+    }
+
+    if (!createFramebuffers(context)) {
+        MINIMAL_ERROR("failed to create framebuffer!");
+        return MINIMAL_FAIL;
+    }
+
+    return MINIMAL_OK;
+}
+
+void destroySwapChain(VulkanContext* context) {
+    /* destroy framebuffers */
+    if (context->swapchain.framebuffers) {
+        for (size_t i = 0; i < context->swapchain.count; ++i) {
+            vkDestroyFramebuffer(context->device, context->swapchain.framebuffers[i], NULL);
+        }
+        free(context->swapchain.framebuffers);
+    }
+
+    /* destroy pipeline */
+    vkDestroyPipeline(context->device, context->graphicsPipeline, NULL);
+    vkDestroyRenderPass(context->device, context->renderPass, NULL);
+    vkDestroyPipelineLayout(context->device, context->pipelineLayout, NULL);
+
+    /* destroy images */
+    if (context->swapchain.images) free(context->swapchain.images);
+
+    if (context->swapchain.views) {
+        for (size_t i = 0; i < context->swapchain.count; ++i) {
+            vkDestroyImageView(context->device, context->swapchain.views[i], NULL);
+        }
+        free(context->swapchain.views);
+    }
+
+    /* destroy handle */
+    vkDestroySwapchainKHR(context->device, context->swapchain.handle, NULL);
 }
 
 int createSwapChainImages(VulkanContext* context) {
@@ -146,17 +227,6 @@ int createSwapChainImages(VulkanContext* context) {
     return MINIMAL_OK;
 }
 
-void destroySwapChainImages(VulkanContext* context) {
-    if (context->swapchain.images) free(context->swapchain.images);
-
-    if (context->swapchain.views) {
-        for (size_t i = 0; i < context->swapchain.count; ++i) {
-            vkDestroyImageView(context->device, context->swapchain.views[i], NULL);
-        }
-        free(context->swapchain.views);
-    }
-}
-
 int createFramebuffers(VulkanContext* context) {
     if (!context->swapchain.count) return MINIMAL_FAIL;
 
@@ -183,13 +253,4 @@ int createFramebuffers(VulkanContext* context) {
     }
 
     return MINIMAL_OK;
-}
-
-void destroyFramebuffers(VulkanContext* context) {
-    if (context->swapchain.framebuffers) {
-        for (size_t i = 0; i < context->swapchain.count; ++i) {
-            vkDestroyFramebuffer(context->device, context->swapchain.framebuffers[i], NULL);
-        }
-        free(context->swapchain.framebuffers);
-    }
 }

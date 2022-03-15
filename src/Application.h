@@ -31,6 +31,7 @@ typedef void (*MinimalUpdateCB)  (MinimalApp* app, float deltatime);
 
 struct MinimalApp {
     GLFWwindow* window;
+    VulkanContext context;
 
     MinimalLoadCB    on_load;
     MinimalDestroyCB on_destroy;
