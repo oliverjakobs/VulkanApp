@@ -1,8 +1,5 @@
 #include "Swapchain.h"
 
-#include "Minimal/Utils.h"
-
-
 static int chooseSwapSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR surface, VkSurfaceFormatKHR* format) {
     uint32_t count;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, NULL);
@@ -16,8 +13,7 @@ static int chooseSwapSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR surface
     *format = formats[0];
 
     for (uint32_t i = 0; i < count; ++i) {
-        if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB
-            && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+        if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
             *format = formats[i];
             break;
         }
@@ -78,16 +74,16 @@ int createSwapChain(VulkanContext* context, const VkSurfaceCapabilitiesKHR* capa
         imageCount = capabilities->maxImageCount;
     }
 
-    VkSwapchainCreateInfoKHR createInfo = { 0 };
-    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = context->surface;
-
-    createInfo.minImageCount = imageCount;
-    createInfo.imageFormat = surfaceFormat.format;
-    createInfo.imageColorSpace = surfaceFormat.colorSpace;
-    createInfo.imageExtent = context->swapChainExtent;
-    createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    VkSwapchainCreateInfoKHR createInfo = {
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .surface = context->surface,
+        .minImageCount = imageCount,
+        .imageFormat = surfaceFormat.format,
+        .imageColorSpace = surfaceFormat.colorSpace,
+        .imageExtent = context->swapchain.extent,
+        .imageArrayLayers = 1,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+    };
 
     uint32_t queueFamilyIndices[] = { indices.graphicsFamily, indices.presentFamily };
     if (indices.graphicsFamily != indices.presentFamily) {
@@ -107,53 +103,93 @@ int createSwapChain(VulkanContext* context, const VkSurfaceCapabilitiesKHR* capa
 
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(context->device, &createInfo, NULL, &context->swapChain) != VK_SUCCESS)
+    if (vkCreateSwapchainKHR(context->device, &createInfo, NULL, &context->swapchain.handle) != VK_SUCCESS)
         return MINIMAL_FAIL;
 
-    context->swapChainImageCount = imageCount;
-    context->swapChainImageFormat = surfaceFormat.format;
+    context->swapchain.count = imageCount;
+    context->swapchain.format = surfaceFormat.format;
     
     return MINIMAL_OK;
 }
 
 int createSwapChainImages(VulkanContext* context) {
-    if (!context->swapChainImageCount) return MINIMAL_FAIL;
+    if (!context->swapchain.count) return MINIMAL_FAIL;
 
-    context->swapChainImages = malloc(context->swapChainImageCount * sizeof(VkImage));
-    context->swapChainViews = malloc(context->swapChainImageCount * sizeof(VkImageView));
-    if (!context->swapChainImages || !context->swapChainViews) return MINIMAL_FAIL;
+    context->swapchain.images = malloc(context->swapchain.count * sizeof(VkImage));
+    if (!context->swapchain.images) return MINIMAL_FAIL;
 
-    vkGetSwapchainImagesKHR(context->device, context->swapChain, &context->swapChainImageCount, context->swapChainImages);
+    vkGetSwapchainImagesKHR(context->device, context->swapchain.handle, &context->swapchain.count, context->swapchain.images);
 
-    for (size_t i = 0; i < context->swapChainImageCount; ++i) {
-        VkImageViewCreateInfo createInfo = { 0 };
-        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image = context->swapChainImages[i];
-        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format = context->swapChainImageFormat;
-        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        createInfo.subresourceRange.baseMipLevel = 0;
-        createInfo.subresourceRange.levelCount = 1;
-        createInfo.subresourceRange.baseArrayLayer = 0;
-        createInfo.subresourceRange.layerCount = 1;
+    context->swapchain.views = malloc(context->swapchain.count * sizeof(VkImageView));
+    if (!context->swapchain.views) return MINIMAL_FAIL;
 
-        if (vkCreateImageView(context->device, &createInfo, NULL, &context->swapChainViews[i]) != VK_SUCCESS)
+    for (size_t i = 0; i < context->swapchain.count; ++i) {
+        VkImageViewCreateInfo createInfo = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = context->swapchain.images[i],
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = context->swapchain.format,
+            .components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .components.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .subresourceRange.baseMipLevel = 0,
+            .subresourceRange.levelCount = 1,
+            .subresourceRange.baseArrayLayer = 0,
+            .subresourceRange.layerCount = 1
+        };
+
+        if (vkCreateImageView(context->device, &createInfo, NULL, &context->swapchain.views[i]) != VK_SUCCESS)
             return MINIMAL_FAIL;
     }
     return MINIMAL_OK;
 }
 
 void destroySwapChainImages(VulkanContext* context) {
-    if (context->swapChainImages) free(context->swapChainImages);
+    if (context->swapchain.images) free(context->swapchain.images);
 
-    if (context->swapChainViews) {
-        for (size_t i = 0; i < context->swapChainImageCount; ++i) {
-            vkDestroyImageView(context->device, context->swapChainViews[i], NULL);
+    if (context->swapchain.views) {
+        for (size_t i = 0; i < context->swapchain.count; ++i) {
+            vkDestroyImageView(context->device, context->swapchain.views[i], NULL);
         }
-        free(context->swapChainViews);
+        free(context->swapchain.views);
+    }
+}
+
+int createFramebuffers(VulkanContext* context) {
+    if (!context->swapchain.count) return MINIMAL_FAIL;
+
+    context->swapchain.framebuffers = malloc(context->swapchain.count * sizeof(VkFramebuffer));
+    if (!context->swapchain.framebuffers) return MINIMAL_FAIL;
+
+    for (size_t i = 0; i < context->swapchain.count; ++i) {
+        VkImageView attachments[] = {
+            context->swapchain.views[i]
+        };
+
+        VkFramebufferCreateInfo info = {
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = context->renderPass,
+            .pAttachments = attachments,
+            .attachmentCount = 1,
+            .width = context->swapchain.extent.width,
+            .height = context->swapchain.extent.height,
+            .layers = 1
+        };
+
+        if (vkCreateFramebuffer(context->device, &info, NULL, &context->swapchain.framebuffers[i]) != VK_SUCCESS)
+            return MINIMAL_FAIL;
+    }
+
+    return MINIMAL_OK;
+}
+
+void destroyFramebuffers(VulkanContext* context) {
+    if (context->swapchain.framebuffers) {
+        for (size_t i = 0; i < context->swapchain.count; ++i) {
+            vkDestroyFramebuffer(context->device, context->swapchain.framebuffers[i], NULL);
+        }
+        free(context->swapchain.framebuffers);
     }
 }

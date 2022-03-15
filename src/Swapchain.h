@@ -11,4 +11,7 @@ int createSwapChain(VulkanContext* context, const VkSurfaceCapabilitiesKHR* capa
 int createSwapChainImages(VulkanContext* context);
 void destroySwapChainImages(VulkanContext* context);
 
+int createFramebuffers(VulkanContext* context);
+void destroyFramebuffers(VulkanContext* context);
+
 #endif // !SWAPCHAIN_H

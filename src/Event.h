@@ -1,7 +1,7 @@
 #ifndef MINIMAL_EVENT_H
 #define MINIMAL_EVENT_H
 
-#include "Utils.h"
+#include "common.h"
 
 #define MINIMAL_EVENT_UNKOWN            0
 

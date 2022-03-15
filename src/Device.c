@@ -1,6 +1,5 @@
 #include "device.h"
 
-#include "Minimal/Utils.h"
 #include <string.h>
 
 const char* const deviceExtensions[] = {
@@ -61,24 +60,18 @@ static int checkDeviceExtensionSupport(VkPhysicalDevice device) {
 
     vkEnumerateDeviceExtensionProperties(device, NULL, &extensionCount, availableExtensions);
 
-    int extensionFound = 0;
-    for (size_t i = 0; i < deviceExtensionCount; ++i)
-    {
-        extensionFound = 0;
+    for (size_t i = 0; i < deviceExtensionCount; ++i) {
         const char* name = deviceExtensions[i];
-
         for (size_t available = 0; available < extensionCount; ++available) {
             if (strcmp(name, availableExtensions[available].extensionName) == 0) {
-                extensionFound = 1;
-                break;
+                free(availableExtensions);
+                return 1;
             }
         }
-
-        if (!extensionFound) break;
     }
 
     free(availableExtensions);
-    return extensionFound;
+    return 0;
 }
 
 static int querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
@@ -116,7 +109,7 @@ int pickPhysicalDevice(VulkanContext* context, QueueFamilyIndices* indices) {
     }
 
     free(devices);
-    return MINIMAL_OK;
+    return context->physicalDevice != VK_NULL_HANDLE;
 }
 
 #define IGNIS_MAX_QUEUE_COUNT 2
@@ -150,16 +143,14 @@ int createLogicalDevice(VulkanContext* context, QueueFamilyIndices indices) {
 
     VkPhysicalDeviceFeatures deviceFeatures = { 0 };
 
-    VkDeviceCreateInfo createInfo = { 0 };
-    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
-    createInfo.pQueueCreateInfos = queueCreateInfos;
-    createInfo.queueCreateInfoCount = queueCreateInfoCount;
-
-    createInfo.pEnabledFeatures = &deviceFeatures;
-
-    createInfo.ppEnabledExtensionNames = deviceExtensions;
-    createInfo.enabledExtensionCount = deviceExtensionCount;
+    VkDeviceCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pQueueCreateInfos = queueCreateInfos,
+        .queueCreateInfoCount = queueCreateInfoCount,
+        .pEnabledFeatures = &deviceFeatures,
+        .ppEnabledExtensionNames = deviceExtensions,
+        .enabledExtensionCount = deviceExtensionCount
+    };
 
     if (vkCreateDevice(context->physicalDevice, &createInfo, NULL, &context->device) != VK_SUCCESS)
         return MINIMAL_FAIL;

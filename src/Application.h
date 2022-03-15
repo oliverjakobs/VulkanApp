@@ -1,11 +1,26 @@
 #ifndef MINIMAL_APPLICATION_H
 #define MINIMAL_APPLICATION_H
 
-#include <GLFW/glfw3.h>
+#include "common.h"
 
-#include "Utils.h"
-#include "Input.h"
 #include "Event.h"
+
+/* --------------------------| timer |----------------------------------- */
+typedef struct {
+    uint32_t frames;
+    uint32_t fps;
+
+    double seconds;
+    double deltatime;
+    double lastframe;
+} MinimalTimer;
+
+void MinimalTimerReset(MinimalTimer* timer);
+
+void MinimalTimerStart(MinimalTimer* timer, double seconds);
+void MinimalTimerEnd(MinimalTimer* timer, double seconds);
+
+uint32_t MinimalGetFps(const MinimalApp* app);
 
 /* --------------------------| minimal app |----------------------------- */
 typedef int  (*MinimalLoadCB)    (MinimalApp* app, uint32_t w, uint32_t h);
@@ -43,5 +58,30 @@ void MinimalEnableVsync(MinimalApp* app, int b);
 
 void MinimalToggleDebug(MinimalApp* app);
 void MinimalToggleVsync(MinimalApp* app);
+
+/* --------------------------| input |----------------------------------- */
+/* define types for key and mouse button */
+typedef int8_t MouseButton;
+typedef int16_t Key;
+
+void MinimalUpdateInput(GLFWwindow* context);
+
+int MinimalKeyPressed(Key keycode);
+int MinimalKeyReleased(Key keycode);
+
+int MinimalKeyHit(Key keycode);
+int MinimalKeyDown(Key keycode);
+int MinimalKeyUp(Key keycode);
+
+int MinimalMousePressed(MouseButton button);
+int MinimalMouseReleased(MouseButton button);
+
+int MinimalMouseHit(MouseButton button);
+int MinimalMouseDown(MouseButton button);
+int MinimalMouseUp(MouseButton button);
+
+void MinimalCursorPos(float* x, float* y);
+float MinimalCursorX();
+float MinimalCursorY();
 
 #endif // !MINIMAL_APPLICATION_H
