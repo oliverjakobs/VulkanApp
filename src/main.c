@@ -4,6 +4,7 @@
 #include "Swapchain.h"
 #include "Pipeline.h"
 #include "Frame.h"
+#include "Buffer.h"
 
 #include <string.h>
 
@@ -14,6 +15,16 @@ const char* const validationLayers[] = {
 };
 
 const uint32_t validationLayerCount = sizeof(validationLayers) / sizeof(validationLayers[0]);
+
+Buffer vertexBuffer;
+
+const Vertex vertices[] = {
+    { {  0.0f, -0.5f }, { 1.0f, 1.0f, 1.0f } },
+    { {  0.5f,  0.5f }, { 0.0f, 1.0f, 0.0f } },
+    { { -0.5f,  0.5f }, { 0.0f, 0.0f, 1.0f } }
+};
+
+uint32_t vertexCount = sizeof(vertices) / sizeof(vertices[0]);
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data) {
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
@@ -199,6 +210,11 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
+    if (!createVertexBuffer(&app->context, &vertexBuffer, vertices, vertexCount)) {
+        MINIMAL_ERROR("failed to create vertex buffer!");
+        return MINIMAL_FAIL;
+    }
+
     if (!createCommandBuffer(&app->context)) {
         MINIMAL_ERROR("failed to allocate command buffers!");
         return MINIMAL_FAIL;
@@ -214,6 +230,8 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 
 void OnDestroy(MinimalApp* app) {
     destroySwapChain(&app->context);
+
+    destroyBuffer(&app->context, &vertexBuffer);
 
     destroySyncObjects(&app->context);
 
@@ -252,7 +270,8 @@ void OnUpdate(MinimalApp* app, float deltatime) {
     vkResetFences(app->context.device, 1, &app->context.inFlightFences[app->context.currentFrame]);
 
     vkResetCommandBuffer(app->context.commandBuffers[app->context.currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
-    recordCommandBuffer(&app->context, app->context.commandBuffers[app->context.currentFrame], imageIndex);
+
+    recordCommandBuffer(&app->context, app->context.commandBuffers[app->context.currentFrame], &vertexBuffer, imageIndex);
 
     VkSubmitInfo submitInfo = { 0 };
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

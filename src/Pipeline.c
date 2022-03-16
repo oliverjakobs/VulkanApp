@@ -1,5 +1,7 @@
 #include "Pipeline.h"
 
+#include "Buffer.h"
+
 int createRenderPass(VulkanContext* context) {
     VkAttachmentDescription colorAttachment = {
         .format = context->swapchain.format,
@@ -87,12 +89,18 @@ int createGraphicsPipeline(VulkanContext* context) {
     shaderStages[1].module = frag;
     shaderStages[1].pName = "main";
 
+    uint32_t vertexBindingDescCount = 0;
+    VkVertexInputBindingDescription* vertexBindingDescs = getVertexBindingDescriptions(&vertexBindingDescCount);
+
+    uint32_t vertexAttributeDescCount = 0;
+    VkVertexInputAttributeDescription* vertexAttributeDescs = getVertexAttributeDescriptions(&vertexAttributeDescCount);
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 0,
-        .pVertexBindingDescriptions = NULL, // Optional
-        .vertexAttributeDescriptionCount = 0,
-        .pVertexAttributeDescriptions = NULL // Optional
+        .pVertexBindingDescriptions = vertexBindingDescs,
+        .vertexBindingDescriptionCount = vertexBindingDescCount,
+        .pVertexAttributeDescriptions = vertexAttributeDescs,
+        .vertexAttributeDescriptionCount = vertexAttributeDescCount
     };
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {

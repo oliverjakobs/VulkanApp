@@ -62,7 +62,7 @@ void destroySyncObjects(VulkanContext* context) {
     }
 }
 
-void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer, uint32_t imageIndex) {
+void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer, const Buffer* vertexBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
     };
@@ -82,13 +82,17 @@ void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer
         .framebuffer = context->swapchain.framebuffers[imageIndex],
         .renderArea.offset = { 0, 0 },
         .renderArea.extent = context->swapchain.extent,
-        .clearValueCount = 1,
         .pClearValues = &clearValue,
+        .clearValueCount = 1,
     };
 
     vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphicsPipeline);
+
+    VkBuffer vertexBuffers[] = { vertexBuffer->handle };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vertexBuffers, offsets);
 
     vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
 
