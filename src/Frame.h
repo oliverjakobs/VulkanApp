@@ -4,7 +4,7 @@
 #include "common.h"
 #include "Device.h"
 
-int createCommandPool(VulkanContext* context, QueueFamilyIndices indices);
+int createCommandPool(VulkanContext* context);
 int createCommandBuffer(VulkanContext* context);
 
 int createSyncObjects(VulkanContext* context);

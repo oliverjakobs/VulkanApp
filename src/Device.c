@@ -89,7 +89,7 @@ static int isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
     return querySwapChainSupport(device, surface);
 }
 
-int pickPhysicalDevice(VulkanContext* context, QueueFamilyIndices* indices) {
+int pickPhysicalDevice(VulkanContext* context) {
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(context->instance, &device_count, NULL);
     if (!device_count) return MINIMAL_FAIL;
@@ -100,10 +100,10 @@ int pickPhysicalDevice(VulkanContext* context, QueueFamilyIndices* indices) {
     vkEnumeratePhysicalDevices(context->instance, &device_count, devices);
 
     for (uint32_t i = 0; i < device_count; ++i) {
-        QueueFamilyIndices ind = findQueueFamilies(devices[i], context->surface);
-        if (queueFamilyIndicesComplete(ind) && isDeviceSuitable(devices[i], context->surface)) {
+        QueueFamilyIndices indices = findQueueFamilies(devices[i], context->surface);
+        if (queueFamilyIndicesComplete(indices) && isDeviceSuitable(devices[i], context->surface)) {
             context->physicalDevice = devices[i];
-            *indices = ind;
+            context->indices = indices;
             break;
         }
     }
@@ -121,11 +121,11 @@ static int arrayCheckUnique(uint32_t arr[], uint32_t size) {
     return 1;
 }
 
-int createLogicalDevice(VulkanContext* context, QueueFamilyIndices indices) {
+int createLogicalDevice(VulkanContext* context) {
     uint32_t queueCreateInfoCount = 0;
     VkDeviceQueueCreateInfo queueCreateInfos[IGNIS_MAX_QUEUE_COUNT] = { 0 };
 
-    uint32_t indexValues[] = { indices.graphicsFamily, indices.presentFamily };
+    uint32_t indexValues[] = { context->indices.graphicsFamily, context->indices.presentFamily };
     uint32_t indexValueCount = sizeof(indexValues) / sizeof(indexValues[0]);
 
     float queuePriority = 1.0f;
@@ -156,8 +156,8 @@ int createLogicalDevice(VulkanContext* context, QueueFamilyIndices indices) {
         return MINIMAL_FAIL;
 
     /* get queues */
-    vkGetDeviceQueue(context->device, indices.graphicsFamily, 0, &context->graphicsQueue);
-    vkGetDeviceQueue(context->device, indices.presentFamily, 0, &context->presentQueue);
+    vkGetDeviceQueue(context->device, context->indices.graphicsFamily, 0, &context->graphicsQueue);
+    vkGetDeviceQueue(context->device, context->indices.presentFamily, 0, &context->presentQueue);
 
     return MINIMAL_OK;
 }

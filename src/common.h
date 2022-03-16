@@ -80,11 +80,19 @@ void MinimalLoggerPrintV(FILE* const stream, MinimalLogLevel level, const char* 
 #define MAX_FRAMES_IN_FLIGHT 2
 
 typedef struct {
+    uint32_t familiesSet;
+    uint32_t graphicsFamily;
+    uint32_t presentFamily;
+} QueueFamilyIndices;
+
+typedef struct {
     VkInstance instance;
     VkSurfaceKHR surface;
 
     VkPhysicalDevice physicalDevice;
+    QueueFamilyIndices indices;
     VkDevice device;
+
     VkQueue graphicsQueue;
     VkQueue presentQueue;
 

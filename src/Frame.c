@@ -1,11 +1,11 @@
 #include "Frame.h"
 
 
-int createCommandPool(VulkanContext* context, QueueFamilyIndices indices) {
+int createCommandPool(VulkanContext* context) {
     VkCommandPoolCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = indices.graphicsFamily
+        .queueFamilyIndex = context->indices.graphicsFamily
     };
 
     if (vkCreateCommandPool(context->device, &info, NULL, &context->commandPool) != VK_SUCCESS)

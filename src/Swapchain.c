@@ -60,7 +60,7 @@ static VkExtent2D getSwapChainExtent(const VkSurfaceCapabilitiesKHR* capabilitie
     return extent;
 }
 
-int createSwapChain(VulkanContext* context, uint32_t width, uint32_t height, QueueFamilyIndices indices) {
+int createSwapChain(VulkanContext* context, uint32_t width, uint32_t height) {
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->physicalDevice, context->surface, &capabilities);
     context->swapchain.extent = getSwapChainExtent(&capabilities, width, height);
@@ -95,8 +95,8 @@ int createSwapChain(VulkanContext* context, uint32_t width, uint32_t height, Que
         .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
     };
 
-    uint32_t queueFamilyIndices[] = { indices.graphicsFamily, indices.presentFamily };
-    if (indices.graphicsFamily != indices.presentFamily) {
+    uint32_t queueFamilyIndices[] = { context->indices.graphicsFamily, context->indices.presentFamily };
+    if (context->indices.graphicsFamily != context->indices.presentFamily) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -136,9 +136,8 @@ int recreateSwapChain(VulkanContext* context, GLFWwindow* window) {
 
     destroySwapChain(context);
 
-    QueueFamilyIndices indices = findQueueFamilies(context->physicalDevice, context->surface);
-    if (!createSwapChain(context, (uint32_t)width, (uint32_t)height, indices)) {
-        MINIMAL_ERROR("failed to create swap chain!");
+    if (!createSwapChain(context, (uint32_t)width, (uint32_t)height)) {
+        MINIMAL_ERROR("failed to recreate swap chain!");
         return MINIMAL_FAIL;
     }
 

@@ -154,14 +154,13 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     }
 
     /* pick physical device */
-    QueueFamilyIndices indices;
-    if (!pickPhysicalDevice(&app->context, &indices)) {
+    if (!pickPhysicalDevice(&app->context)) {
         MINIMAL_ERROR("failed to find a suitable GPU!");
         return MINIMAL_FAIL;
     }
 
     /* create logical device */
-    if (!createLogicalDevice(&app->context, indices)) {
+    if (!createLogicalDevice(&app->context)) {
         MINIMAL_ERROR("failed to create logical device!");
         return MINIMAL_FAIL;
     }
@@ -169,7 +168,8 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     /* create swap chain */
     int width, height;
     glfwGetFramebufferSize(app->window, &width, &height);
-    if (!createSwapChain(&app->context, (uint32_t)width, (uint32_t)height, indices)) {
+
+    if (!createSwapChain(&app->context, (uint32_t)width, (uint32_t)height)) {
         MINIMAL_ERROR("failed to create swap chain!");
         return MINIMAL_FAIL;
     }
@@ -194,7 +194,7 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
-    if (!createCommandPool(&app->context, indices)) {
+    if (!createCommandPool(&app->context)) {
         MINIMAL_ERROR("failed to create command pool!");
         return MINIMAL_FAIL;
     }

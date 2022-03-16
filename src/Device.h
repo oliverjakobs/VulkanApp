@@ -3,17 +3,11 @@
 
 #include "common.h"
 
-typedef struct {
-    uint32_t familiesSet;
-    uint32_t graphicsFamily;
-    uint32_t presentFamily;
-} QueueFamilyIndices;
-
 int queueFamilyIndicesComplete(QueueFamilyIndices indices);
 QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
 
-int pickPhysicalDevice(VulkanContext* context, QueueFamilyIndices* indices);
+int pickPhysicalDevice(VulkanContext* context);
 
-int createLogicalDevice(VulkanContext* context, QueueFamilyIndices indices);
+int createLogicalDevice(VulkanContext* context);
 
 #endif // !IGNIS_DEVICE_H
