@@ -17,14 +17,22 @@ const char* const validationLayers[] = {
 const uint32_t validationLayerCount = sizeof(validationLayers) / sizeof(validationLayers[0]);
 
 Buffer vertexBuffer;
+Buffer indexBuffer;
 
 const Vertex vertices[] = {
-    { {  0.0f, -0.5f }, { 1.0f, 1.0f, 1.0f } },
-    { {  0.5f,  0.5f }, { 0.0f, 1.0f, 0.0f } },
-    { { -0.5f,  0.5f }, { 0.0f, 0.0f, 1.0f } }
+    { { -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f } },
+    { {  0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f } },
+    { {  0.5f,  0.5f }, { 0.0f, 0.0f, 1.0f } },
+    { { -0.5f,  0.5f }, { 1.0f, 1.0f, 1.0f } }
 };
 
 uint32_t vertexCount = sizeof(vertices) / sizeof(vertices[0]);
+
+const uint16_t indices[] = {
+    0, 1, 2, 2, 3, 0
+};
+
+uint32_t indexCount = sizeof(indices) / sizeof(indices[0]);
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data) {
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
@@ -215,6 +223,11 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
+    if (!createIndexBuffer(&app->context, &indexBuffer, indices, indexCount)) {
+        MINIMAL_ERROR("failed to create index buffer!");
+        return MINIMAL_FAIL;
+    }
+
     if (!createCommandBuffer(&app->context)) {
         MINIMAL_ERROR("failed to allocate command buffers!");
         return MINIMAL_FAIL;
@@ -232,6 +245,7 @@ void OnDestroy(MinimalApp* app) {
     destroySwapChain(&app->context);
 
     destroyBuffer(&app->context, &vertexBuffer);
+    destroyBuffer(&app->context, &indexBuffer);
 
     destroySyncObjects(&app->context);
 
@@ -271,7 +285,7 @@ void OnUpdate(MinimalApp* app, float deltatime) {
 
     vkResetCommandBuffer(app->context.commandBuffers[app->context.currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
 
-    recordCommandBuffer(&app->context, app->context.commandBuffers[app->context.currentFrame], &vertexBuffer, imageIndex);
+    recordCommandBuffer(&app->context, app->context.commandBuffers[app->context.currentFrame], &vertexBuffer, &indexBuffer, imageIndex);
 
     VkSubmitInfo submitInfo = { 0 };
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

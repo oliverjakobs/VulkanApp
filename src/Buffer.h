@@ -16,7 +16,8 @@ typedef struct {
     VkDeviceMemory memory;
 } Buffer;
 
-int createVertexBuffer(const VulkanContext* context, Buffer* buffer, const Vertex* vertecies, uint32_t count);
+int createVertexBuffer(const VulkanContext* context, Buffer* buffer, const Vertex* vertices, uint32_t count);
+int createIndexBuffer(const VulkanContext* context, Buffer* buffer, const uint16_t* indices, uint32_t count);
 
 void destroyBuffer(const VulkanContext* context, Buffer* buffer);
 

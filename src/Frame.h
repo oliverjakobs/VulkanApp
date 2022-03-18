@@ -11,6 +11,6 @@ int createCommandBuffer(VulkanContext* context);
 int createSyncObjects(VulkanContext* context);
 void destroySyncObjects(VulkanContext* context);
 
-void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer, const Buffer* vertexBuffer, uint32_t imageIndex);
+void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer, const Buffer* vertexBuffer, const Buffer* indexBuffer, uint32_t imageIndex);
 
 #endif // !FRAME_H

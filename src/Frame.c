@@ -62,7 +62,7 @@ void destroySyncObjects(VulkanContext* context) {
     }
 }
 
-void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer, const Buffer* vertexBuffer, uint32_t imageIndex) {
+void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer, const Buffer* vertexBuffer, const Buffer* indexBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
     };
@@ -94,7 +94,9 @@ void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vertexBuffers, offsets);
 
-    vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+    vkCmdBindIndexBuffer(cmdBuffer, indexBuffer->handle, 0, VK_INDEX_TYPE_UINT16);
+
+    vkCmdDrawIndexed(cmdBuffer, 6, 1, 0, 0, 0);
 
     vkCmdEndRenderPass(cmdBuffer);
 
