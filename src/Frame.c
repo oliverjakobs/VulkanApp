@@ -62,7 +62,7 @@ void destroySyncObjects(VulkanContext* context) {
     }
 }
 
-void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer, const Buffer* vertexBuffer, const Buffer* indexBuffer, uint32_t imageIndex) {
+void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer, const Pipeline* pipeline, const Buffer* vertexBuffer, const Buffer* indexBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
     };
@@ -78,7 +78,7 @@ void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer
 
     VkRenderPassBeginInfo renderPassInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .renderPass = context->renderPass,
+        .renderPass = context->swapchain.renderPass,
         .framebuffer = context->swapchain.framebuffers[imageIndex],
         .renderArea.offset = { 0, 0 },
         .renderArea.extent = context->swapchain.extent,
@@ -88,7 +88,7 @@ void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer
 
     vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphicsPipeline);
+    vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->handle);
 
     VkBuffer vertexBuffers[] = { vertexBuffer->handle };
     VkDeviceSize offsets[] = { 0 };

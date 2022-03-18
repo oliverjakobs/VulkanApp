@@ -2,49 +2,11 @@
 
 #include "Buffer.h"
 
-int createRenderPass(VulkanContext* context) {
-    VkAttachmentDescription colorAttachment = {
-        .format = context->swapchain.format,
-        .samples = VK_SAMPLE_COUNT_1_BIT, 
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-    };
-
-    VkAttachmentReference colorAttachmentRef = {
-        .attachment = 0,
-        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-    };
-
-    VkSubpassDescription subpass = {
-        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-        .pColorAttachments = &colorAttachmentRef,
-        .colorAttachmentCount = 1
-    };
-
-    VkRenderPassCreateInfo renderPassInfo = {
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .pAttachments = &colorAttachment,
-        .attachmentCount = 1,
-        .pSubpasses = &subpass,
-        .subpassCount = 1
-    };
-
-    if (vkCreateRenderPass(context->device, &renderPassInfo, NULL, &context->renderPass) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
-    }
-
-    return MINIMAL_OK;
-}
-
-VkShaderModule createShaderModule(VulkanContext* context, const char* path) {
+static VkShaderModule createShaderModule(VulkanContext* context, VkShaderModule* module, const char* path) {
     size_t size = 0;
     char* code = readSPIRV(path, &size);
 
-    if (!code) return VK_NULL_HANDLE;
+    if (!code) return MINIMAL_FAIL;
 
     VkShaderModuleCreateInfo info = { 
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -52,43 +14,67 @@ VkShaderModule createShaderModule(VulkanContext* context, const char* path) {
         .pCode = (const uint32_t*)code
     };
 
-    VkShaderModule shaderModule;
-    VkResult result = vkCreateShaderModule(context->device, &info, NULL, &shaderModule);
+    VkResult result = vkCreateShaderModule(context->device, &info, NULL, module);
 
     free(code);
 
     if (result != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to create shader module for %s", path);
-        return VK_NULL_HANDLE;
-    }
-
-    return shaderModule;
-}
-
-int createGraphicsPipeline(VulkanContext* context) {
-    VkShaderModule vert = createShaderModule(context, "res/shader/vert.spv");
-    VkShaderModule frag = createShaderModule(context, "res/shader/frag.spv");
-
-    if (vert == VK_NULL_HANDLE || frag == VK_NULL_HANDLE) {
-        vkDestroyShaderModule(context->device, frag, NULL);
-        vkDestroyShaderModule(context->device, vert, NULL);
         return MINIMAL_FAIL;
     }
 
-    VkPipelineShaderStageCreateInfo shaderStages[2] = { 0 };
+    return MINIMAL_OK;
+}
 
-    /* vertex shader */
-    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shaderStages[0].module = vert;
-    shaderStages[0].pName = "main";
+int pipelineCreateShaderStages(const VulkanContext* context, Pipeline* pipeline, const char* vertPath, const char* fragPath) {
+    VkShaderModule vert;
+    if (!createShaderModule(context, &vert, vertPath)) {
+        MINIMAL_ERROR("failed to create shader module for %s", vertPath);
+        return MINIMAL_FAIL;
+    }
 
-    /* fragment shader */
-    shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shaderStages[1].module = frag;
-    shaderStages[1].pName = "main";
+    VkShaderModule frag;
+    if (!createShaderModule(context, &frag, fragPath)) {
+        MINIMAL_ERROR("failed to create shader module for %s", fragPath);
+        return MINIMAL_FAIL;
+    }
 
+    pipeline->shaderStages[SHADER_VERT] = (VkPipelineShaderStageCreateInfo){
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_VERTEX_BIT,
+        .module = vert,
+        .pName = "main"
+    };
+
+    pipeline->shaderStages[SHADER_FRAG] = (VkPipelineShaderStageCreateInfo){
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .module = frag,
+        .pName = "main"
+    };
+
+    return MINIMAL_OK;
+}
+
+void pipelineDestroyShaderStages(const VulkanContext* context, Pipeline* pipeline) {
+    for (size_t i = 0; i < SHADER_COUNT; ++i) {
+        vkDestroyShaderModule(context->device, pipeline->shaderStages[i].module, NULL);
+    }
+}
+
+int pipelineCreate(const VulkanContext* context, Pipeline* pipeline) {
+    /* create pipeline layout */
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 0,
+        .pushConstantRangeCount = 0
+    };
+
+    if (vkCreatePipelineLayout(context->device, &pipelineLayoutInfo, NULL, &pipeline->layout) != VK_SUCCESS) {
+        MINIMAL_ERROR("Failed to create pipeline layout!");
+        return MINIMAL_FAIL;
+    }
+
+    /* create pipeline */
     uint32_t vertexBindingDescCount = 0;
     VkVertexInputBindingDescription* vertexBindingDescs = getVertexBindingDescriptions(&vertexBindingDescCount);
 
@@ -171,38 +157,41 @@ int createGraphicsPipeline(VulkanContext* context) {
         .blendConstants[3] = 0.0f
     };
 
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 0,
-        .pushConstantRangeCount = 0
-    };
-
-    if (vkCreatePipelineLayout(context->device, &pipelineLayoutInfo, NULL, &context->pipelineLayout) != VK_SUCCESS) {
-        vkDestroyShaderModule(context->device, vert, NULL);
-        vkDestroyShaderModule(context->device, frag, NULL);
-        return MINIMAL_FAIL;
-    }
-
-    VkGraphicsPipelineCreateInfo pipelineInfo = {
+    VkGraphicsPipelineCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        .pStages = shaderStages,
-        .stageCount = 2,
+        .pStages = pipeline->shaderStages,
+        .stageCount = SHADER_COUNT,
         .pVertexInputState = &vertexInputInfo,
         .pInputAssemblyState = &inputAssembly,
         .pViewportState = &viewportState,
         .pRasterizationState = &rasterizer,
         .pMultisampleState = &multisampling,
         .pColorBlendState = &colorBlending,
-        .layout = context->pipelineLayout,
-        .renderPass = context->renderPass,
+        .layout = pipeline->layout,
+        .renderPass = context->swapchain.renderPass,
         .subpass = 0,
         .basePipelineHandle = VK_NULL_HANDLE
     };
 
-    VkResult result = vkCreateGraphicsPipelines(context->device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &context->graphicsPipeline);
+    if (vkCreateGraphicsPipelines(context->device, VK_NULL_HANDLE, 1, &info, NULL, &pipeline->handle) != VK_SUCCESS) {
+        return MINIMAL_FAIL;
+    }
 
-    vkDestroyShaderModule(context->device, vert, NULL);
-    vkDestroyShaderModule(context->device, frag, NULL);
+    return MINIMAL_OK;
+}
 
-    return result == VK_SUCCESS;
+int pipelineRecreate(const VulkanContext* context, Pipeline* pipeline) {
+    pipelineDestroy(context, pipeline);
+
+    if (!pipelineCreate(context, pipeline)) {
+        MINIMAL_ERROR("failed to recreate pipeline!");
+        return MINIMAL_FAIL;
+    }
+
+    return MINIMAL_OK;
+}
+
+void pipelineDestroy(const VulkanContext* context, Pipeline* pipeline) {
+    vkDestroyPipeline(context->device, pipeline->handle, NULL);
+    vkDestroyPipelineLayout(context->device, pipeline->layout, NULL);
 }

@@ -107,12 +107,8 @@ typedef struct {
         uint32_t count;
         VkFormat format;
         VkExtent2D extent;
+        VkRenderPass renderPass;
     } swapchain;
-
-    /* pipeline */
-    VkRenderPass renderPass;
-    VkPipelineLayout pipelineLayout;
-    VkPipeline graphicsPipeline;
 
     /* frames */
     VkCommandPool commandPool;

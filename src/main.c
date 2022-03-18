@@ -34,6 +34,8 @@ const uint16_t indices[] = {
 
 uint32_t indexCount = sizeof(indices) / sizeof(indices[0]);
 
+Pipeline pipeline;
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data) {
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
         MINIMAL_ERROR("validation layer: %s", callback_data->pMessage);
@@ -203,7 +205,12 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
-    if (!createGraphicsPipeline(&app->context)) {
+    if (!pipelineCreateShaderStages(&app->context, &pipeline, "res/shader/vert.spv", "res/shader/frag.spv")) {
+        MINIMAL_ERROR("failed to create shader stages!");
+        return MINIMAL_FAIL;
+    }
+
+    if (!pipelineCreate(&app->context, &pipeline)) {
         MINIMAL_ERROR("failed to create graphics pipeline!");
         return MINIMAL_FAIL;
     }
@@ -244,6 +251,9 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 void OnDestroy(MinimalApp* app) {
     destroySwapChain(&app->context);
 
+    pipelineDestroyShaderStages(&app->context, &pipeline);
+    pipelineDestroy(&app->context, &pipeline);
+
     destroyBuffer(&app->context, &vertexBuffer);
     destroyBuffer(&app->context, &indexBuffer);
 
@@ -275,6 +285,7 @@ void OnUpdate(MinimalApp* app, float deltatime) {
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         recreateSwapChain(&app->context, app->window);
+        pipelineRecreate(&app->context, &pipeline);
         return;
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         MINIMAL_ERROR("failed to acquire swap chain image!");
@@ -285,7 +296,7 @@ void OnUpdate(MinimalApp* app, float deltatime) {
 
     vkResetCommandBuffer(app->context.commandBuffers[app->context.currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
 
-    recordCommandBuffer(&app->context, app->context.commandBuffers[app->context.currentFrame], &vertexBuffer, &indexBuffer, imageIndex);
+    recordCommandBuffer(&app->context, app->context.commandBuffers[app->context.currentFrame], &pipeline, &vertexBuffer, &indexBuffer, imageIndex);
 
     VkSubmitInfo submitInfo = { 0 };
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -323,6 +334,7 @@ void OnUpdate(MinimalApp* app, float deltatime) {
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || app->context.framebufferResized) {
         app->context.framebufferResized = 0;
         recreateSwapChain(&app->context, app->window);
+        pipelineRecreate(&app->context, &pipeline);
     } else if (result != VK_SUCCESS) {
         MINIMAL_ERROR("failed to present swap chain image!");
         return;

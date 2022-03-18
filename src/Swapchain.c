@@ -142,22 +142,17 @@ int recreateSwapChain(VulkanContext* context, GLFWwindow* window) {
     }
 
     if (!createSwapChainImages(context)) {
-        MINIMAL_ERROR("failed to create swap chain images!");
+        MINIMAL_ERROR("failed to recreate swap chain images!");
         return MINIMAL_FAIL;
     }
 
     if (!createRenderPass(context)) {
-        MINIMAL_ERROR("failed to create render pass!");
-        return MINIMAL_FAIL;
-    }
-
-    if (!createGraphicsPipeline(context)) {
-        MINIMAL_ERROR("failed to create graphics pipeline!");
+        MINIMAL_ERROR("failed to recreate render pass!");
         return MINIMAL_FAIL;
     }
 
     if (!createFramebuffers(context)) {
-        MINIMAL_ERROR("failed to create framebuffer!");
+        MINIMAL_ERROR("failed to recreate framebuffer!");
         return MINIMAL_FAIL;
     }
 
@@ -173,10 +168,8 @@ void destroySwapChain(VulkanContext* context) {
         free(context->swapchain.framebuffers);
     }
 
-    /* destroy pipeline */
-    vkDestroyPipeline(context->device, context->graphicsPipeline, NULL);
-    vkDestroyRenderPass(context->device, context->renderPass, NULL);
-    vkDestroyPipelineLayout(context->device, context->pipelineLayout, NULL);
+    /* destroy render pass */
+    vkDestroyRenderPass(context->device, context->swapchain.renderPass, NULL);
 
     /* destroy images */
     if (context->swapchain.images) free(context->swapchain.images);
@@ -190,6 +183,44 @@ void destroySwapChain(VulkanContext* context) {
 
     /* destroy handle */
     vkDestroySwapchainKHR(context->device, context->swapchain.handle, NULL);
+}
+
+int createRenderPass(VulkanContext* context) {
+    VkAttachmentDescription colorAttachment = {
+        .format = context->swapchain.format,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    };
+
+    VkAttachmentReference colorAttachmentRef = {
+        .attachment = 0,
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    };
+
+    VkSubpassDescription subpass = {
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .pColorAttachments = &colorAttachmentRef,
+        .colorAttachmentCount = 1
+    };
+
+    VkRenderPassCreateInfo renderPassInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .pAttachments = &colorAttachment,
+        .attachmentCount = 1,
+        .pSubpasses = &subpass,
+        .subpassCount = 1
+    };
+
+    if (vkCreateRenderPass(context->device, &renderPassInfo, NULL, &context->swapchain.renderPass) != VK_SUCCESS) {
+        return MINIMAL_FAIL;
+    }
+
+    return MINIMAL_OK;
 }
 
 int createSwapChainImages(VulkanContext* context) {
@@ -239,7 +270,7 @@ int createFramebuffers(VulkanContext* context) {
 
         VkFramebufferCreateInfo info = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .renderPass = context->renderPass,
+            .renderPass = context->swapchain.renderPass,
             .pAttachments = attachments,
             .attachmentCount = 1,
             .width = context->swapchain.extent.width,
