@@ -278,6 +278,7 @@ int OnEvent(MinimalApp* app, const MinimalEvent* e) {
 }
 
 void OnUpdate(MinimalApp* app, float deltatime) {
+    /* acquire swap chain image */
     vkWaitForFences(app->context.device, 1, &app->context.inFlightFences[app->context.currentFrame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
@@ -294,10 +295,25 @@ void OnUpdate(MinimalApp* app, float deltatime) {
 
     vkResetFences(app->context.device, 1, &app->context.inFlightFences[app->context.currentFrame]);
 
-    vkResetCommandBuffer(app->context.commandBuffers[app->context.currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+    /* start frame */
+    VkCommandBuffer cmdBuffer = app->context.commandBuffers[app->context.currentFrame];
+    commandBufferStart(cmdBuffer, &app->context.swapchain, imageIndex);
 
-    recordCommandBuffer(&app->context, app->context.commandBuffers[app->context.currentFrame], &pipeline, &vertexBuffer, &indexBuffer, imageIndex);
+    /* actual rendering */
+    vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
 
+    VkBuffer vertexBuffers[] = { vertexBuffer.handle };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(cmdBuffer, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT16);
+
+    vkCmdDrawIndexed(cmdBuffer, indexCount, 1, 0, 0, 0);
+
+    /* end frame */
+    commandBufferEnd(cmdBuffer);
+
+    /* submit frame */
     VkSubmitInfo submitInfo = { 0 };
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -307,7 +323,7 @@ void OnUpdate(MinimalApp* app, float deltatime) {
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.waitSemaphoreCount = 1;
 
-    submitInfo.pCommandBuffers = &app->context.commandBuffers[app->context.currentFrame];
+    submitInfo.pCommandBuffers = &cmdBuffer;
     submitInfo.commandBufferCount = 1;
 
     VkSemaphore signalSemaphores[] = { app->context.renderFinishedSemaphores[app->context.currentFrame] };
@@ -318,6 +334,7 @@ void OnUpdate(MinimalApp* app, float deltatime) {
         MINIMAL_WARN("failed to submit draw command buffer!");
     }
 
+    /* present frame */
     VkPresentInfoKHR presentInfo = { 0 };
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -340,6 +357,7 @@ void OnUpdate(MinimalApp* app, float deltatime) {
         return;
     }
 
+    /* next frame */
     app->context.currentFrame = (app->context.currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 

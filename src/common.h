@@ -86,6 +86,17 @@ typedef struct {
 } QueueFamilyIndices;
 
 typedef struct {
+    VkSwapchainKHR handle;
+    VkImage* images;
+    VkImageView* views;
+    VkFramebuffer* framebuffers;
+    uint32_t count;
+    VkFormat format;
+    VkExtent2D extent;
+    VkRenderPass renderPass;
+} Swapchain;
+
+typedef struct {
     VkInstance instance;
     VkSurfaceKHR surface;
 
@@ -98,17 +109,7 @@ typedef struct {
 
     VkDebugUtilsMessengerEXT debugMessenger;
 
-    /* swapchain */
-    struct {
-        VkSwapchainKHR handle;
-        VkImage* images;
-        VkImageView* views;
-        VkFramebuffer* framebuffers;
-        uint32_t count;
-        VkFormat format;
-        VkExtent2D extent;
-        VkRenderPass renderPass;
-    } swapchain;
+    Swapchain swapchain;
 
     /* frames */
     VkCommandPool commandPool;
@@ -124,7 +125,7 @@ typedef struct {
 
 /* --------------------------| utils |----------------------------------- */
 uint32_t clamp32(uint32_t val, uint32_t min, uint32_t max);
-char* readSPIRV(const char* path, size_t* sizeptr);
+char* readFile(const char* path, size_t* sizeptr);
 
 
 #endif // !COMMON_H

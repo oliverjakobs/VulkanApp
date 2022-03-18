@@ -67,7 +67,7 @@ uint32_t clamp32(uint32_t val, uint32_t min, uint32_t max) {
     return t > max ? max : t;
 }
 
-char* readSPIRV(const char* path, size_t* sizeptr) {
+char* readFile(const char* path, size_t* sizeptr) {
     FILE* file = fopen(path, "rb");
     if (!file) {
         MINIMAL_ERROR("Failed to open file: %s", path);
@@ -79,7 +79,7 @@ char* readSPIRV(const char* path, size_t* sizeptr) {
     size_t size = ftell(file);
     rewind(file);
 
-    char* buffer = malloc(size);
+    char* buffer = malloc(size + 1);
     if (!buffer) {
         MINIMAL_ERROR("Failed to allocate memory for file: %s", path);
         fclose(file);
@@ -93,6 +93,7 @@ char* readSPIRV(const char* path, size_t* sizeptr) {
         return NULL;
     }
 
+    buffer[size] = '\0'; /* zero terminate buffer */
     if (sizeptr) *sizeptr = size;
 
     fclose(file);

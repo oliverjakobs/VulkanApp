@@ -2,9 +2,6 @@
 #define FRAME_H
 
 #include "common.h"
-#include "Device.h"
-#include "Buffer.h"
-#include "Pipeline.h"
 
 int createCommandPool(VulkanContext* context);
 int createCommandBuffer(VulkanContext* context);
@@ -12,6 +9,7 @@ int createCommandBuffer(VulkanContext* context);
 int createSyncObjects(VulkanContext* context);
 void destroySyncObjects(VulkanContext* context);
 
-void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer, const Pipeline* pipeline, const Buffer* vertexBuffer, const Buffer* indexBuffer, uint32_t imageIndex);
+void commandBufferStart(VkCommandBuffer cmdBuffer, const Swapchain* swapchain, uint32_t imageIndex);
+void commandBufferEnd(VkCommandBuffer cmdBuffer);
 
 #endif // !FRAME_H

@@ -62,7 +62,9 @@ void destroySyncObjects(VulkanContext* context) {
     }
 }
 
-void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer, const Pipeline* pipeline, const Buffer* vertexBuffer, const Buffer* indexBuffer, uint32_t imageIndex) {
+void commandBufferStart(VkCommandBuffer cmdBuffer, const Swapchain* swapchain, uint32_t imageIndex) {
+    vkResetCommandBuffer(cmdBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
     };
@@ -72,34 +74,25 @@ void recordCommandBuffer(const VulkanContext* context, VkCommandBuffer cmdBuffer
         return;
     }
 
-    VkClearValue clearValue = { 
-        .color = {{0.0f, 0.0f, 0.0f, 1.0f}} 
+    VkClearValue clearValue = {
+        .color = {{0.0f, 0.0f, 0.0f, 1.0f}}
     };
 
     VkRenderPassBeginInfo renderPassInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .renderPass = context->swapchain.renderPass,
-        .framebuffer = context->swapchain.framebuffers[imageIndex],
+        .renderPass = swapchain->renderPass,
+        .framebuffer = swapchain->framebuffers[imageIndex],
         .renderArea.offset = { 0, 0 },
-        .renderArea.extent = context->swapchain.extent,
+        .renderArea.extent = swapchain->extent,
         .pClearValues = &clearValue,
         .clearValueCount = 1,
     };
 
     vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+}
 
-    vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->handle);
-
-    VkBuffer vertexBuffers[] = { vertexBuffer->handle };
-    VkDeviceSize offsets[] = { 0 };
-    vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vertexBuffers, offsets);
-
-    vkCmdBindIndexBuffer(cmdBuffer, indexBuffer->handle, 0, VK_INDEX_TYPE_UINT16);
-
-    vkCmdDrawIndexed(cmdBuffer, 6, 1, 0, 0, 0);
-
+void commandBufferEnd(VkCommandBuffer cmdBuffer) {
     vkCmdEndRenderPass(cmdBuffer);
-
     if (vkEndCommandBuffer(cmdBuffer) != VK_SUCCESS) {
         MINIMAL_WARN("failed to record command buffer!");
     }

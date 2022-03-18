@@ -2,38 +2,42 @@
 
 #include "Buffer.h"
 
-static VkShaderModule createShaderModule(VulkanContext* context, VkShaderModule* module, const char* path) {
-    size_t size = 0;
-    char* code = readSPIRV(path, &size);
-
-    if (!code) return MINIMAL_FAIL;
-
+static int createShaderModuleSrc(const VulkanContext* context, VkShaderModule* module, const uint32_t* code, size_t size) {
     VkShaderModuleCreateInfo info = { 
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .codeSize = size,
         .pCode = (const uint32_t*)code
     };
 
-    VkResult result = vkCreateShaderModule(context->device, &info, NULL, module);
-
-    free(code);
-
-    if (result != VK_SUCCESS) {
+    if (vkCreateShaderModule(context->device, &info, NULL, module) != VK_SUCCESS) {
         return MINIMAL_FAIL;
     }
 
     return MINIMAL_OK;
 }
 
+static int createShaderModuleSPIRV(const VulkanContext* context, VkShaderModule* module, const char* path) {
+    size_t size = 0;
+    char* code = readFile(path, &size);
+
+    if (!code) return MINIMAL_FAIL;
+
+    int result = createShaderModuleSrc(context, module, (const uint32_t*)code, size);
+
+    free(code);
+
+    return result;
+}
+
 int pipelineCreateShaderStages(const VulkanContext* context, Pipeline* pipeline, const char* vertPath, const char* fragPath) {
     VkShaderModule vert;
-    if (!createShaderModule(context, &vert, vertPath)) {
+    if (!createShaderModuleSPIRV(context, &vert, vertPath)) {
         MINIMAL_ERROR("failed to create shader module for %s", vertPath);
         return MINIMAL_FAIL;
     }
 
     VkShaderModule frag;
-    if (!createShaderModule(context, &frag, fragPath)) {
+    if (!createShaderModuleSPIRV(context, &frag, fragPath)) {
         MINIMAL_ERROR("failed to create shader module for %s", fragPath);
         return MINIMAL_FAIL;
     }
