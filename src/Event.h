@@ -7,6 +7,7 @@
 
 /* window events*/
 #define MINIMAL_EVENT_WINDOW_SIZE       1
+#define MINIMAL_EVENT_FRAMEBUFFER_SIZE  2
 
 /* key events */
 #define MINIMAL_EVENT_KEY               10

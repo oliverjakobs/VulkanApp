@@ -19,13 +19,10 @@ static int createShaderModuleSrc(const VulkanContext* context, VkShaderModule* m
 static int createShaderModuleSPIRV(const VulkanContext* context, VkShaderModule* module, const char* path) {
     size_t size = 0;
     char* code = readFile(path, &size);
-
     if (!code) return MINIMAL_FAIL;
 
     int result = createShaderModuleSrc(context, module, (const uint32_t*)code, size);
-
     free(code);
-
     return result;
 }
 

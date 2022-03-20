@@ -6,15 +6,7 @@
 #include "Frame.h"
 #include "Buffer.h"
 
-#include <string.h>
-
-const int enableValidationLayers = 1;
-
-const char* const validationLayers[] = {
-    "VK_LAYER_KHRONOS_validation"
-};
-
-const uint32_t validationLayerCount = sizeof(validationLayers) / sizeof(validationLayers[0]);
+const int debug = 1;
 
 Buffer vertexBuffer;
 Buffer indexBuffer;
@@ -28,149 +20,14 @@ const Vertex vertices[] = {
 
 uint32_t vertexCount = sizeof(vertices) / sizeof(vertices[0]);
 
-const uint16_t indices[] = {
-    0, 1, 2, 2, 3, 0
-};
-
+const uint16_t indices[] = { 0, 1, 2, 2, 3, 0 };
 uint32_t indexCount = sizeof(indices) / sizeof(indices[0]);
 
 Pipeline pipeline;
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data) {
-    if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-        MINIMAL_ERROR("validation layer: %s", callback_data->pMessage);
-    return VK_FALSE;
-}
-
-VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* info, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* messenger) {
-    PFN_vkCreateDebugUtilsMessengerEXT func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    return func ? func(instance, info, allocator, messenger) : VK_ERROR_EXTENSION_NOT_PRESENT;
-}
-
-void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* allocator) {
-    PFN_vkDestroyDebugUtilsMessengerEXT func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func) func(instance, messenger, allocator);
-}
-
-char** getRequiredExtensions(uint32_t* count) {
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-    if (!glfwExtensionCount) return NULL;
-
-    char** extensions = malloc(sizeof(char*) * ((size_t)glfwExtensionCount + 1));
-    if (!extensions) return NULL;
-
-    memcpy(extensions, glfwExtensions, sizeof(char*) * glfwExtensionCount);
-
-    if (enableValidationLayers) extensions[glfwExtensionCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
-
-    *count = glfwExtensionCount;
-    return extensions;
-}
-
-int checkValidationLayerSupport() {
-    uint32_t layerCount;
-    vkEnumerateInstanceLayerProperties(&layerCount, NULL);
-    if (!layerCount) return 0;
-
-    VkLayerProperties* availableLayers = malloc(sizeof(VkLayerProperties) * layerCount);
-    if (!availableLayers) return 0;
-
-    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers);
-
-    int layerFound = 0;
-    for (size_t i = 0; i < validationLayerCount; ++i) {
-        layerFound = 0;
-        const char* name = validationLayers[i];
-
-        for (size_t available = 0; available < layerCount; ++available) {
-            if (strcmp(name, availableLayers[available].layerName) == 0) {
-                layerFound = 1;
-                break;
-            }
-        }
-
-        if (!layerFound) break;
-    }
-
-    free(availableLayers);
-    return layerFound;
-}
-
-void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT* createInfo, void* userData) {
-    createInfo->sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo->messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-        | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-        | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    createInfo->messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-        | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-        | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo->pfnUserCallback = debugCallback;
-    createInfo->pUserData = userData;
-}
-
-VkResult CreateVulkanInstance(VulkanContext* context, const char* appName, const char* engine) {
-    if (enableValidationLayers && !checkValidationLayerSupport()) {
-        MINIMAL_ERROR("validation layers requested, but not available!");
-        return VK_ERROR_UNKNOWN;
-    }
-
-    VkApplicationInfo appInfo = {
-        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .pApplicationName = appName,
-        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-        .pEngineName = engine,
-        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = VK_API_VERSION_1_0
-    };
-
-    uint32_t extension_count = 0;
-    char** extensions = getRequiredExtensions(&extension_count);
-
-    VkInstanceCreateInfo createInfo = {
-        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .pApplicationInfo = &appInfo,
-        .ppEnabledExtensionNames = extensions,
-        .enabledExtensionCount = extension_count
-    };
-
-    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = { 0 };
-    populateDebugMessengerCreateInfo(&debugCreateInfo, NULL);
-    if (enableValidationLayers) {
-        createInfo.enabledLayerCount = validationLayerCount;
-        createInfo.ppEnabledLayerNames = validationLayers;
-        createInfo.pNext = &debugCreateInfo;
-    } else {
-        createInfo.enabledLayerCount = 0;
-        createInfo.pNext = NULL;
-    }
-
-    VkResult result = vkCreateInstance(&createInfo, NULL, &context->instance);
-
-    free(extensions);
-
-    return result;
-}
-
 int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
-    if (CreateVulkanInstance(&app->context, "VulkanApp", "Ignis") != VK_SUCCESS) {
+    if (!createInstance(&app->context, app->window, "VulkanApp", "Ignis", debug)) {
         MINIMAL_ERROR("Failed to create vulkan instance!");
-        return MINIMAL_FAIL;
-    }
-
-    /* setup debug messenger */
-    if (enableValidationLayers) {
-        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = { 0 };
-        populateDebugMessengerCreateInfo(&debugCreateInfo, NULL);
-        if (CreateDebugUtilsMessengerEXT(app->context.instance, &debugCreateInfo, NULL, &app->context.debugMessenger) != VK_SUCCESS) {
-            MINIMAL_ERROR("failed to set up debug messenger!");
-            return MINIMAL_FAIL;
-        }
-    }
-
-    /* create surface */
-    if (glfwCreateWindowSurface(app->context.instance, app->window, NULL, &app->context.surface) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to create window surface!");
         return MINIMAL_FAIL;
     }
 
@@ -264,12 +121,7 @@ void OnDestroy(MinimalApp* app) {
     /* destroy device */
     vkDestroyDevice(app->context.device, NULL);
 
-    /* destroy debug messenger */
-    if (enableValidationLayers) DestroyDebugUtilsMessengerEXT(app->context.instance, app->context.debugMessenger, NULL);
-
-    /* destroy surface and instance */
-    vkDestroySurfaceKHR(app->context.instance, app->context.surface, NULL);
-    vkDestroyInstance(app->context.instance, NULL);
+    destroyInstance(&app->context);
 }
 
 int OnEvent(MinimalApp* app, const MinimalEvent* e) {

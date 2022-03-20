@@ -2,6 +2,7 @@
 #define PIPELINE_H
 
 #include "common.h"
+#include "Core.h"
 
 typedef enum {
     SHADER_VERT = 0,

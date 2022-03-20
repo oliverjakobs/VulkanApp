@@ -61,7 +61,6 @@ typedef enum {
 void MinimalLoggerPrint(FILE* const stream, MinimalLogLevel level, const char* fmt, ...);
 void MinimalLoggerPrintV(FILE* const stream, MinimalLogLevel level, const char* fmt, va_list args);
 
-
 /* --------------------------| assert |---------------------------------- */
 #ifndef MINIMAL_DISABLE_ASSERT
 
@@ -74,54 +73,6 @@ void MinimalLoggerPrintV(FILE* const stream, MinimalLogLevel level, const char* 
 #define MINIMAL_ASSERT(expr, msg) 
 
 #endif
-
-/* --------------------------| vulkan |---------------------------------- */
-
-#define MAX_FRAMES_IN_FLIGHT 2
-
-typedef struct {
-    uint32_t familiesSet;
-    uint32_t graphicsFamily;
-    uint32_t presentFamily;
-} QueueFamilyIndices;
-
-typedef struct {
-    VkSwapchainKHR handle;
-    VkImage* images;
-    VkImageView* views;
-    VkFramebuffer* framebuffers;
-    uint32_t count;
-    VkFormat format;
-    VkExtent2D extent;
-    VkRenderPass renderPass;
-} Swapchain;
-
-typedef struct {
-    VkInstance instance;
-    VkSurfaceKHR surface;
-
-    VkPhysicalDevice physicalDevice;
-    QueueFamilyIndices indices;
-    VkDevice device;
-
-    VkQueue graphicsQueue;
-    VkQueue presentQueue;
-
-    VkDebugUtilsMessengerEXT debugMessenger;
-
-    Swapchain swapchain;
-
-    /* frames */
-    VkCommandPool commandPool;
-    VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT];
-    VkSemaphore imageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT];
-    VkSemaphore renderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
-    VkFence inFlightFences[MAX_FRAMES_IN_FLIGHT];
-    uint32_t currentFrame;
-
-    int framebufferResized;
-} VulkanContext;
-
 
 /* --------------------------| utils |----------------------------------- */
 uint32_t clamp32(uint32_t val, uint32_t min, uint32_t max);

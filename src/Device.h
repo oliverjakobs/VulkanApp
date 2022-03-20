@@ -2,6 +2,7 @@
 #define DEVICE_H
 
 #include "common.h"
+#include "Core.h"
 
 int queueFamilyIndicesComplete(QueueFamilyIndices indices);
 QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);

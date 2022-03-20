@@ -2,6 +2,7 @@
 #define BUFFER_H
 
 #include "common.h"
+#include "Core.h"
 
 typedef struct {
     float pos[2];

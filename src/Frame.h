@@ -2,6 +2,7 @@
 #define FRAME_H
 
 #include "common.h"
+#include "Core.h"
 
 int createCommandPool(VulkanContext* context);
 int createCommandBuffer(VulkanContext* context);
