@@ -26,7 +26,7 @@ static int createShaderModuleSPIRV(const VulkanContext* context, VkShaderModule*
     return result;
 }
 
-int pipelineCreateShaderStages(const VulkanContext* context, Pipeline* pipeline, const char* vertPath, const char* fragPath) {
+int createShaderStages(const VulkanContext* context, Pipeline* pipeline, const char* vertPath, const char* fragPath) {
     VkShaderModule vert;
     if (!createShaderModuleSPIRV(context, &vert, vertPath)) {
         MINIMAL_ERROR("failed to create shader module for %s", vertPath);
@@ -56,13 +56,13 @@ int pipelineCreateShaderStages(const VulkanContext* context, Pipeline* pipeline,
     return MINIMAL_OK;
 }
 
-void pipelineDestroyShaderStages(const VulkanContext* context, Pipeline* pipeline) {
+void destroyShaderStages(const VulkanContext* context, Pipeline* pipeline) {
     for (size_t i = 0; i < SHADER_COUNT; ++i) {
         vkDestroyShaderModule(context->device, pipeline->shaderStages[i].module, NULL);
     }
 }
 
-int pipelineCreate(const VulkanContext* context, Pipeline* pipeline) {
+int createPipeline(const VulkanContext* context, Pipeline* pipeline) {
     /* create pipeline layout */
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -181,10 +181,10 @@ int pipelineCreate(const VulkanContext* context, Pipeline* pipeline) {
     return MINIMAL_OK;
 }
 
-int pipelineRecreate(const VulkanContext* context, Pipeline* pipeline) {
-    pipelineDestroy(context, pipeline);
+int recreatePipeline(const VulkanContext* context, Pipeline* pipeline) {
+    destroyPipeline(context, pipeline);
 
-    if (!pipelineCreate(context, pipeline)) {
+    if (!createPipeline(context, pipeline)) {
         MINIMAL_ERROR("failed to recreate pipeline!");
         return MINIMAL_FAIL;
     }
@@ -192,7 +192,7 @@ int pipelineRecreate(const VulkanContext* context, Pipeline* pipeline) {
     return MINIMAL_OK;
 }
 
-void pipelineDestroy(const VulkanContext* context, Pipeline* pipeline) {
+void destroyPipeline(const VulkanContext* context, Pipeline* pipeline) {
     vkDestroyPipeline(context->device, pipeline->handle, NULL);
     vkDestroyPipelineLayout(context->device, pipeline->layout, NULL);
 }

@@ -47,33 +47,29 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     int width, height;
     glfwGetFramebufferSize(app->window, &width, &height);
 
-    if (!createSwapChain(&app->context, (uint32_t)width, (uint32_t)height)) {
+    if (!createSwapchain(&app->context, &app->context.swapchain, (uint32_t)width, (uint32_t)height)) {
         MINIMAL_ERROR("failed to create swap chain!");
         return MINIMAL_FAIL;
     }
 
-    if (!createSwapChainImages(&app->context)) {
-        MINIMAL_ERROR("failed to create swap chain images!");
-        return MINIMAL_FAIL;
-    }
-
-    if (!createRenderPass(&app->context)) {
+    if (!createRenderPass(&app->context, &app->context.swapchain)) {
         MINIMAL_ERROR("failed to create render pass!");
         return MINIMAL_FAIL;
     }
 
-    if (!pipelineCreateShaderStages(&app->context, &pipeline, "res/shader/vert.spv", "res/shader/frag.spv")) {
+    if (!createFramebuffers(&app->context, &app->context.swapchain)) {
+        MINIMAL_ERROR("failed to create framebuffer!");
+        return MINIMAL_FAIL;
+    }
+
+    /* create pipeline */
+    if (!createShaderStages(&app->context, &pipeline, "res/shader/vert.spv", "res/shader/frag.spv")) {
         MINIMAL_ERROR("failed to create shader stages!");
         return MINIMAL_FAIL;
     }
 
-    if (!pipelineCreate(&app->context, &pipeline)) {
+    if (!createPipeline(&app->context, &pipeline)) {
         MINIMAL_ERROR("failed to create graphics pipeline!");
-        return MINIMAL_FAIL;
-    }
-
-    if (!createFramebuffers(&app->context)) {
-        MINIMAL_ERROR("failed to create framebuffer!");
         return MINIMAL_FAIL;
     }
 
@@ -106,10 +102,10 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 }
 
 void OnDestroy(MinimalApp* app) {
-    destroySwapChain(&app->context);
+    destroySwapchain(&app->context, &app->context.swapchain);
 
-    pipelineDestroyShaderStages(&app->context, &pipeline);
-    pipelineDestroy(&app->context, &pipeline);
+    destroyShaderStages(&app->context, &pipeline);
+    destroyPipeline(&app->context, &pipeline);
 
     destroyBuffer(&app->context, &vertexBuffer);
     destroyBuffer(&app->context, &indexBuffer);
@@ -130,25 +126,27 @@ int OnEvent(MinimalApp* app, const MinimalEvent* e) {
 }
 
 void OnUpdate(MinimalApp* app, float deltatime) {
+    uint32_t frame = app->context.currentFrame;
+
     /* acquire swap chain image */
-    vkWaitForFences(app->context.device, 1, &app->context.inFlightFences[app->context.currentFrame], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(app->context.device, 1, &app->context.inFlightFences[frame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(app->context.device, app->context.swapchain.handle, UINT64_MAX, app->context.imageAvailableSemaphores[app->context.currentFrame], VK_NULL_HANDLE, &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(app->context.device, app->context.swapchain.handle, UINT64_MAX, app->context.imageAvailableSemaphores[frame], VK_NULL_HANDLE, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        recreateSwapChain(&app->context, app->window);
-        pipelineRecreate(&app->context, &pipeline);
+        recreateSwapchain(&app->context, &app->context.swapchain, app->window);
+        recreatePipeline(&app->context, &pipeline);
         return;
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         MINIMAL_ERROR("failed to acquire swap chain image!");
         return;
     }
 
-    vkResetFences(app->context.device, 1, &app->context.inFlightFences[app->context.currentFrame]);
+    vkResetFences(app->context.device, 1, &app->context.inFlightFences[frame]);
 
     /* start frame */
-    VkCommandBuffer cmdBuffer = app->context.commandBuffers[app->context.currentFrame];
+    VkCommandBuffer cmdBuffer = app->context.commandBuffers[frame];
     commandBufferStart(cmdBuffer, &app->context.swapchain, imageIndex);
 
     /* actual rendering */
@@ -169,7 +167,7 @@ void OnUpdate(MinimalApp* app, float deltatime) {
     VkSubmitInfo submitInfo = { 0 };
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = { app->context.imageAvailableSemaphores[app->context.currentFrame] };
+    VkSemaphore waitSemaphores[] = { app->context.imageAvailableSemaphores[frame] };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
@@ -178,11 +176,11 @@ void OnUpdate(MinimalApp* app, float deltatime) {
     submitInfo.pCommandBuffers = &cmdBuffer;
     submitInfo.commandBufferCount = 1;
 
-    VkSemaphore signalSemaphores[] = { app->context.renderFinishedSemaphores[app->context.currentFrame] };
+    VkSemaphore signalSemaphores[] = { app->context.renderFinishedSemaphores[frame] };
     submitInfo.pSignalSemaphores = signalSemaphores;
     submitInfo.signalSemaphoreCount = 1;
 
-    if (vkQueueSubmit(app->context.graphicsQueue, 1, &submitInfo, app->context.inFlightFences[app->context.currentFrame]) != VK_SUCCESS) {
+    if (vkQueueSubmit(app->context.graphicsQueue, 1, &submitInfo, app->context.inFlightFences[frame]) != VK_SUCCESS) {
         MINIMAL_WARN("failed to submit draw command buffer!");
     }
 
@@ -196,21 +194,20 @@ void OnUpdate(MinimalApp* app, float deltatime) {
     VkSwapchainKHR swapChains[] = { app->context.swapchain.handle };
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
-
     presentInfo.pImageIndices = &imageIndex;
 
     result = vkQueuePresentKHR(app->context.presentQueue, &presentInfo);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || app->context.framebufferResized) {
         app->context.framebufferResized = 0;
-        recreateSwapChain(&app->context, app->window);
-        pipelineRecreate(&app->context, &pipeline);
+        recreateSwapchain(&app->context, &app->context.swapchain, app->window);
+        recreatePipeline(&app->context, &pipeline);
     } else if (result != VK_SUCCESS) {
         MINIMAL_ERROR("failed to present swap chain image!");
         return;
     }
 
     /* next frame */
-    app->context.currentFrame = (app->context.currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    app->context.currentFrame = (frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 int main() {

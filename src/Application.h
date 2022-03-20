@@ -61,6 +61,4 @@ void MinimalEnableVsync(MinimalApp* app, int b);
 void MinimalToggleDebug(MinimalApp* app);
 void MinimalToggleVsync(MinimalApp* app);
 
-/* --------------------------| input |----------------------------------- */
-
 #endif // !MINIMAL_APPLICATION_H

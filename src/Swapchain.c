@@ -2,7 +2,7 @@
 
 #include "Pipeline.h"
 
-static int chooseSwapSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR surface, VkSurfaceFormatKHR* format) {
+static int chooseSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR surface, VkSurfaceFormatKHR* format) {
     uint32_t count;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, NULL);
 
@@ -25,7 +25,7 @@ static int chooseSwapSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR surface
     return MINIMAL_OK;
 }
 
-static int chooseSwapPresentMode(VkPhysicalDevice device, VkSurfaceKHR surface, VkPresentModeKHR* mode) {
+static int choosePresentMode(VkPhysicalDevice device, VkSurfaceKHR surface, VkPresentModeKHR* mode) {
     uint32_t count;
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, NULL);
 
@@ -48,7 +48,7 @@ static int chooseSwapPresentMode(VkPhysicalDevice device, VkSurfaceKHR surface, 
     return MINIMAL_OK;
 }
 
-static VkExtent2D getSwapChainExtent(const VkSurfaceCapabilitiesKHR* capabilities, uint32_t w, uint32_t h) {
+static VkExtent2D getSurfaceExtent(const VkSurfaceCapabilitiesKHR* capabilities, uint32_t w, uint32_t h) {
     if (capabilities->currentExtent.width != UINT32_MAX)
         return capabilities->currentExtent;
 
@@ -60,21 +60,21 @@ static VkExtent2D getSwapChainExtent(const VkSurfaceCapabilitiesKHR* capabilitie
     return extent;
 }
 
-int createSwapChain(VulkanContext* context, uint32_t width, uint32_t height) {
+int createSwapchain(const VulkanContext* context, Swapchain* swapchain, uint32_t width, uint32_t height) {
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->physicalDevice, context->surface, &capabilities);
-    context->swapchain.extent = getSwapChainExtent(&capabilities, width, height);
+    swapchain->extent = getSurfaceExtent(&capabilities, width, height);
 
     /* choose swap chain surface format */
     VkSurfaceFormatKHR surfaceFormat;
-    if (!chooseSwapSurfaceFormat(context->physicalDevice, context->surface, &surfaceFormat)) {
+    if (!chooseSurfaceFormat(context->physicalDevice, context->surface, &surfaceFormat)) {
         MINIMAL_ERROR("failed to choose swap chain surface format!");
         return MINIMAL_FAIL;
     }
 
     /* choose swap chain presentation mode */
     VkPresentModeKHR presentMode;
-    if (!chooseSwapPresentMode(context->physicalDevice, context->surface, &presentMode)) {
+    if (!choosePresentMode(context->physicalDevice, context->surface, &presentMode)) {
         MINIMAL_ERROR("failed to choose swap chain presentation mode!");
         return MINIMAL_FAIL;
     }
@@ -84,13 +84,15 @@ int createSwapChain(VulkanContext* context, uint32_t width, uint32_t height) {
         imageCount = capabilities.maxImageCount;
     }
 
+    if (!imageCount) return MINIMAL_FAIL;
+
     VkSwapchainCreateInfoKHR createInfo = {
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface = context->surface,
         .minImageCount = imageCount,
         .imageFormat = surfaceFormat.format,
         .imageColorSpace = surfaceFormat.colorSpace,
-        .imageExtent = context->swapchain.extent,
+        .imageExtent = swapchain->extent,
         .imageArrayLayers = 1,
         .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
     };
@@ -113,18 +115,54 @@ int createSwapChain(VulkanContext* context, uint32_t width, uint32_t height) {
 
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(context->device, &createInfo, NULL, &context->swapchain.handle) != VK_SUCCESS) {
+    if (vkCreateSwapchainKHR(context->device, &createInfo, NULL, &swapchain->handle) != VK_SUCCESS) {
         MINIMAL_ERROR("failed to create swap chain!");
         return MINIMAL_FAIL;
     }
 
-    context->swapchain.count = imageCount;
-    context->swapchain.format = surfaceFormat.format;
+    /* create images */
+    swapchain->images = malloc(imageCount * sizeof(VkImage));
+    if (!swapchain->images) return MINIMAL_FAIL;
+
+    if (vkGetSwapchainImagesKHR(context->device, swapchain->handle, &imageCount, swapchain->images) != VK_SUCCESS) {
+        MINIMAL_ERROR("failed to get images");
+        return MINIMAL_FAIL;
+    }
+
+    /* create image views */
+    swapchain->views = malloc(imageCount * sizeof(VkImageView));
+    if (!swapchain->views) return MINIMAL_FAIL;
+
+    for (size_t i = 0; i < imageCount; ++i) {
+        VkImageViewCreateInfo createInfo = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = swapchain->images[i],
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = surfaceFormat.format,
+            .components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .components.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .subresourceRange.baseMipLevel = 0,
+            .subresourceRange.levelCount = 1,
+            .subresourceRange.baseArrayLayer = 0,
+            .subresourceRange.layerCount = 1
+        };
+
+        if (vkCreateImageView(context->device, &createInfo, NULL, &swapchain->views[i]) != VK_SUCCESS) {
+            MINIMAL_ERROR("failed to create image view");
+            return MINIMAL_FAIL;
+        }
+    }
+
+    swapchain->count = imageCount;
+    swapchain->format = surfaceFormat.format;
     
     return MINIMAL_OK;
 }
 
-int recreateSwapChain(VulkanContext* context, GLFWwindow* window) {
+int recreateSwapchain(const VulkanContext* context, Swapchain* swapchain, GLFWwindow* window) {
     int width = 0, height = 0;
     glfwGetFramebufferSize(window, &width, &height);
     while (width == 0 || height == 0) {
@@ -134,24 +172,19 @@ int recreateSwapChain(VulkanContext* context, GLFWwindow* window) {
 
     vkDeviceWaitIdle(context->device);
 
-    destroySwapChain(context);
+    destroySwapchain(context, swapchain);
 
-    if (!createSwapChain(context, (uint32_t)width, (uint32_t)height)) {
+    if (!createSwapchain(context, swapchain, (uint32_t)width, (uint32_t)height)) {
         MINIMAL_ERROR("failed to recreate swap chain!");
         return MINIMAL_FAIL;
     }
 
-    if (!createSwapChainImages(context)) {
-        MINIMAL_ERROR("failed to recreate swap chain images!");
-        return MINIMAL_FAIL;
-    }
-
-    if (!createRenderPass(context)) {
+    if (!createRenderPass(context, swapchain)) {
         MINIMAL_ERROR("failed to recreate render pass!");
         return MINIMAL_FAIL;
     }
 
-    if (!createFramebuffers(context)) {
+    if (!createFramebuffers(context, swapchain)) {
         MINIMAL_ERROR("failed to recreate framebuffer!");
         return MINIMAL_FAIL;
     }
@@ -159,35 +192,35 @@ int recreateSwapChain(VulkanContext* context, GLFWwindow* window) {
     return MINIMAL_OK;
 }
 
-void destroySwapChain(VulkanContext* context) {
+void destroySwapchain(const VulkanContext* context, Swapchain* swapchain) {
     /* destroy framebuffers */
-    if (context->swapchain.framebuffers) {
-        for (size_t i = 0; i < context->swapchain.count; ++i) {
-            vkDestroyFramebuffer(context->device, context->swapchain.framebuffers[i], NULL);
+    if (swapchain->framebuffers) {
+        for (size_t i = 0; i < swapchain->count; ++i) {
+            vkDestroyFramebuffer(context->device, swapchain->framebuffers[i], NULL);
         }
-        free(context->swapchain.framebuffers);
+        free(swapchain->framebuffers);
     }
 
     /* destroy render pass */
-    vkDestroyRenderPass(context->device, context->swapchain.renderPass, NULL);
+    vkDestroyRenderPass(context->device, swapchain->renderPass, NULL);
 
     /* destroy images */
-    if (context->swapchain.images) free(context->swapchain.images);
+    if (swapchain->images) free(swapchain->images);
 
-    if (context->swapchain.views) {
-        for (size_t i = 0; i < context->swapchain.count; ++i) {
-            vkDestroyImageView(context->device, context->swapchain.views[i], NULL);
+    if (swapchain->views) {
+        for (size_t i = 0; i < swapchain->count; ++i) {
+            vkDestroyImageView(context->device, swapchain->views[i], NULL);
         }
-        free(context->swapchain.views);
+        free(swapchain->views);
     }
 
     /* destroy handle */
-    vkDestroySwapchainKHR(context->device, context->swapchain.handle, NULL);
+    vkDestroySwapchainKHR(context->device, swapchain->handle, NULL);
 }
 
-int createRenderPass(VulkanContext* context) {
+int createRenderPass(const VulkanContext* context, Swapchain* swapchain) {
     VkAttachmentDescription colorAttachment = {
-        .format = context->swapchain.format,
+        .format = swapchain->format,
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -216,56 +249,22 @@ int createRenderPass(VulkanContext* context) {
         .subpassCount = 1
     };
 
-    if (vkCreateRenderPass(context->device, &renderPassInfo, NULL, &context->swapchain.renderPass) != VK_SUCCESS) {
+    if (vkCreateRenderPass(context->device, &renderPassInfo, NULL, &swapchain->renderPass) != VK_SUCCESS) {
         return MINIMAL_FAIL;
     }
 
     return MINIMAL_OK;
 }
 
-int createSwapChainImages(VulkanContext* context) {
-    if (!context->swapchain.count) return MINIMAL_FAIL;
+int createFramebuffers(const VulkanContext* context, Swapchain* swapchain) {
+    if (!swapchain->count) return MINIMAL_FAIL;
 
-    context->swapchain.images = malloc(context->swapchain.count * sizeof(VkImage));
-    if (!context->swapchain.images) return MINIMAL_FAIL;
+    swapchain->framebuffers = malloc(swapchain->count * sizeof(VkFramebuffer));
+    if (!swapchain->framebuffers) return MINIMAL_FAIL;
 
-    vkGetSwapchainImagesKHR(context->device, context->swapchain.handle, &context->swapchain.count, context->swapchain.images);
-
-    context->swapchain.views = malloc(context->swapchain.count * sizeof(VkImageView));
-    if (!context->swapchain.views) return MINIMAL_FAIL;
-
-    for (size_t i = 0; i < context->swapchain.count; ++i) {
-        VkImageViewCreateInfo createInfo = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image = context->swapchain.images[i],
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = context->swapchain.format,
-            .components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .components.a = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .subresourceRange.baseMipLevel = 0,
-            .subresourceRange.levelCount = 1,
-            .subresourceRange.baseArrayLayer = 0,
-            .subresourceRange.layerCount = 1
-        };
-
-        if (vkCreateImageView(context->device, &createInfo, NULL, &context->swapchain.views[i]) != VK_SUCCESS)
-            return MINIMAL_FAIL;
-    }
-    return MINIMAL_OK;
-}
-
-int createFramebuffers(VulkanContext* context) {
-    if (!context->swapchain.count) return MINIMAL_FAIL;
-
-    context->swapchain.framebuffers = malloc(context->swapchain.count * sizeof(VkFramebuffer));
-    if (!context->swapchain.framebuffers) return MINIMAL_FAIL;
-
-    for (size_t i = 0; i < context->swapchain.count; ++i) {
+    for (size_t i = 0; i < swapchain->count; ++i) {
         VkImageView attachments[] = {
-            context->swapchain.views[i]
+            swapchain->views[i]
         };
 
         VkFramebufferCreateInfo info = {
@@ -278,7 +277,7 @@ int createFramebuffers(VulkanContext* context) {
             .layers = 1
         };
 
-        if (vkCreateFramebuffer(context->device, &info, NULL, &context->swapchain.framebuffers[i]) != VK_SUCCESS)
+        if (vkCreateFramebuffer(context->device, &info, NULL, &swapchain->framebuffers[i]) != VK_SUCCESS)
             return MINIMAL_FAIL;
     }
 

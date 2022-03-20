@@ -17,12 +17,12 @@ typedef struct {
     VkPipelineShaderStageCreateInfo shaderStages[SHADER_COUNT];
 } Pipeline;
 
-int pipelineCreateShaderStages(const VulkanContext* context, Pipeline* pipeline, const char* vertPath, const char* fragPath);
-void pipelineDestroyShaderStages(const VulkanContext* context, Pipeline* pipeline);
+int createShaderStages(const VulkanContext* context, Pipeline* pipeline, const char* vertPath, const char* fragPath);
+void destroyShaderStages(const VulkanContext* context, Pipeline* pipeline);
 
-int pipelineCreate(const VulkanContext* context, Pipeline* pipeline);
-int pipelineRecreate(const VulkanContext* context, Pipeline* pipeline);
-void pipelineDestroy(const VulkanContext* context, Pipeline* pipeline);
+int createPipeline(const VulkanContext* context, Pipeline* pipeline);
+int recreatePipeline(const VulkanContext* context, Pipeline* pipeline);
+void destroyPipeline(const VulkanContext* context, Pipeline* pipeline);
 
 
 #endif // !PIPELINE_H

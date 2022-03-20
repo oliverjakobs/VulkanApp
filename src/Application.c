@@ -96,10 +96,9 @@ void MinimalRun(MinimalApp* app) {
     while (!glfwWindowShouldClose(app->window)) {
         MinimalTimerStart(&app->timer, glfwGetTime());
         MinimalUpdateInput(app->window);
+        glfwPollEvents();
 
         app->on_update(app, (float)app->timer.deltatime);
-
-        glfwPollEvents();
 
         MinimalTimerEnd(&app->timer, glfwGetTime());
     }
