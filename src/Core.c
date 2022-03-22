@@ -168,3 +168,16 @@ void destroyInstance(VulkanContext* context) {
     vkDestroySurfaceKHR(context->instance, context->surface, NULL);
     vkDestroyInstance(context->instance, NULL);
 }
+
+int createCommandPool(VulkanContext* context) {
+    VkCommandPoolCreateInfo info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .queueFamilyIndex = context->indices.graphicsFamily
+    };
+
+    if (vkCreateCommandPool(context->device, &info, NULL, &context->commandPool) != VK_SUCCESS)
+        return MINIMAL_FAIL;
+
+    return MINIMAL_OK;
+}

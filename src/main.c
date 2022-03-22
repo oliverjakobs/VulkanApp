@@ -102,7 +102,6 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 }
 
 void OnDestroy(MinimalApp* app) {
-
     destroyShaderStages(&app->context, &pipeline);
     destroyPipeline(&app->context, &pipeline);
 

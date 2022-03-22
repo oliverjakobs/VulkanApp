@@ -51,4 +51,6 @@ typedef struct {
 int createInstance(VulkanContext* context, GLFWwindow* window, const char* appName, const char* engine, int debug);
 void destroyInstance(VulkanContext* context);
 
+int createCommandPool(VulkanContext* context);
+
 #endif // !CORE_H

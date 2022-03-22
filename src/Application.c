@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "Swapchain.h"
-#include "Frame.h"
 
 /* --------------------------| timer |----------------------------------- */
 void MinimalTimerReset(MinimalTimer* timer) {

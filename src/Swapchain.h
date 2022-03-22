@@ -15,4 +15,8 @@ int acquireSwapchainImage(const VulkanContext* context, Swapchain* swapchain, ui
 int submitFrame(const VulkanContext* context, VkCommandBuffer cmdBuffer, uint32_t frame);
 int presentFrame(const VulkanContext* context, Swapchain* swapchain, uint32_t imageIndex, uint32_t frame);
 
+int createCommandBuffer(VulkanContext* context);
+void commandBufferStart(VkCommandBuffer cmdBuffer, const Swapchain* swapchain, uint32_t imageIndex);
+void commandBufferEnd(VkCommandBuffer cmdBuffer);
+
 #endif // !SWAPCHAIN_H
