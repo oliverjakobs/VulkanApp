@@ -28,7 +28,7 @@ typedef int  (*MinimalLoadCB)    (MinimalApp* app, uint32_t w, uint32_t h);
 typedef void (*MinimalDestroyCB) (MinimalApp* app);
 
 typedef int  (*MinimalEventCB)   (MinimalApp* app, const MinimalEvent* e);
-typedef void (*MinimalUpdateCB)  (MinimalApp* app, float deltatime);
+typedef void (*MinimalUpdateCB)  (MinimalApp* app, VkCommandBuffer cmdBuffer, float deltatime);
 
 struct MinimalApp {
     GLFWwindow* window;
@@ -42,6 +42,7 @@ struct MinimalApp {
 
     int debug;
     int vsync;
+    int inconified;
 
     MinimalTimer timer;
 };

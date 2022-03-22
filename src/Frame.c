@@ -38,8 +38,6 @@ int createSyncObjects(VulkanContext* context) {
         .flags = VK_FENCE_CREATE_SIGNALED_BIT
     };
 
-    context->currentFrame = 0;
-
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         if (vkCreateSemaphore(context->device, &semaphoreInfo, NULL, &context->imageAvailableSemaphores[i]) != VK_SUCCESS)
             return MINIMAL_FAIL;

@@ -19,13 +19,26 @@ void MinimalDispatchEvent(MinimalApp* app, uint32_t type, uint32_t uParam, int32
 
 int MinimalCheckEventType(const MinimalEvent* e, uint32_t type) { return e->type == type; }
 
-int MinimalEventWindowSize(const MinimalEvent* e, float* w, float* h) {
+int MinimalEventWindowSize(const MinimalEvent* e, uint32_t* w, uint32_t* h) {
     if (e->type != MINIMAL_EVENT_WINDOW_SIZE) return 0;
 
-    if (w) *w = (float)e->lParam;
-    if (h) *h = (float)e->rParam;
+    if (w) *w = (uint32_t)e->lParam;
+    if (h) *h = (uint32_t)e->rParam;
 
     return 1;
+}
+
+int MinimalEventFramebufferSize(const MinimalEvent* e, uint32_t* w, uint32_t* h) {
+    if (e->type != MINIMAL_EVENT_FRAMEBUFFER_SIZE) return 0;
+
+    if (w) *w = (uint32_t)e->lParam;
+    if (h) *h = (uint32_t)e->rParam;
+
+    return 1;
+}
+
+int MinimalEventWindowInconify(const MinimalEvent* e) {
+    return (e->type == MINIMAL_EVENT_WINDOW_ICONIFY) ? e->uParam : -1;
 }
 
 int32_t MinimalEventMouseButton(const MinimalEvent* e, float* x, float* y) {

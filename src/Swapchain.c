@@ -1,6 +1,7 @@
 #include "Swapchain.h"
 
 #include "Pipeline.h"
+#include "Application.h"
 
 static int chooseSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR surface, VkSurfaceFormatKHR* format) {
     uint32_t count;
@@ -165,10 +166,6 @@ int createSwapchain(const VulkanContext* context, Swapchain* swapchain, uint32_t
 int recreateSwapchain(const VulkanContext* context, Swapchain* swapchain, GLFWwindow* window) {
     int width = 0, height = 0;
     glfwGetFramebufferSize(window, &width, &height);
-    while (width == 0 || height == 0) {
-        glfwGetFramebufferSize(window, &width, &height);
-        glfwWaitEvents();
-    }
 
     vkDeviceWaitIdle(context->device);
 
@@ -281,5 +278,59 @@ int createFramebuffers(const VulkanContext* context, Swapchain* swapchain) {
             return MINIMAL_FAIL;
     }
 
+    return MINIMAL_OK;
+}
+
+int acquireSwapchainImage(const VulkanContext* context, Swapchain* swapchain, uint32_t frame, uint32_t* imageIndex) {
+    vkWaitForFences(context->device, 1, &context->inFlightFences[frame], VK_TRUE, UINT64_MAX);
+
+    VkResult result = vkAcquireNextImageKHR(context->device, swapchain->handle, UINT64_MAX, context->imageAvailableSemaphores[frame], VK_NULL_HANDLE, imageIndex);
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        return MINIMAL_FAIL;
+    }
+
+    vkResetFences(context->device, 1, &context->inFlightFences[frame]);
+    return MINIMAL_OK;
+}
+
+int submitFrame(const VulkanContext* context, VkCommandBuffer cmdBuffer, uint32_t frame) {
+    VkSubmitInfo submitInfo = { 0 };
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = { context->imageAvailableSemaphores[frame] };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.waitSemaphoreCount = 1;
+
+    submitInfo.pCommandBuffers = &cmdBuffer;
+    submitInfo.commandBufferCount = 1;
+
+    VkSemaphore signalSemaphores[] = { context->renderFinishedSemaphores[frame] };
+    submitInfo.pSignalSemaphores = signalSemaphores;
+    submitInfo.signalSemaphoreCount = 1;
+
+    if (vkQueueSubmit(context->graphicsQueue, 1, &submitInfo, context->inFlightFences[frame]) != VK_SUCCESS) {
+        return MINIMAL_FAIL;
+    }
+    return MINIMAL_OK;
+}
+
+int presentFrame(const VulkanContext* context, Swapchain* swapchain, uint32_t imageIndex, uint32_t frame) {
+    VkPresentInfoKHR presentInfo = { 0 };
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    VkSemaphore signalSemaphores[] = { context->renderFinishedSemaphores[frame] };
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    presentInfo.waitSemaphoreCount = 1;
+
+    VkSwapchainKHR swapChains[] = { context->swapchain.handle };
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.swapchainCount = 1;
+    presentInfo.pImageIndices = &imageIndex;
+
+    if (vkQueuePresentKHR(context->presentQueue, &presentInfo) != VK_SUCCESS) {
+        return MINIMAL_FAIL;
+    }
     return MINIMAL_OK;
 }

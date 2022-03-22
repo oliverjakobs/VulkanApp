@@ -2,6 +2,9 @@
 
 #include <string.h>
 
+#include "Swapchain.h"
+#include "Frame.h"
+
 /* --------------------------| timer |----------------------------------- */
 void MinimalTimerReset(MinimalTimer* timer) {
     timer->seconds = 0.0;
@@ -34,6 +37,7 @@ void MinimalGLFWErrorCallback(int error, const char* desc) {
 }
 
 void MinimalGLFWWindowSizeCallback(GLFWwindow* window, int width, int height);
+void MinimalGLFWWindowIconifyCallback(GLFWwindow* window, int iconified);
 void MinimalGLFWFramebufferSizeCallbak(GLFWwindow* window, int width, int height);
 
 void MinimalGLFWKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -57,6 +61,7 @@ static int MinimalInitGlfw(MinimalApp* app, const char* title, uint32_t w, uint3
 
     /* set GLFW callbacks */
     glfwSetWindowSizeCallback(app->window,      MinimalGLFWWindowSizeCallback);
+    glfwSetWindowIconifyCallback(app->window,   MinimalGLFWWindowIconifyCallback);
     glfwSetFramebufferSizeCallback(app->window, MinimalGLFWFramebufferSizeCallbak);
     glfwSetKeyCallback(app->window,             MinimalGLFWKeyCallback);
     glfwSetCharCallback(app->window,            MinimalGLFWCharCallback);
@@ -78,6 +83,8 @@ int MinimalLoad(MinimalApp* app, const char* title, uint32_t w, uint32_t h) {
     MinimalEnableDebug(app, app->debug);
     MinimalEnableVsync(app, app->vsync);
 
+    app->inconified = 0;
+
     MinimalTimerReset(&app->timer);
 
     return (app->on_load) ? app->on_load(app, w, h) : MINIMAL_OK;
@@ -93,12 +100,45 @@ void MinimalRun(MinimalApp* app) {
     MINIMAL_ASSERT(app, "");
     MINIMAL_ASSERT(app->on_update, "Update callback missing!");
 
+    uint32_t frame = 0;
     while (!glfwWindowShouldClose(app->window)) {
         MinimalTimerStart(&app->timer, glfwGetTime());
         MinimalUpdateInput(app->window);
         glfwPollEvents();
 
-        app->on_update(app, (float)app->timer.deltatime);
+        if (app->inconified) continue;
+        
+
+        /* acquire swap chain image */
+        uint32_t imageIndex = 0;
+        if (!acquireSwapchainImage(&app->context, &app->context.swapchain, frame, &imageIndex)) {
+            MINIMAL_ERROR("failed to acquire swap chain image!");
+            continue;
+        }
+
+        /* start frame */
+        VkCommandBuffer cmdBuffer = app->context.commandBuffers[frame];
+        commandBufferStart(cmdBuffer, &app->context.swapchain, imageIndex);
+
+        app->on_update(app, cmdBuffer, (float)app->timer.deltatime);
+
+        /* end frame */
+        commandBufferEnd(cmdBuffer);
+
+        /* submit frame */
+        if (!submitFrame(&app->context, cmdBuffer, frame)) {
+            MINIMAL_ERROR("failed to submit draw command buffer!");
+            continue;
+        }
+
+        /* present frame */
+        if (!presentFrame(&app->context, &app->context.swapchain, imageIndex, frame)) {
+            MINIMAL_ERROR("failed to present swap chain image!");
+            continue;
+        }
+
+        /* next frame */
+        frame = (frame + 1) % MAX_FRAMES_IN_FLIGHT;
 
         MinimalTimerEnd(&app->timer, glfwGetTime());
     }
@@ -123,10 +163,17 @@ void MinimalGLFWWindowSizeCallback(GLFWwindow* window, int width, int height) {
     if (app) MinimalDispatchEvent(app, MINIMAL_EVENT_WINDOW_SIZE, 0, width, height);
 }
 
+void MinimalGLFWWindowIconifyCallback(GLFWwindow* window, int iconified) {
+    MinimalApp* app = (MinimalApp*)glfwGetWindowUserPointer(window);
+    if (app) {
+        app->inconified = iconified;
+        MinimalDispatchEvent(app, MINIMAL_EVENT_WINDOW_SIZE, (uint32_t)iconified, 0, 0);
+    }
+}
+
 void MinimalGLFWFramebufferSizeCallbak(GLFWwindow* window, int width, int height) {
     MinimalApp* app = (MinimalApp*)glfwGetWindowUserPointer(window);
     if (app) {
-        app->context.framebufferResized = 1;
         MinimalDispatchEvent(app, MINIMAL_EVENT_FRAMEBUFFER_SIZE, 0, width, height);
     }
 }

@@ -12,8 +12,8 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity,
     VkDebugUtilsMessageTypeFlagsEXT type,
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
-    void* user_data
-) {
+    void* user_data) {
+
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
         MINIMAL_ERROR("validation layer: %s", callback_data->pMessage);
     return VK_FALSE;
@@ -23,8 +23,8 @@ VkResult CreateDebugUtilsMessengerEXT(
     VkInstance instance,
     const VkDebugUtilsMessengerCreateInfoEXT* info,
     const VkAllocationCallbacks* allocator,
-    VkDebugUtilsMessengerEXT* messenger
-) {
+    VkDebugUtilsMessengerEXT* messenger) {
+
     PFN_vkVoidFunction func = vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func) return ((PFN_vkCreateDebugUtilsMessengerEXT)func)(instance, info, allocator, messenger);
     return VK_ERROR_EXTENSION_NOT_PRESENT;
@@ -33,8 +33,8 @@ VkResult CreateDebugUtilsMessengerEXT(
 void DestroyDebugUtilsMessengerEXT(
     VkInstance instance,
     VkDebugUtilsMessengerEXT messenger,
-    const VkAllocationCallbacks* allocator
-) {
+    const VkAllocationCallbacks* allocator) {
+
     PFN_vkVoidFunction func = vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func) ((PFN_vkDestroyDebugUtilsMessengerEXT)func)(instance, messenger, allocator);
 }

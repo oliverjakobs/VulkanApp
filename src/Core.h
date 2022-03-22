@@ -46,9 +46,6 @@ typedef struct {
     VkSemaphore imageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT];
     VkSemaphore renderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
     VkFence inFlightFences[MAX_FRAMES_IN_FLIGHT];
-    uint32_t currentFrame;
-
-    int framebufferResized;
 } VulkanContext;
 
 int createInstance(VulkanContext* context, GLFWwindow* window, const char* appName, const char* engine, int debug);

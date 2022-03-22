@@ -7,7 +7,8 @@
 
 /* window events*/
 #define MINIMAL_EVENT_WINDOW_SIZE       1
-#define MINIMAL_EVENT_FRAMEBUFFER_SIZE  2
+#define MINIMAL_EVENT_WINDOW_ICONIFY    2
+#define MINIMAL_EVENT_FRAMEBUFFER_SIZE  3
 
 /* key events */
 #define MINIMAL_EVENT_KEY               10
@@ -23,7 +24,9 @@ void MinimalDispatchEvent(MinimalApp* app, uint32_t type, uint32_t uParam, int32
 /* Utility */
 int MinimalCheckEventType(const MinimalEvent* e, uint32_t type);
 
-int MinimalEventWindowSize(const MinimalEvent* e, float* w, float* h);
+int MinimalEventWindowSize(const MinimalEvent* e, uint32_t* w, uint32_t* h);
+int MinimalEventWindowInconify(const MinimalEvent* e);
+int MinimalEventFramebufferSize(const MinimalEvent* e, uint32_t* w, uint32_t* h);
 
 int32_t MinimalEventMouseButton(const MinimalEvent* e, float* x, float* y);
 int32_t MinimalEventMouseButtonPressed(const MinimalEvent* e, float* x, float* y);

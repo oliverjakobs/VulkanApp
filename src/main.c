@@ -102,13 +102,14 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 }
 
 void OnDestroy(MinimalApp* app) {
-    destroySwapchain(&app->context, &app->context.swapchain);
 
     destroyShaderStages(&app->context, &pipeline);
     destroyPipeline(&app->context, &pipeline);
 
     destroyBuffer(&app->context, &vertexBuffer);
     destroyBuffer(&app->context, &indexBuffer);
+
+    destroySwapchain(&app->context, &app->context.swapchain);
 
     destroySyncObjects(&app->context);
 
@@ -122,34 +123,20 @@ void OnDestroy(MinimalApp* app) {
 
 int OnEvent(MinimalApp* app, const MinimalEvent* e) {
     if (MinimalEventKeyPressed(e) == GLFW_KEY_ESCAPE) MinimalClose(app);
+
+    uint32_t width, height;
+    if (MinimalEventFramebufferSize(e, &width, &height)) {
+
+        if (width == 0 || height == 0) return MINIMAL_FAIL;
+
+        recreateSwapchain(&app->context, &app->context.swapchain, app->window);
+        recreatePipeline(&app->context, &pipeline);
+    }
+
     return MINIMAL_OK;
 }
 
-void OnUpdate(MinimalApp* app, float deltatime) {
-    uint32_t frame = app->context.currentFrame;
-
-    /* acquire swap chain image */
-    vkWaitForFences(app->context.device, 1, &app->context.inFlightFences[frame], VK_TRUE, UINT64_MAX);
-
-    uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(app->context.device, app->context.swapchain.handle, UINT64_MAX, app->context.imageAvailableSemaphores[frame], VK_NULL_HANDLE, &imageIndex);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        recreateSwapchain(&app->context, &app->context.swapchain, app->window);
-        recreatePipeline(&app->context, &pipeline);
-        return;
-    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-        MINIMAL_ERROR("failed to acquire swap chain image!");
-        return;
-    }
-
-    vkResetFences(app->context.device, 1, &app->context.inFlightFences[frame]);
-
-    /* start frame */
-    VkCommandBuffer cmdBuffer = app->context.commandBuffers[frame];
-    commandBufferStart(cmdBuffer, &app->context.swapchain, imageIndex);
-
-    /* actual rendering */
+void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, float deltatime) {
     vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
 
     VkBuffer vertexBuffers[] = { vertexBuffer.handle };
@@ -159,55 +146,6 @@ void OnUpdate(MinimalApp* app, float deltatime) {
     vkCmdBindIndexBuffer(cmdBuffer, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdDrawIndexed(cmdBuffer, indexCount, 1, 0, 0, 0);
-
-    /* end frame */
-    commandBufferEnd(cmdBuffer);
-
-    /* submit frame */
-    VkSubmitInfo submitInfo = { 0 };
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-    VkSemaphore waitSemaphores[] = { app->context.imageAvailableSemaphores[frame] };
-    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.waitSemaphoreCount = 1;
-
-    submitInfo.pCommandBuffers = &cmdBuffer;
-    submitInfo.commandBufferCount = 1;
-
-    VkSemaphore signalSemaphores[] = { app->context.renderFinishedSemaphores[frame] };
-    submitInfo.pSignalSemaphores = signalSemaphores;
-    submitInfo.signalSemaphoreCount = 1;
-
-    if (vkQueueSubmit(app->context.graphicsQueue, 1, &submitInfo, app->context.inFlightFences[frame]) != VK_SUCCESS) {
-        MINIMAL_WARN("failed to submit draw command buffer!");
-    }
-
-    /* present frame */
-    VkPresentInfoKHR presentInfo = { 0 };
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = signalSemaphores;
-
-    VkSwapchainKHR swapChains[] = { app->context.swapchain.handle };
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = &imageIndex;
-
-    result = vkQueuePresentKHR(app->context.presentQueue, &presentInfo);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || app->context.framebufferResized) {
-        app->context.framebufferResized = 0;
-        recreateSwapchain(&app->context, &app->context.swapchain, app->window);
-        recreatePipeline(&app->context, &pipeline);
-    } else if (result != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to present swap chain image!");
-        return;
-    }
-
-    /* next frame */
-    app->context.currentFrame = (frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 int main() {
