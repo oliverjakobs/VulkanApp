@@ -61,6 +61,14 @@ static VkExtent2D getSurfaceExtent(const VkSurfaceCapabilitiesKHR* capabilities,
     return extent;
 }
 
+static uint32_t getSurfaceImageCount(const VkSurfaceCapabilitiesKHR* capabilities) {
+    uint32_t imageCount = capabilities->minImageCount + 1;
+    if (capabilities->maxImageCount > 0 && imageCount > capabilities->maxImageCount) {
+        imageCount = capabilities->maxImageCount;
+    }
+    return imageCount;
+}
+
 int createSwapchain(const VulkanContext* context, Swapchain* swapchain, uint32_t width, uint32_t height) {
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->physicalDevice, context->surface, &capabilities);
@@ -80,11 +88,7 @@ int createSwapchain(const VulkanContext* context, Swapchain* swapchain, uint32_t
         return MINIMAL_FAIL;
     }
 
-    uint32_t imageCount = capabilities.minImageCount + 1;
-    if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount) {
-        imageCount = capabilities.maxImageCount;
-    }
-
+    uint32_t imageCount = getSurfaceImageCount(&capabilities);
     if (!imageCount) return MINIMAL_FAIL;
 
     VkSwapchainCreateInfoKHR createInfo = {
