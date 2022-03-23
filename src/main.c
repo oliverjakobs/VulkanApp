@@ -6,10 +6,18 @@
 #include "Frame.h"
 #include "Buffer.h"
 
+#include "cglm/cglm.h"
+
 const int debug = 1;
 
 Buffer vertexBuffer;
 Buffer indexBuffer;
+
+typedef struct {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+} UniformBufferObject;
 
 const Vertex vertices[] = {
     { { -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f } },
@@ -62,9 +70,26 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
+    /* create uniform buffers */
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        if (!createUniformBuffer(&app->context, &app->context.uniformBuffers[i], sizeof(UniformBufferObject))) {
+            MINIMAL_ERROR("failed to create uniform buffer!");
+            return MINIMAL_FAIL;
+        }
+    }
+
+    if (!createDescriptorPoolAndSets(&app->context)) {
+        return MINIMAL_FAIL;
+    }
+
     /* create pipeline */
     if (!createShaderStages(&app->context, &pipeline, "res/shader/vert.spv", "res/shader/frag.spv")) {
         MINIMAL_ERROR("failed to create shader stages!");
+        return MINIMAL_FAIL;
+    }
+
+    if (!createPipelineLayout(&app->context, &pipeline)) {
+        MINIMAL_ERROR("Failed to create pipeline layout!");
         return MINIMAL_FAIL;
     }
 
@@ -103,7 +128,14 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 
 void OnDestroy(MinimalApp* app) {
     destroyShaderStages(&app->context, &pipeline);
+    destroyPipelineLayout(&app->context, &pipeline);
     destroyPipeline(&app->context, &pipeline);
+
+    destroyDescriptorPoolAndSets(&app->context);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        destroyBuffer(&app->context, &app->context.uniformBuffers[i]);
+    }
 
     destroyBuffer(&app->context, &vertexBuffer);
     destroyBuffer(&app->context, &indexBuffer);
@@ -135,15 +167,28 @@ int OnEvent(MinimalApp* app, const MinimalEvent* e) {
     return MINIMAL_OK;
 }
 
-void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, float deltatime) {
+void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, uint32_t frame, float deltatime) {
+    static float time;
+    time += deltatime;
+    UniformBufferObject ubo = { 0 };
+    glm_rotate_make(ubo.model, time * glm_rad(90.0f), (vec3){ 0.0f, 0.0f, 1.0f });
+    glm_lookat((vec3) { 2.0f, 2.0f, 2.0f }, (vec3) { 0.0f, 0.0f, 0.0f }, (vec3){ 0.0f, 0.0f, 1.0f }, ubo.view);
+    float aspect = app->context.swapchain.extent.width / (float)app->context.swapchain.extent.height;
+    glm_perspective(glm_rad(45.0f), aspect, 0.1f, 10.0f, ubo.proj);
+
+    ubo.proj[1][1] *= -1;
+
+    writeBuffer(&app->context, &app->context.uniformBuffers[frame], &ubo, sizeof(ubo));
+
     vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
+    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, &app->context.descriptorSets[frame], 0, NULL);
 
     VkBuffer vertexBuffers[] = { vertexBuffer.handle };
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vertexBuffers, offsets);
 
     vkCmdBindIndexBuffer(cmdBuffer, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT16);
-
+    
     vkCmdDrawIndexed(cmdBuffer, indexCount, 1, 0, 0, 0);
 }
 

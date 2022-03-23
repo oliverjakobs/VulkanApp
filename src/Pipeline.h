@@ -20,6 +20,9 @@ typedef struct {
 int createShaderStages(const VulkanContext* context, Pipeline* pipeline, const char* vertPath, const char* fragPath);
 void destroyShaderStages(const VulkanContext* context, Pipeline* pipeline);
 
+int createPipelineLayout(const VulkanContext* context, Pipeline* pipeline);
+void destroyPipelineLayout(const VulkanContext* context, Pipeline* pipeline);
+
 int createPipeline(const VulkanContext* context, Pipeline* pipeline);
 int recreatePipeline(const VulkanContext* context, Pipeline* pipeline);
 void destroyPipeline(const VulkanContext* context, Pipeline* pipeline);

@@ -62,20 +62,27 @@ void destroyShaderStages(const VulkanContext* context, Pipeline* pipeline) {
     }
 }
 
-int createPipeline(const VulkanContext* context, Pipeline* pipeline) {
-    /* create pipeline layout */
+int createPipelineLayout(const VulkanContext* context, Pipeline* pipeline) {
+
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 0,
+        .setLayoutCount = 1,
+        .pSetLayouts = &context->descriptorSetLayout,
         .pushConstantRangeCount = 0
     };
 
     if (vkCreatePipelineLayout(context->device, &pipelineLayoutInfo, NULL, &pipeline->layout) != VK_SUCCESS) {
-        MINIMAL_ERROR("Failed to create pipeline layout!");
         return MINIMAL_FAIL;
     }
 
-    /* create pipeline */
+    return MINIMAL_OK;
+}
+
+void destroyPipelineLayout(const VulkanContext* context, Pipeline* pipeline) {
+    vkDestroyPipelineLayout(context->device, pipeline->layout, NULL);
+}
+
+int createPipeline(const VulkanContext* context, Pipeline* pipeline) {
     uint32_t vertexBindingDescCount = 0;
     VkVertexInputBindingDescription* vertexBindingDescs = getVertexBindingDescriptions(&vertexBindingDescCount);
 
@@ -125,7 +132,7 @@ int createPipeline(const VulkanContext* context, Pipeline* pipeline) {
         .polygonMode = VK_POLYGON_MODE_FILL,
         .lineWidth = 1.0f,
         .cullMode = VK_CULL_MODE_BACK_BIT,
-        .frontFace = VK_FRONT_FACE_CLOCKWISE,
+        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasEnable = VK_FALSE,
         .depthBiasConstantFactor = 0.0f, // Optional
         .depthBiasClamp = 0.0f, // Optional
@@ -194,5 +201,4 @@ int recreatePipeline(const VulkanContext* context, Pipeline* pipeline) {
 
 void destroyPipeline(const VulkanContext* context, Pipeline* pipeline) {
     vkDestroyPipeline(context->device, pipeline->handle, NULL);
-    vkDestroyPipelineLayout(context->device, pipeline->layout, NULL);
 }

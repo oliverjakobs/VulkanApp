@@ -1,5 +1,7 @@
 #include "Buffer.h"
 
+#include "Core.h"
+
 #include <string.h>
 
 static VkVertexInputBindingDescription vertexBindingDescs[] = {
@@ -72,11 +74,12 @@ int createBuffer(const VulkanContext* context, Buffer* buffer, VkDeviceSize size
     };
 
     if (vkAllocateMemory(context->device, &allocInfo, NULL, &buffer->memory) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to allocate vertex buffer memory!");
+        MINIMAL_ERROR("failed to allocate buffer memory!");
         return MINIMAL_FAIL;
     }
 
     vkBindBufferMemory(context->device, buffer->handle, buffer->memory, 0);
+    buffer->size = size;
     return MINIMAL_OK;
 }
 
@@ -119,7 +122,9 @@ int createVertexBuffer(const VulkanContext* context, Buffer* buffer, const Verte
     VkDeviceSize size = count * sizeof(*vertices);
 
     Buffer staging = { 0 };
-    if (!createBuffer(context, &staging, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
+    VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    if (!createBuffer(context, &staging, size, usage, properties))
         return MINIMAL_FAIL;
 
     void* data;
@@ -127,21 +132,26 @@ int createVertexBuffer(const VulkanContext* context, Buffer* buffer, const Verte
     memcpy(data, vertices, (size_t)size);
     vkUnmapMemory(context->device, staging.memory);
 
-    int result = createBuffer(context, buffer, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    if (result) {
-        copyBuffer(context, staging.handle, buffer->handle, size);
+    usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    if (!createBuffer(context, buffer, size, usage, properties)) {
+        destroyBuffer(context, &staging);
+        return MINIMAL_FAIL;
     }
 
+    copyBuffer(context, staging.handle, buffer->handle, size);
     destroyBuffer(context, &staging);
 
-    return result;
+    return MINIMAL_OK;
 }
 
 int createIndexBuffer(const VulkanContext* context, Buffer* buffer, const uint16_t* indices, uint32_t count) {
     VkDeviceSize size = count * sizeof(*indices);
 
-    Buffer staging;
-    if (!createBuffer(context, &staging, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
+    Buffer staging = { 0 };
+    VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    if (!createBuffer(context, &staging, size, usage, properties))
         return MINIMAL_FAIL;
 
     void* data;
@@ -149,14 +159,30 @@ int createIndexBuffer(const VulkanContext* context, Buffer* buffer, const uint16
     memcpy(data, indices, (size_t)size);
     vkUnmapMemory(context->device, staging.memory);
 
-    int result = createBuffer(context, buffer, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    if (result) {
-        copyBuffer(context, staging.handle, buffer->handle, size);
+    usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    if (!createBuffer(context, buffer, size, usage, properties)) {
+        destroyBuffer(context, &staging);
+        return MINIMAL_FAIL;
     }
 
+    copyBuffer(context, staging.handle, buffer->handle, size);
     destroyBuffer(context, &staging);
 
-    return result;
+    return MINIMAL_OK;
+}
+
+int createUniformBuffer(const VulkanContext* context, Buffer* buffer, VkDeviceSize size) {
+    VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    return createBuffer(context, buffer, size, usage, properties);
+}
+
+void writeBuffer(const VulkanContext* context, Buffer* buffer, const void* src, VkDeviceSize size) {
+    void* dst;
+    vkMapMemory(context->device, buffer->memory, 0, size, 0, &dst);
+    memcpy(dst, src, (size_t)size);
+    vkUnmapMemory(context->device, buffer->memory);
 }
 
 void destroyBuffer(const VulkanContext* context, Buffer* buffer) {

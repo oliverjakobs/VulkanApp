@@ -19,4 +19,7 @@ int createCommandBuffer(VulkanContext* context);
 void commandBufferStart(VkCommandBuffer cmdBuffer, const Swapchain* swapchain, uint32_t imageIndex);
 void commandBufferEnd(VkCommandBuffer cmdBuffer);
 
+int createDescriptorPoolAndSets(VulkanContext* context);
+void destroyDescriptorPoolAndSets(VulkanContext* context);
+
 #endif // !SWAPCHAIN_H

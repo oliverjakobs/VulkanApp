@@ -106,7 +106,6 @@ void MinimalRun(MinimalApp* app) {
         glfwPollEvents();
 
         if (app->inconified) continue;
-        
 
         /* acquire swap chain image */
         uint32_t imageIndex = 0;
@@ -119,7 +118,7 @@ void MinimalRun(MinimalApp* app) {
         VkCommandBuffer cmdBuffer = app->context.commandBuffers[frame];
         commandBufferStart(cmdBuffer, &app->context.swapchain, imageIndex);
 
-        app->on_update(app, cmdBuffer, (float)app->timer.deltatime);
+        app->on_update(app, cmdBuffer, frame, (float)app->timer.deltatime);
 
         /* end frame */
         commandBufferEnd(cmdBuffer);

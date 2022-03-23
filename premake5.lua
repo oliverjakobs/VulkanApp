@@ -66,6 +66,7 @@ project "VulkanApp"
 	{
 		"src",
 		"packages/glfw/include",
+		"packages/cglm/include",
 		"$(VULKAN_SDK)/Include"
 	}
 

@@ -30,6 +30,7 @@ const char* MinimalGetVersionString();
 
 typedef struct MinimalEvent MinimalEvent;
 typedef struct MinimalApp MinimalApp;
+typedef struct VulkanContext VulkanContext;
 
 /* --------------------------| logging |--------------------------------- */
 #ifndef MINIMAL_DISABLE_LOGGING

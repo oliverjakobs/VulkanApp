@@ -388,3 +388,88 @@ void commandBufferEnd(VkCommandBuffer cmdBuffer) {
         MINIMAL_WARN("failed to record command buffer!");
     }
 }
+
+int createDescriptorPoolAndSets(VulkanContext* context) {
+    /* create descriptor set layout */
+    VkDescriptorSetLayoutBinding uboLayoutBinding = {
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .pImmutableSamplers = NULL // Optional
+    };
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .pBindings = &uboLayoutBinding,
+        .bindingCount = 1
+    };
+
+    if (vkCreateDescriptorSetLayout(context->device, &layoutInfo, NULL, &context->descriptorSetLayout) != VK_SUCCESS) {
+        MINIMAL_ERROR("failed to create descriptor set layout!");
+        return MINIMAL_FAIL;
+    }
+
+    /* create descriptor pool */
+    VkDescriptorPoolSize poolSize = {
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = MAX_FRAMES_IN_FLIGHT
+    };
+
+    VkDescriptorPoolCreateInfo poolInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .pPoolSizes = &poolSize,
+        .poolSizeCount = 1,
+        .maxSets = MAX_FRAMES_IN_FLIGHT
+    };
+
+    if (vkCreateDescriptorPool(context->device, &poolInfo, NULL, &context->descriptorPool) != VK_SUCCESS) {
+        MINIMAL_ERROR("failed to create descriptor pool!");
+        return MINIMAL_FAIL;
+    }
+
+    /* create descriptor sets */
+    VkDescriptorSetLayout layouts[MAX_FRAMES_IN_FLIGHT];
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        layouts[i] = context->descriptorSetLayout;
+    }
+
+    VkDescriptorSetAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = context->descriptorPool,
+        .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
+        .pSetLayouts = layouts
+    };
+
+    if (vkAllocateDescriptorSets(context->device, &allocInfo, context->descriptorSets) != VK_SUCCESS) {
+        MINIMAL_ERROR("failed to allocate descriptor sets!");
+        return MINIMAL_FAIL;
+    }
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        VkDescriptorBufferInfo bufferInfo = {
+            .buffer = context->uniformBuffers[i].handle,
+            .range = context->uniformBuffers[i].size,
+            .offset = 0
+        };
+
+        VkWriteDescriptorSet descriptorWrite = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = context->descriptorSets[i],
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .pBufferInfo = &bufferInfo
+        };
+
+        vkUpdateDescriptorSets(context->device, 1, &descriptorWrite, 0, NULL);
+    }
+
+    return MINIMAL_OK;
+}
+
+void destroyDescriptorPoolAndSets(VulkanContext* context) {
+    vkDestroyDescriptorPool(context->device, context->descriptorPool, NULL);
+    vkDestroyDescriptorSetLayout(context->device, context->descriptorSetLayout, NULL);
+}

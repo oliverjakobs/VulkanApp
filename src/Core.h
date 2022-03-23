@@ -2,6 +2,7 @@
 #define CORE_H
 
 #include "common.h"
+#include "Buffer.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
@@ -24,7 +25,7 @@ typedef struct {
     VkRenderPass renderPass;
 } Swapchain;
 
-typedef struct {
+struct VulkanContext {
     VkInstance instance;
     VkSurfaceKHR surface;
 
@@ -40,13 +41,18 @@ typedef struct {
     Swapchain swapchain;
 
     VkCommandPool commandPool;
+    VkDescriptorPool descriptorPool;
+
+    VkDescriptorSetLayout descriptorSetLayout;
 
     /* frames */
+    VkDescriptorSet descriptorSets[MAX_FRAMES_IN_FLIGHT];
     VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT];
+    Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
     VkSemaphore imageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT];
     VkSemaphore renderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
     VkFence inFlightFences[MAX_FRAMES_IN_FLIGHT];
-} VulkanContext;
+};
 
 int createInstance(VulkanContext* context, GLFWwindow* window, const char* appName, const char* engine, int debug);
 void destroyInstance(VulkanContext* context);
