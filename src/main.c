@@ -3,7 +3,6 @@
 #include "Device.h"
 #include "Swapchain.h"
 #include "Pipeline.h"
-#include "Frame.h"
 #include "Buffer.h"
 
 #include "cglm/cglm.h"
@@ -78,7 +77,12 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         }
     }
 
-    if (!createDescriptorPoolAndSets(&app->context)) {
+    if (!createDescriptorPool(&app->context)) {
+        MINIMAL_ERROR("failed to create descriptor pool!");
+        return MINIMAL_FAIL;
+    }
+
+    if (!createDescriptorSets(&app->context)) {
         return MINIMAL_FAIL;
     }
 
@@ -118,7 +122,7 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
-    if (!createSyncObjects(&app->context)) {
+    if (!createSyncObjects(&app->context, &app->context.swapchain)) {
         MINIMAL_ERROR("failed to create synchronization objects for a frame!");
         return MINIMAL_FAIL;
     }
@@ -131,7 +135,7 @@ void OnDestroy(MinimalApp* app) {
     destroyPipelineLayout(&app->context, &pipeline);
     destroyPipeline(&app->context, &pipeline);
 
-    destroyDescriptorPoolAndSets(&app->context);
+    destroyDescriptorSets(&app->context);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         destroyBuffer(&app->context, &app->context.uniformBuffers[i]);
@@ -142,8 +146,9 @@ void OnDestroy(MinimalApp* app) {
 
     destroySwapchain(&app->context, &app->context.swapchain);
 
-    destroySyncObjects(&app->context);
+    destroySyncObjects(&app->context, &app->context.swapchain);
 
+    vkDestroyDescriptorPool(app->context.device, app->context.descriptorPool, NULL);
     vkDestroyCommandPool(app->context.device, app->context.commandPool, NULL);
 
     /* destroy device */
@@ -170,6 +175,7 @@ int OnEvent(MinimalApp* app, const MinimalEvent* e) {
 void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, uint32_t frame, float deltatime) {
     static float time;
     time += deltatime;
+
     UniformBufferObject ubo = { 0 };
     glm_rotate_make(ubo.model, time * glm_rad(90.0f), (vec3){ 0.0f, 0.0f, 1.0f });
     glm_lookat((vec3) { 2.0f, 2.0f, 2.0f }, (vec3) { 0.0f, 0.0f, 0.0f }, (vec3){ 0.0f, 0.0f, 1.0f }, ubo.view);
@@ -186,9 +192,8 @@ void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, uint32_t frame, float 
     VkBuffer vertexBuffers[] = { vertexBuffer.handle };
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vertexBuffers, offsets);
-
     vkCmdBindIndexBuffer(cmdBuffer, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT16);
-    
+
     vkCmdDrawIndexed(cmdBuffer, indexCount, 1, 0, 0, 0);
 }
 

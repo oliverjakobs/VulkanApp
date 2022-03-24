@@ -20,6 +20,8 @@
 #define MINIMAL_DISABLE_ASSERT
 #endif
 
+#define MAX_FRAMES_IN_FLIGHT 2
+
 /* minimal version numbers */
 #define MINIMAL_VERSION_MAJOR       1
 #define MINIMAL_VERSION_MINOR       3

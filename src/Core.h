@@ -3,27 +3,15 @@
 
 #include "common.h"
 #include "Buffer.h"
+#include "Swapchain.h"
 
-#define MAX_FRAMES_IN_FLIGHT 2
+typedef struct obeliskContext obelistContext;
 
 typedef struct {
     uint32_t familiesSet;
     uint32_t graphicsFamily;
     uint32_t presentFamily;
 } QueueFamilyIndices;
-
-typedef struct {
-    VkSwapchainKHR handle;
-
-    VkImage* images;
-    VkImageView* views;
-    VkFramebuffer* framebuffers;
-    uint32_t count;
-
-    VkFormat format;
-    VkExtent2D extent;
-    VkRenderPass renderPass;
-} Swapchain;
 
 struct VulkanContext {
     VkInstance instance;
@@ -36,8 +24,6 @@ struct VulkanContext {
     VkQueue graphicsQueue;
     VkQueue presentQueue;
 
-    VkDebugUtilsMessengerEXT debugMessenger;
-
     Swapchain swapchain;
 
     VkCommandPool commandPool;
@@ -49,14 +35,14 @@ struct VulkanContext {
     VkDescriptorSet descriptorSets[MAX_FRAMES_IN_FLIGHT];
     VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT];
     Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
-    VkSemaphore imageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT];
-    VkSemaphore renderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
-    VkFence inFlightFences[MAX_FRAMES_IN_FLIGHT];
 };
 
 int createInstance(VulkanContext* context, GLFWwindow* window, const char* appName, const char* engine, int debug);
 void destroyInstance(VulkanContext* context);
 
 int createCommandPool(VulkanContext* context);
+
+VkDevice obeliskGetContextDevice();
+VkPhysicalDevice obeliskGetContextPhysicalDevice();
 
 #endif // !CORE_H

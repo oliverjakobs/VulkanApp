@@ -286,22 +286,22 @@ int createFramebuffers(const VulkanContext* context, Swapchain* swapchain) {
 }
 
 int acquireSwapchainImage(const VulkanContext* context, Swapchain* swapchain, uint32_t frame, uint32_t* imageIndex) {
-    vkWaitForFences(context->device, 1, &context->inFlightFences[frame], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(context->device, 1, &swapchain->frames[frame].fence, VK_TRUE, UINT64_MAX);
 
-    VkResult result = vkAcquireNextImageKHR(context->device, swapchain->handle, UINT64_MAX, context->imageAvailableSemaphores[frame], VK_NULL_HANDLE, imageIndex);
+    VkResult result = vkAcquireNextImageKHR(context->device, swapchain->handle, UINT64_MAX, swapchain->frames[frame].imageAvailable, VK_NULL_HANDLE, imageIndex);
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         return MINIMAL_FAIL;
     }
 
-    vkResetFences(context->device, 1, &context->inFlightFences[frame]);
+    vkResetFences(context->device, 1, &swapchain->frames[frame].fence);
     return MINIMAL_OK;
 }
 
-int submitFrame(const VulkanContext* context, VkCommandBuffer cmdBuffer, uint32_t frame) {
+int submitFrame(const VulkanContext* context, Swapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t frame) {
     VkSubmitInfo submitInfo = { 0 };
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = { context->imageAvailableSemaphores[frame] };
+    VkSemaphore waitSemaphores[] = { swapchain->frames[frame].imageAvailable };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
@@ -310,11 +310,11 @@ int submitFrame(const VulkanContext* context, VkCommandBuffer cmdBuffer, uint32_
     submitInfo.pCommandBuffers = &cmdBuffer;
     submitInfo.commandBufferCount = 1;
 
-    VkSemaphore signalSemaphores[] = { context->renderFinishedSemaphores[frame] };
+    VkSemaphore signalSemaphores[] = { swapchain->frames[frame].renderFinished };
     submitInfo.pSignalSemaphores = signalSemaphores;
     submitInfo.signalSemaphoreCount = 1;
 
-    if (vkQueueSubmit(context->graphicsQueue, 1, &submitInfo, context->inFlightFences[frame]) != VK_SUCCESS) {
+    if (vkQueueSubmit(context->graphicsQueue, 1, &submitInfo, swapchain->frames[frame].fence) != VK_SUCCESS) {
         return MINIMAL_FAIL;
     }
     return MINIMAL_OK;
@@ -324,11 +324,11 @@ int presentFrame(const VulkanContext* context, Swapchain* swapchain, uint32_t im
     VkPresentInfoKHR presentInfo = { 0 };
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-    VkSemaphore signalSemaphores[] = { context->renderFinishedSemaphores[frame] };
+    VkSemaphore signalSemaphores[] = { swapchain->frames[frame].renderFinished };
     presentInfo.pWaitSemaphores = signalSemaphores;
     presentInfo.waitSemaphoreCount = 1;
 
-    VkSwapchainKHR swapChains[] = { context->swapchain.handle };
+    VkSwapchainKHR swapChains[] = { swapchain->handle };
     presentInfo.pSwapchains = swapChains;
     presentInfo.swapchainCount = 1;
     presentInfo.pImageIndices = &imageIndex;
@@ -389,7 +389,27 @@ void commandBufferEnd(VkCommandBuffer cmdBuffer) {
     }
 }
 
-int createDescriptorPoolAndSets(VulkanContext* context) {
+int createDescriptorPool(VulkanContext* context) {
+    VkDescriptorPoolSize poolSize = {
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = MAX_FRAMES_IN_FLIGHT
+    };
+
+    VkDescriptorPoolCreateInfo poolInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .pPoolSizes = &poolSize,
+        .poolSizeCount = 1,
+        .maxSets = MAX_FRAMES_IN_FLIGHT
+    };
+
+    if (vkCreateDescriptorPool(context->device, &poolInfo, NULL, &context->descriptorPool) != VK_SUCCESS) {
+        return MINIMAL_FAIL;
+    }
+
+    return MINIMAL_OK;
+}
+
+int createDescriptorSets(VulkanContext* context) {
     /* create descriptor set layout */
     VkDescriptorSetLayoutBinding uboLayoutBinding = {
         .binding = 0,
@@ -407,24 +427,6 @@ int createDescriptorPoolAndSets(VulkanContext* context) {
 
     if (vkCreateDescriptorSetLayout(context->device, &layoutInfo, NULL, &context->descriptorSetLayout) != VK_SUCCESS) {
         MINIMAL_ERROR("failed to create descriptor set layout!");
-        return MINIMAL_FAIL;
-    }
-
-    /* create descriptor pool */
-    VkDescriptorPoolSize poolSize = {
-        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = MAX_FRAMES_IN_FLIGHT
-    };
-
-    VkDescriptorPoolCreateInfo poolInfo = {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .pPoolSizes = &poolSize,
-        .poolSizeCount = 1,
-        .maxSets = MAX_FRAMES_IN_FLIGHT
-    };
-
-    if (vkCreateDescriptorPool(context->device, &poolInfo, NULL, &context->descriptorPool) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to create descriptor pool!");
         return MINIMAL_FAIL;
     }
 
@@ -469,7 +471,41 @@ int createDescriptorPoolAndSets(VulkanContext* context) {
     return MINIMAL_OK;
 }
 
-void destroyDescriptorPoolAndSets(VulkanContext* context) {
-    vkDestroyDescriptorPool(context->device, context->descriptorPool, NULL);
+void destroyDescriptorSets(VulkanContext* context) {
     vkDestroyDescriptorSetLayout(context->device, context->descriptorSetLayout, NULL);
+}
+
+int createSyncObjects(VulkanContext* context, Swapchain* swapchain) {
+    VkSemaphoreCreateInfo semaphoreInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+    };
+
+    VkFenceCreateInfo fenceInfo = {
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .flags = VK_FENCE_CREATE_SIGNALED_BIT
+    };
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        FrameInfo* frame = &swapchain->frames[i];
+
+        if (vkCreateSemaphore(context->device, &semaphoreInfo, NULL, &frame->imageAvailable) != VK_SUCCESS)
+            return MINIMAL_FAIL;
+
+        if (vkCreateSemaphore(context->device, &semaphoreInfo, NULL, &frame->renderFinished) != VK_SUCCESS)
+            return MINIMAL_FAIL;
+
+        if (vkCreateFence(context->device, &fenceInfo, NULL, &frame->fence) != VK_SUCCESS)
+            return MINIMAL_FAIL;
+    }
+
+    return MINIMAL_OK;
+}
+
+void destroySyncObjects(VulkanContext* context, Swapchain* swapchain) {
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        FrameInfo* frame = &swapchain->frames[i];
+        vkDestroySemaphore(context->device, frame->renderFinished, NULL);
+        vkDestroySemaphore(context->device, frame->imageAvailable, NULL);
+        vkDestroyFence(context->device, frame->fence, NULL);
+    }
 }

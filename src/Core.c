@@ -84,6 +84,19 @@ int checkValidationLayerSupport() {
     return layerFound;
 }
 
+typedef struct {
+    VkInstance instance;
+    VkSurfaceKHR surface;
+
+    QueueFamilyIndices indices;
+
+    VkPhysicalDevice physicalDevice;
+    VkDevice device;
+} obeliskContext;
+
+static obeliskContext _context = { 0 };
+static VkDebugUtilsMessengerEXT _debugMessenger = VK_NULL_HANDLE;
+
 int createInstance(VulkanContext* context, GLFWwindow* window, const char* appName, const char* engine, int debug) {
     if (debug && !checkValidationLayerSupport()) {
         MINIMAL_ERROR("validation layers requested, but not available!");
@@ -142,12 +155,10 @@ int createInstance(VulkanContext* context, GLFWwindow* window, const char* appNa
 
     /* setup debug messenger */
     if (debug) {
-        if (CreateDebugUtilsMessengerEXT(context->instance, &debugInfo, NULL, &context->debugMessenger) != VK_SUCCESS) {
+        if (CreateDebugUtilsMessengerEXT(context->instance, &debugInfo, NULL, &_debugMessenger) != VK_SUCCESS) {
             MINIMAL_ERROR("failed to set up debug messenger!");
             return MINIMAL_FAIL;
         }
-    } else {
-        context->debugMessenger = VK_NULL_HANDLE;
     }
 
     /* create surface */
@@ -161,8 +172,8 @@ int createInstance(VulkanContext* context, GLFWwindow* window, const char* appNa
 
 void destroyInstance(VulkanContext* context) {
     /* destroy debug messenger */
-    if (context->debugMessenger != VK_NULL_HANDLE)
-        DestroyDebugUtilsMessengerEXT(context->instance, context->debugMessenger, NULL);
+    if (_debugMessenger != VK_NULL_HANDLE)
+        DestroyDebugUtilsMessengerEXT(context->instance, _debugMessenger, NULL);
 
     /* destroy surface and instance */
     vkDestroySurfaceKHR(context->instance, context->surface, NULL);
@@ -181,3 +192,6 @@ int createCommandPool(VulkanContext* context) {
 
     return MINIMAL_OK;
 }
+
+VkDevice          obeliskGetContextDevice()         { return _context.device; }
+VkPhysicalDevice  obeliskGetContextPhysicalDevice() { return _context.physicalDevice; }

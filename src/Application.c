@@ -124,7 +124,7 @@ void MinimalRun(MinimalApp* app) {
         commandBufferEnd(cmdBuffer);
 
         /* submit frame */
-        if (!submitFrame(&app->context, cmdBuffer, frame)) {
+        if (!submitFrame(&app->context, &app->context.swapchain, cmdBuffer, frame)) {
             MINIMAL_ERROR("failed to submit draw command buffer!");
             continue;
         }

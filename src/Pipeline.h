@@ -14,7 +14,7 @@ typedef struct {
     VkPipeline handle;
     VkPipelineLayout layout;
 
-    VkPipelineShaderStageCreateInfo shaderStages[SHADER_COUNT];
+    VkShaderModule shaderModules[SHADER_COUNT];
 } Pipeline;
 
 int createShaderStages(const VulkanContext* context, Pipeline* pipeline, const char* vertPath, const char* fragPath);
