@@ -50,8 +50,9 @@ int createPipelineLayout(const VulkanContext* context, Pipeline* pipeline) {
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 1,
         .pSetLayouts = &context->descriptorSetLayout,
+        .setLayoutCount = 1,
+        .pPushConstantRanges = NULL,
         .pushConstantRangeCount = 0
     };
 

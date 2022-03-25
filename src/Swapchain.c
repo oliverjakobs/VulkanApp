@@ -342,8 +342,8 @@ int presentFrame(const VulkanContext* context, Swapchain* swapchain, uint32_t im
 int createCommandBuffer(VulkanContext* context) {
     VkCommandBufferAllocateInfo info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool = context->commandPool,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandPool = context->commandPool,
         .commandBufferCount = MAX_FRAMES_IN_FLIGHT
     };
 

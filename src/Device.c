@@ -161,3 +161,9 @@ int createLogicalDevice(VulkanContext* context) {
 
     return MINIMAL_OK;
 }
+
+void printPhysicalDevice(VkPhysicalDevice device) {
+    VkPhysicalDeviceProperties properties;
+    vkGetPhysicalDeviceProperties(device, &properties);
+    MINIMAL_INFO("Physical device: %s", properties.deviceName);
+}

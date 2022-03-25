@@ -44,6 +44,8 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
+    printPhysicalDevice(app->context.physicalDevice);
+
     /* create logical device */
     if (!createLogicalDevice(&app->context)) {
         MINIMAL_ERROR("failed to create logical device!");

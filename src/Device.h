@@ -11,4 +11,6 @@ int pickPhysicalDevice(VulkanContext* context);
 
 int createLogicalDevice(VulkanContext* context);
 
+void printPhysicalDevice(VkPhysicalDevice device);
+
 #endif // !IGNIS_DEVICE_H
