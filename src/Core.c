@@ -84,6 +84,10 @@ int checkValidationLayerSupport() {
     return layerFound;
 }
 
+static int obeliskCreateInstance(const char* app, const char* engine) {
+
+}
+
 typedef struct {
     VkInstance instance;
     VkSurfaceKHR surface;
@@ -191,6 +195,25 @@ int createCommandPool(VulkanContext* context) {
         return MINIMAL_FAIL;
 
     return MINIMAL_OK;
+}
+
+int obeliskCreateContext(GLFWwindow* window, const char* app, const char* engine, int debug) {
+
+    /* setup debug messenger */
+    if (debug) {
+        if (CreateDebugUtilsMessengerEXT(_context.instance, &debugInfo, NULL, &_debugMessenger) != VK_SUCCESS) {
+            MINIMAL_ERROR("failed to set up debug messenger!");
+            return MINIMAL_FAIL;
+        }
+    }
+
+    /* create surface */
+    if (glfwCreateWindowSurface(_context.instance, window, NULL, &_context.surface) != VK_SUCCESS) {
+        MINIMAL_ERROR("failed to create window surface!");
+        return MINIMAL_FAIL;
+    }
+
+    return 0;
 }
 
 VkDevice          obeliskGetContextDevice()         { return _context.device; }

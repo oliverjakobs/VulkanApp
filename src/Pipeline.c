@@ -46,7 +46,7 @@ void destroyShaderStages(const VulkanContext* context, Pipeline* pipeline) {
     }
 }
 
-int createPipelineLayout(const VulkanContext* context, Pipeline* pipeline) {
+int createPipelineLayout(const VulkanContext* context, Pipeline* pipeline, const VertexInputDescription* desc) {
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -59,6 +59,8 @@ int createPipelineLayout(const VulkanContext* context, Pipeline* pipeline) {
     if (vkCreatePipelineLayout(context->device, &pipelineLayoutInfo, NULL, &pipeline->layout) != VK_SUCCESS) {
         return MINIMAL_FAIL;
     }
+
+    pipeline->inputDesc = *desc;
 
     return MINIMAL_OK;
 }
@@ -85,18 +87,12 @@ int createPipeline(const VulkanContext* context, Pipeline* pipeline) {
     };
 
     /* vertex input state */
-    uint32_t vertexBindingDescCount = 0;
-    VkVertexInputBindingDescription* vertexBindingDescs = getVertexBindingDescriptions(&vertexBindingDescCount);
-
-    uint32_t vertexAttributeDescCount = 0;
-    VkVertexInputAttributeDescription* vertexAttributeDescs = getVertexAttributeDescriptions(&vertexAttributeDescCount);
-
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .pVertexBindingDescriptions = vertexBindingDescs,
-        .vertexBindingDescriptionCount = vertexBindingDescCount,
-        .pVertexAttributeDescriptions = vertexAttributeDescs,
-        .vertexAttributeDescriptionCount = vertexAttributeDescCount
+        .pVertexBindingDescriptions = pipeline->inputDesc.bindings,
+        .vertexBindingDescriptionCount = pipeline->inputDesc.bindingCount,
+        .pVertexAttributeDescriptions = pipeline->inputDesc.attributes,
+        .vertexAttributeDescriptionCount = pipeline->inputDesc.attributeCount
     };
 
     /* input assembly state */

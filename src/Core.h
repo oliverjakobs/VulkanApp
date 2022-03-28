@@ -42,7 +42,13 @@ void destroyInstance(VulkanContext* context);
 
 int createCommandPool(VulkanContext* context);
 
+/* */
+int obeliskCreateContext(GLFWwindow* window, const char* app, const char* engine, int debug);
+void obeliskDestroyContext();
+
 VkDevice obeliskGetContextDevice();
 VkPhysicalDevice obeliskGetContextPhysicalDevice();
+
+void obeliskPrintInfo();
 
 #endif // !CORE_H

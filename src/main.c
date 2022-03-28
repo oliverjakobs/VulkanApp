@@ -9,14 +9,43 @@
 
 const int debug = 1;
 
-Buffer vertexBuffer;
-Buffer indexBuffer;
-
 typedef struct {
     mat4 model;
     mat4 view;
     mat4 proj;
 } UniformBufferObject;
+
+typedef struct {
+    float pos[2];
+    float color[3];
+} Vertex;
+
+static VkVertexInputBindingDescription vertexBindingDescs[] = {{
+    .binding = 0,
+    .stride = sizeof(Vertex),
+    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+}};
+
+static VkVertexInputAttributeDescription vertexAttributeDescs[] = {{
+    .binding = 0,
+    .location = 0,
+    .format = VK_FORMAT_R32G32_SFLOAT,
+    .offset = offsetof(Vertex, pos)
+}, {
+    .binding = 0,
+    .location = 1,
+    .format = VK_FORMAT_R32G32B32_SFLOAT,
+    .offset = offsetof(Vertex, color)
+}};
+
+static VertexInputDescription vertexDesc = {
+    .bindings = vertexBindingDescs,
+    .bindingCount = sizeof(vertexBindingDescs) / sizeof(VkVertexInputBindingDescription),
+    .attributes = vertexAttributeDescs,
+    .attributeCount = sizeof(vertexAttributeDescs) / sizeof(VkVertexInputAttributeDescription)
+};
+
+Pipeline pipeline;
 
 const Vertex vertices[] = {
     { { -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f } },
@@ -30,10 +59,11 @@ uint32_t vertexCount = sizeof(vertices) / sizeof(vertices[0]);
 const uint16_t indices[] = { 0, 1, 2, 2, 3, 0 };
 uint32_t indexCount = sizeof(indices) / sizeof(indices[0]);
 
-Pipeline pipeline;
+Buffer vertexBuffer;
+Buffer indexBuffer;
 
 int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
-    if (!createInstance(&app->context, app->window, "VulkanApp", "Ignis", debug)) {
+    if (!createInstance(&app->context, app->window, "VulkanApp", "obelisk", debug)) {
         MINIMAL_ERROR("Failed to create vulkan instance!");
         return MINIMAL_FAIL;
     }
@@ -94,7 +124,7 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
-    if (!createPipelineLayout(&app->context, &pipeline)) {
+    if (!createPipelineLayout(&app->context, &pipeline, &vertexDesc)) {
         MINIMAL_ERROR("Failed to create pipeline layout!");
         return MINIMAL_FAIL;
     }
@@ -109,7 +139,7 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
-    if (!createVertexBuffer(&app->context, &vertexBuffer, vertices, vertexCount)) {
+    if (!createVertexBuffer(&app->context, &vertexBuffer, vertices, vertexCount * sizeof(vertices))) {
         MINIMAL_ERROR("failed to create vertex buffer!");
         return MINIMAL_FAIL;
     }
