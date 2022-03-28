@@ -9,12 +9,11 @@ typedef struct {
     VkDeviceSize size;
 } Buffer;
 
+int createVertexBuffer(Buffer* buffer, const void* vertices, VkDeviceSize size);
+int createIndexBuffer(Buffer* buffer, const uint16_t* indices, uint32_t count);
+int createUniformBuffer(Buffer* buffer, VkDeviceSize size);
+void destroyBuffer(Buffer* buffer);
 
-int createVertexBuffer(const VulkanContext* context, Buffer* buffer, const void* vertices, VkDeviceSize size);
-int createIndexBuffer(const VulkanContext* context, Buffer* buffer, const uint16_t* indices, uint32_t count);
-int createUniformBuffer(const VulkanContext* context, Buffer* buffer, VkDeviceSize size);
-void destroyBuffer(const VulkanContext* context, Buffer* buffer);
-
-void writeBuffer(const VulkanContext* context, Buffer* buffer, const void* src, VkDeviceSize size);
+void writeBuffer(Buffer* buffer, const void* src, VkDeviceSize size);
 
 #endif // !BUFFER_H

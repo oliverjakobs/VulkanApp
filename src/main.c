@@ -1,6 +1,5 @@
 #include "Application.h"
 
-#include "Device.h"
 #include "Swapchain.h"
 #include "Pipeline.h"
 #include "Buffer.h"
@@ -63,22 +62,8 @@ Buffer vertexBuffer;
 Buffer indexBuffer;
 
 int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
-    if (!createInstance(&app->context, app->window, "VulkanApp", "obelisk", debug)) {
+    if (!obeliskCreateContext(app->window, "VulkanApp", "obelisk", debug)) {
         MINIMAL_ERROR("Failed to create vulkan instance!");
-        return MINIMAL_FAIL;
-    }
-
-    /* pick physical device */
-    if (!pickPhysicalDevice(&app->context)) {
-        MINIMAL_ERROR("failed to find a suitable GPU!");
-        return MINIMAL_FAIL;
-    }
-
-    printPhysicalDevice(app->context.physicalDevice);
-
-    /* create logical device */
-    if (!createLogicalDevice(&app->context)) {
-        MINIMAL_ERROR("failed to create logical device!");
         return MINIMAL_FAIL;
     }
 
@@ -86,24 +71,24 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     int width, height;
     glfwGetFramebufferSize(app->window, &width, &height);
 
-    if (!createSwapchain(&app->context, &app->context.swapchain, (uint32_t)width, (uint32_t)height)) {
+    if (!createSwapchain(&app->swapchain, (uint32_t)width, (uint32_t)height)) {
         MINIMAL_ERROR("failed to create swap chain!");
         return MINIMAL_FAIL;
     }
 
-    if (!createRenderPass(&app->context, &app->context.swapchain)) {
+    if (!createRenderPass(&app->swapchain)) {
         MINIMAL_ERROR("failed to create render pass!");
         return MINIMAL_FAIL;
     }
 
-    if (!createFramebuffers(&app->context, &app->context.swapchain)) {
+    if (!createFramebuffers(&app->swapchain)) {
         MINIMAL_ERROR("failed to create framebuffer!");
         return MINIMAL_FAIL;
     }
 
     /* create uniform buffers */
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (!createUniformBuffer(&app->context, &app->context.uniformBuffers[i], sizeof(UniformBufferObject))) {
+        if (!createUniformBuffer(&app->context.uniformBuffers[i], sizeof(UniformBufferObject))) {
             MINIMAL_ERROR("failed to create uniform buffer!");
             return MINIMAL_FAIL;
         }
@@ -119,42 +104,42 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     }
 
     /* create pipeline */
-    if (!createShaderStages(&app->context, &pipeline, "res/shader/vert.spv", "res/shader/frag.spv")) {
+    if (!createShaderStages(&pipeline, "res/shader/vert.spv", "res/shader/frag.spv")) {
         MINIMAL_ERROR("failed to create shader stages!");
         return MINIMAL_FAIL;
     }
 
-    if (!createPipelineLayout(&app->context, &pipeline, &vertexDesc)) {
+    if (!createPipelineLayout(&pipeline, app->context.descriptorSetLayout, &vertexDesc)) {
         MINIMAL_ERROR("Failed to create pipeline layout!");
         return MINIMAL_FAIL;
     }
 
-    if (!createPipeline(&app->context, &pipeline)) {
+    if (!createPipeline(&pipeline, &app->swapchain)) {
         MINIMAL_ERROR("failed to create graphics pipeline!");
         return MINIMAL_FAIL;
     }
 
-    if (!createCommandPool(&app->context)) {
+    if (!obeliskCreateCommandPool()) {
         MINIMAL_ERROR("failed to create command pool!");
         return MINIMAL_FAIL;
     }
 
-    if (!createVertexBuffer(&app->context, &vertexBuffer, vertices, vertexCount * sizeof(vertices))) {
+    if (!createVertexBuffer(&vertexBuffer, vertices, vertexCount * sizeof(vertices))) {
         MINIMAL_ERROR("failed to create vertex buffer!");
         return MINIMAL_FAIL;
     }
 
-    if (!createIndexBuffer(&app->context, &indexBuffer, indices, indexCount)) {
+    if (!createIndexBuffer(&indexBuffer, indices, indexCount)) {
         MINIMAL_ERROR("failed to create index buffer!");
         return MINIMAL_FAIL;
     }
 
-    if (!createCommandBuffer(&app->context)) {
+    if (obeliskAllocateCommandBuffers(app->context.commandBuffers, VK_COMMAND_BUFFER_LEVEL_PRIMARY, MAX_FRAMES_IN_FLIGHT) != VK_SUCCESS) {
         MINIMAL_ERROR("failed to allocate command buffers!");
         return MINIMAL_FAIL;
     }
 
-    if (!createSyncObjects(&app->context, &app->context.swapchain)) {
+    if (!createSyncObjects(&app->context, &app->swapchain)) {
         MINIMAL_ERROR("failed to create synchronization objects for a frame!");
         return MINIMAL_FAIL;
     }
@@ -163,30 +148,27 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 }
 
 void OnDestroy(MinimalApp* app) {
-    destroyShaderStages(&app->context, &pipeline);
-    destroyPipelineLayout(&app->context, &pipeline);
-    destroyPipeline(&app->context, &pipeline);
+    destroyShaderStages(&pipeline);
+    destroyPipelineLayout(&pipeline);
+    destroyPipeline(&pipeline);
 
     destroyDescriptorSets(&app->context);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        destroyBuffer(&app->context, &app->context.uniformBuffers[i]);
+        destroyBuffer(&app->context.uniformBuffers[i]);
     }
 
-    destroyBuffer(&app->context, &vertexBuffer);
-    destroyBuffer(&app->context, &indexBuffer);
+    destroyBuffer(&vertexBuffer);
+    destroyBuffer(&indexBuffer);
 
-    destroySwapchain(&app->context, &app->context.swapchain);
+    destroySwapchain(&app->swapchain);
 
-    destroySyncObjects(&app->context, &app->context.swapchain);
+    destroySyncObjects(&app->context, &app->swapchain);
 
-    vkDestroyDescriptorPool(app->context.device, app->context.descriptorPool, NULL);
-    vkDestroyCommandPool(app->context.device, app->context.commandPool, NULL);
+    vkDestroyDescriptorPool(obeliskGetDevice(), app->context.descriptorPool, NULL);
 
-    /* destroy device */
-    vkDestroyDevice(app->context.device, NULL);
-
-    destroyInstance(&app->context);
+    obeliskDestroyCommandPool();
+    obeliskDestroyContext();
 }
 
 int OnEvent(MinimalApp* app, const MinimalEvent* e) {
@@ -197,8 +179,8 @@ int OnEvent(MinimalApp* app, const MinimalEvent* e) {
 
         if (width == 0 || height == 0) return MINIMAL_FAIL;
 
-        recreateSwapchain(&app->context, &app->context.swapchain, app->window);
-        recreatePipeline(&app->context, &pipeline);
+        recreateSwapchain(&app->swapchain, app->window);
+        recreatePipeline(&pipeline, &app->swapchain);
     }
 
     return MINIMAL_OK;
@@ -211,12 +193,12 @@ void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, uint32_t frame, float 
     UniformBufferObject ubo = { 0 };
     glm_rotate_make(ubo.model, time * glm_rad(90.0f), (vec3){ 0.0f, 0.0f, 1.0f });
     glm_lookat((vec3) { 2.0f, 2.0f, 2.0f }, (vec3) { 0.0f, 0.0f, 0.0f }, (vec3){ 0.0f, 0.0f, 1.0f }, ubo.view);
-    float aspect = app->context.swapchain.extent.width / (float)app->context.swapchain.extent.height;
+    float aspect = app->swapchain.extent.width / (float)app->swapchain.extent.height;
     glm_perspective(glm_rad(45.0f), aspect, 0.1f, 10.0f, ubo.proj);
 
     ubo.proj[1][1] *= -1;
 
-    writeBuffer(&app->context, &app->context.uniformBuffers[frame], &ubo, sizeof(ubo));
+    writeBuffer(&app->context.uniformBuffers[frame], &ubo, sizeof(ubo));
 
     vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
     vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, &app->context.descriptorSets[frame], 0, NULL);

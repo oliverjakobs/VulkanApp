@@ -4,9 +4,9 @@
 
 #include <string.h>
 
-static uint32_t findMemoryType(const VulkanContext* context, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+static uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memoryProps;
-    vkGetPhysicalDeviceMemoryProperties(context->physicalDevice, &memoryProps);
+    vkGetPhysicalDeviceMemoryProperties(obeliskGetPhysicalDevice(), &memoryProps);
 
     for (uint32_t i = 0; i < memoryProps.memoryTypeCount; i++) {
         if ((typeFilter & (1 << i)) && (memoryProps.memoryTypes[i].propertyFlags & properties) == properties) {
@@ -18,7 +18,7 @@ static uint32_t findMemoryType(const VulkanContext* context, uint32_t typeFilter
     return 0;
 }
 
-int createBuffer(const VulkanContext* context, Buffer* buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
+int createBuffer(Buffer* buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
     VkBufferCreateInfo bufferInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .size = size,
@@ -26,40 +26,33 @@ int createBuffer(const VulkanContext* context, Buffer* buffer, VkDeviceSize size
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE
     };
 
-    if (vkCreateBuffer(context->device, &bufferInfo, NULL, &buffer->handle) != VK_SUCCESS) {
+    if (vkCreateBuffer(obeliskGetDevice(), &bufferInfo, NULL, &buffer->handle) != VK_SUCCESS) {
         MINIMAL_ERROR("failed to create buffer!");
         return MINIMAL_FAIL;
     }
 
     VkMemoryRequirements memoryReq;
-    vkGetBufferMemoryRequirements(context->device, buffer->handle, &memoryReq);
+    vkGetBufferMemoryRequirements(obeliskGetDevice(), buffer->handle, &memoryReq);
 
     VkMemoryAllocateInfo allocInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .allocationSize = memoryReq.size,
-        .memoryTypeIndex = findMemoryType(context, memoryReq.memoryTypeBits, properties)
+        .memoryTypeIndex = findMemoryType(memoryReq.memoryTypeBits, properties)
     };
 
-    if (vkAllocateMemory(context->device, &allocInfo, NULL, &buffer->memory) != VK_SUCCESS) {
+    if (vkAllocateMemory(obeliskGetDevice(), &allocInfo, NULL, &buffer->memory) != VK_SUCCESS) {
         MINIMAL_ERROR("failed to allocate buffer memory!");
         return MINIMAL_FAIL;
     }
 
-    vkBindBufferMemory(context->device, buffer->handle, buffer->memory, 0);
+    vkBindBufferMemory(obeliskGetDevice(), buffer->handle, buffer->memory, 0);
     buffer->size = size;
     return MINIMAL_OK;
 }
 
-void copyBuffer(const VulkanContext* context, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-    VkCommandBufferAllocateInfo allocInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandPool = context->commandPool,
-        .commandBufferCount = 1
-    };
-
+void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(context->device, &allocInfo, &commandBuffer);
+    obeliskAllocateCommandBuffers(&commandBuffer, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
 
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -79,72 +72,72 @@ void copyBuffer(const VulkanContext* context, VkBuffer srcBuffer, VkBuffer dstBu
         .commandBufferCount = 1
     };
 
-    vkQueueSubmit(context->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(context->graphicsQueue);
+    vkQueueSubmit(obeliskGetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(obeliskGetGraphicsQueue());
 
-    vkFreeCommandBuffers(context->device, context->commandPool, 1, &commandBuffer);
+    obeliskFreeCommandBuffers(&commandBuffer, 1);
 }
 
-int createVertexBuffer(const VulkanContext* context, Buffer* buffer, const void* vertices, VkDeviceSize size) {
+int createVertexBuffer(Buffer* buffer, const void* vertices, VkDeviceSize size) {
     Buffer staging = { 0 };
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    if (!createBuffer(context, &staging, size, usage, properties))
+    if (!createBuffer(&staging, size, usage, properties))
         return MINIMAL_FAIL;
 
-    writeBuffer(context, &staging, vertices, size);
+    writeBuffer(&staging, vertices, size);
 
     usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    if (!createBuffer(context, buffer, size, usage, properties)) {
-        destroyBuffer(context, &staging);
+    if (!createBuffer(buffer, size, usage, properties)) {
+        destroyBuffer(&staging);
         return MINIMAL_FAIL;
     }
 
-    copyBuffer(context, staging.handle, buffer->handle, size);
-    destroyBuffer(context, &staging);
+    copyBuffer(staging.handle, buffer->handle, size);
+    destroyBuffer(&staging);
 
     return MINIMAL_OK;
 }
 
-int createIndexBuffer(const VulkanContext* context, Buffer* buffer, const uint16_t* indices, uint32_t count) {
+int createIndexBuffer(Buffer* buffer, const uint16_t* indices, uint32_t count) {
     VkDeviceSize size = count * sizeof(*indices);
 
     Buffer staging = { 0 };
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    if (!createBuffer(context, &staging, size, usage, properties))
+    if (!createBuffer(&staging, size, usage, properties))
         return MINIMAL_FAIL;
 
-    writeBuffer(context, &staging, indices, size);
+    writeBuffer(&staging, indices, size);
 
     usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
     properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    if (!createBuffer(context, buffer, size, usage, properties)) {
-        destroyBuffer(context, &staging);
+    if (!createBuffer(buffer, size, usage, properties)) {
+        destroyBuffer(&staging);
         return MINIMAL_FAIL;
     }
 
-    copyBuffer(context, staging.handle, buffer->handle, size);
-    destroyBuffer(context, &staging);
+    copyBuffer(staging.handle, buffer->handle, size);
+    destroyBuffer(&staging);
 
     return MINIMAL_OK;
 }
 
-int createUniformBuffer(const VulkanContext* context, Buffer* buffer, VkDeviceSize size) {
+int createUniformBuffer(Buffer* buffer, VkDeviceSize size) {
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    return createBuffer(context, buffer, size, usage, properties);
+    return createBuffer(buffer, size, usage, properties);
 }
 
-void destroyBuffer(const VulkanContext* context, Buffer* buffer) {
-    vkDestroyBuffer(context->device, buffer->handle, NULL);
-    vkFreeMemory(context->device, buffer->memory, NULL);
+void destroyBuffer(Buffer* buffer) {
+    vkDestroyBuffer(obeliskGetDevice(), buffer->handle, NULL);
+    vkFreeMemory(obeliskGetDevice(), buffer->memory, NULL);
 }
 
-void writeBuffer(const VulkanContext* context, Buffer* buffer, const void* src, VkDeviceSize size) {
+void writeBuffer(Buffer* buffer, const void* src, VkDeviceSize size) {
     void* dst;
-    vkMapMemory(context->device, buffer->memory, 0, size, 0, &dst);
+    vkMapMemory(obeliskGetDevice(), buffer->memory, 0, size, 0, &dst);
     memcpy(dst, src, (size_t)size);
-    vkUnmapMemory(context->device, buffer->memory);
+    vkUnmapMemory(obeliskGetDevice(), buffer->memory);
 }

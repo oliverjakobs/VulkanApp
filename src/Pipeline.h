@@ -25,15 +25,15 @@ typedef struct {
     VkShaderModule shaderModules[SHADER_COUNT];
 } Pipeline;
 
-int createShaderStages(const VulkanContext* context, Pipeline* pipeline, const char* vertPath, const char* fragPath);
-void destroyShaderStages(const VulkanContext* context, Pipeline* pipeline);
+int createShaderStages(Pipeline* pipeline, const char* vertPath, const char* fragPath);
+void destroyShaderStages(Pipeline* pipeline);
 
-int createPipelineLayout(const VulkanContext* context, Pipeline* pipeline, const VertexInputDescription* desc);
-void destroyPipelineLayout(const VulkanContext* context, Pipeline* pipeline);
+int createPipelineLayout(Pipeline* pipeline, VkDescriptorSetLayout descriptorSetLayout, const VertexInputDescription* desc);
+void destroyPipelineLayout(Pipeline* pipeline);
 
-int createPipeline(const VulkanContext* context, Pipeline* pipeline);
-int recreatePipeline(const VulkanContext* context, Pipeline* pipeline);
-void destroyPipeline(const VulkanContext* context, Pipeline* pipeline);
+int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain);
+int recreatePipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain);
+void destroyPipeline(Pipeline* pipeline);
 
 
 #endif // !PIPELINE_H

@@ -109,14 +109,14 @@ void MinimalRun(MinimalApp* app) {
 
         /* acquire swap chain image */
         uint32_t imageIndex = 0;
-        if (!acquireSwapchainImage(&app->context, &app->context.swapchain, frame, &imageIndex)) {
+        if (!acquireSwapchainImage(&app->swapchain, frame, &imageIndex)) {
             MINIMAL_ERROR("failed to acquire swap chain image!");
             continue;
         }
 
         /* start frame */
         VkCommandBuffer cmdBuffer = app->context.commandBuffers[frame];
-        commandBufferStart(cmdBuffer, &app->context.swapchain, imageIndex);
+        commandBufferStart(cmdBuffer, &app->swapchain, imageIndex);
 
         app->on_update(app, cmdBuffer, frame, (float)app->timer.deltatime);
 
@@ -124,13 +124,13 @@ void MinimalRun(MinimalApp* app) {
         commandBufferEnd(cmdBuffer);
 
         /* submit frame */
-        if (!submitFrame(&app->context, &app->context.swapchain, cmdBuffer, frame)) {
+        if (!submitFrame(&app->swapchain, cmdBuffer, frame)) {
             MINIMAL_ERROR("failed to submit draw command buffer!");
             continue;
         }
 
         /* present frame */
-        if (!presentFrame(&app->context, &app->context.swapchain, imageIndex, frame)) {
+        if (!presentFrame(&app->swapchain, imageIndex, frame)) {
             MINIMAL_ERROR("failed to present swap chain image!");
             continue;
         }
@@ -141,7 +141,7 @@ void MinimalRun(MinimalApp* app) {
         MinimalTimerEnd(&app->timer, glfwGetTime());
     }
 
-    vkDeviceWaitIdle(app->context.device);
+    vkDeviceWaitIdle(obeliskGetDevice());
 }
 
 void MinimalClose(MinimalApp* app) { glfwSetWindowShouldClose(app->window, GLFW_TRUE); }

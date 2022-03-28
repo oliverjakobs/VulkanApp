@@ -22,28 +22,27 @@ typedef struct {
     VkRenderPass renderPass;
 
     FrameInfo frames[MAX_FRAMES_IN_FLIGHT];
-} Swapchain;
+} ObeliskSwapchain;
 
-int createSwapchain(const VulkanContext* context, Swapchain* swapchain, uint32_t width, uint32_t height);
-int recreateSwapchain(const VulkanContext* context, Swapchain* swapchain, GLFWwindow* window);
-void destroySwapchain(const VulkanContext* context, Swapchain* swapchain);
+int createSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height);
+int recreateSwapchain(ObeliskSwapchain* swapchain, GLFWwindow* window);
+void destroySwapchain(ObeliskSwapchain* swapchain);
 
-int createRenderPass(const VulkanContext* context, Swapchain* swapchain);
-int createFramebuffers(const VulkanContext* context, Swapchain* swapchain);
+int createRenderPass(ObeliskSwapchain* swapchain);
+int createFramebuffers(ObeliskSwapchain* swapchain);
 
-int acquireSwapchainImage(const VulkanContext* context, Swapchain* swapchain, uint32_t frame, uint32_t* imageIndex);
-int submitFrame(const VulkanContext* context, Swapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t frame);
-int presentFrame(const VulkanContext* context, Swapchain* swapchain, uint32_t imageIndex, uint32_t frame);
+int acquireSwapchainImage(ObeliskSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex);
+int submitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t frame);
+int presentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32_t frame);
 
-int createCommandBuffer(VulkanContext* context);
-void commandBufferStart(VkCommandBuffer cmdBuffer, const Swapchain* swapchain, uint32_t imageIndex);
+void commandBufferStart(VkCommandBuffer cmdBuffer, const ObeliskSwapchain* swapchain, uint32_t imageIndex);
 void commandBufferEnd(VkCommandBuffer cmdBuffer);
 
 int createDescriptorPool(VulkanContext* context);
 int createDescriptorSets(VulkanContext* context);
 void destroyDescriptorSets(VulkanContext* context);
 
-int createSyncObjects(VulkanContext* context, Swapchain* swapchain);
-void destroySyncObjects(VulkanContext* context, Swapchain* swapchain);
+int createSyncObjects(VulkanContext* context, ObeliskSwapchain* swapchain);
+void destroySyncObjects(VulkanContext* context, ObeliskSwapchain* swapchain);
 
 #endif // !SWAPCHAIN_H
