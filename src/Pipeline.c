@@ -102,25 +102,11 @@ int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain) {
     };
 
     /* viewport state */
-    VkViewport viewport = {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = (float)swapchain->extent.width,
-        .height = (float)swapchain->extent.height,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f
-    };
-
-    VkRect2D scissor = {
-        .offset = { 0, 0 },
-        .extent = swapchain->extent
-    };
-
     VkPipelineViewportStateCreateInfo viewportState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-        .pViewports = &viewport,
+        .pViewports = NULL,
         .viewportCount = 1,
-        .pScissors = &scissor,
+        .pScissors = NULL,
         .scissorCount = 1
     };
 
@@ -151,6 +137,18 @@ int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain) {
     };
 
     /* depth stencil state */
+    VkPipelineDepthStencilStateCreateInfo depthStencilInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthTestEnable = VK_TRUE,
+        .depthWriteEnable = VK_TRUE,
+        .depthCompareOp = VK_COMPARE_OP_LESS,
+        .depthBoundsTestEnable = VK_FALSE,
+        .minDepthBounds = 0.0f,  // Optional
+        .maxDepthBounds = 1.0f,  // Optional
+        .stencilTestEnable = VK_FALSE,
+        .front = { 0 },  // Optional
+        .back = { 0 }   // Optional
+    };
 
     /* color blend state  */
     VkPipelineColorBlendAttachmentState colorBlendAttachment = {
@@ -171,8 +169,8 @@ int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain) {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .logicOpEnable = VK_FALSE,
         .logicOp = VK_LOGIC_OP_COPY,
-        .attachmentCount = 1,
         .pAttachments = &colorBlendAttachment,
+        .attachmentCount = 1,
         .blendConstants[0] = 0.0f,
         .blendConstants[1] = 0.0f,
         .blendConstants[2] = 0.0f,
@@ -180,6 +178,13 @@ int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain) {
     };
 
     /* dynamic state */
+    VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    VkPipelineDynamicStateCreateInfo dynamicStateInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+        .pDynamicStates = dynamicStates,
+        .dynamicStateCount = sizeof(dynamicStates) / sizeof(VkDynamicState),
+        .flags = 0
+    };
 
     /* create pipeline */
     VkGraphicsPipelineCreateInfo info = {
@@ -191,9 +196,9 @@ int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain) {
         .pViewportState = &viewportState,
         .pRasterizationState = &rasterizer,
         .pMultisampleState = &multisampling,
-        .pDepthStencilState = NULL,
+        .pDepthStencilState = &depthStencilInfo,
         .pColorBlendState = &colorBlending,
-        .pDynamicState = NULL,
+        .pDynamicState = &dynamicStateInfo,
         .layout = pipeline->layout,
         .renderPass = swapchain->renderPass,
         .subpass = 0,

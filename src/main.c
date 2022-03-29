@@ -195,15 +195,34 @@ void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, uint32_t frame, float 
     static float time;
     time += deltatime;
 
+    VkExtent2D extent = app->swapchain.extent;
+
     UniformBufferObject ubo = { 0 };
     glm_rotate_make(ubo.model, time * glm_rad(90.0f), (vec3){ 0.0f, 0.0f, 1.0f });
     glm_lookat((vec3) { 2.0f, 2.0f, 2.0f }, (vec3) { 0.0f, 0.0f, 0.0f }, (vec3){ 0.0f, 0.0f, 1.0f }, ubo.view);
-    float aspect = app->swapchain.extent.width / (float)app->swapchain.extent.height;
+    float aspect = extent.width / (float)extent.height;
     glm_perspective(glm_rad(45.0f), aspect, 0.1f, 10.0f, ubo.proj);
 
     ubo.proj[1][1] *= -1;
 
     writeBuffer(&app->swapchain.uniformBuffers[frame], &ubo, sizeof(ubo));
+
+    VkViewport viewport = {
+        .x = 0.0f,
+        .y = 0.0f,
+        .width = (float)extent.width,
+        .height = (float)extent.height,
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f
+    };
+
+    VkRect2D scissor = {
+        .offset = { 0, 0 },
+        .extent = extent
+    };
+
+    vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+    vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
     vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
     vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, &app->swapchain.descriptorSets[frame], 0, NULL);

@@ -77,10 +77,6 @@ static uint32_t getSurfaceImageCount(const VkSurfaceCapabilitiesKHR* capabilitie
 }
 
 int createSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height) {
-    VkSurfaceCapabilitiesKHR capabilities;
-    obeliskGetPhysicalDeviceSurfaceCapabilities(&capabilities);
-    swapchain->extent = getSurfaceExtent(&capabilities, width, height);
-
     /* choose swap chain surface format */
     VkSurfaceFormatKHR surfaceFormat;
     if (!chooseSurfaceFormat(&surfaceFormat)) {
@@ -95,6 +91,9 @@ int createSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height
         return MINIMAL_FAIL;
     }
 
+    VkSurfaceCapabilitiesKHR capabilities;
+    obeliskGetPhysicalDeviceSurfaceCapabilities(&capabilities);
+    swapchain->extent = getSurfaceExtent(&capabilities, width, height);
     uint32_t imageCount = getSurfaceImageCount(&capabilities);
     if (!imageCount) return MINIMAL_FAIL;
 
