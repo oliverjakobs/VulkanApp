@@ -37,11 +37,11 @@ static VkVertexInputAttributeDescription vertexAttributeDescs[] = {{
     .offset = offsetof(Vertex, color)
 }};
 
-static VertexInputDescription vertexDesc = {
-    .bindings = vertexBindingDescs,
-    .bindingCount = sizeof(vertexBindingDescs) / sizeof(VkVertexInputBindingDescription),
-    .attributes = vertexAttributeDescs,
-    .attributeCount = sizeof(vertexAttributeDescs) / sizeof(VkVertexInputAttributeDescription)
+static PipelineLayout pipelineLayout = {
+    .vertexInputBindings = vertexBindingDescs,
+    .vertexInputBindingCount = sizeof(vertexBindingDescs) / sizeof(VkVertexInputBindingDescription),
+    .vertexInputAttributes = vertexAttributeDescs,
+    .vertexInputAttributeCount = sizeof(vertexAttributeDescs) / sizeof(VkVertexInputAttributeDescription)
 };
 
 Pipeline pipeline;
@@ -88,18 +88,24 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 
     /* create uniform buffers */
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (!createUniformBuffer(&app->context.uniformBuffers[i], sizeof(UniformBufferObject))) {
+        if (!createUniformBuffer(&app->swapchain.uniformBuffers[i], sizeof(UniformBufferObject))) {
             MINIMAL_ERROR("failed to create uniform buffer!");
             return MINIMAL_FAIL;
         }
     }
 
-    if (!createDescriptorPool(&app->context)) {
+    if (!createDescriptorPool(&app->swapchain)) {
         MINIMAL_ERROR("failed to create descriptor pool!");
         return MINIMAL_FAIL;
     }
 
-    if (!createDescriptorSets(&app->context)) {
+    if (!createDescriptorLayout(&app->swapchain)) {
+        MINIMAL_ERROR("failed to create descriptor set layout!");
+        return MINIMAL_FAIL;
+    }
+
+    if (!createDescriptorSets(&app->swapchain)) {
+        MINIMAL_ERROR("failed to allocate descriptor sets!");
         return MINIMAL_FAIL;
     }
 
@@ -109,7 +115,7 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
-    if (!createPipelineLayout(&pipeline, app->context.descriptorSetLayout, &vertexDesc)) {
+    if (!createPipelineLayout(&pipeline, &app->swapchain, &pipelineLayout)) {
         MINIMAL_ERROR("Failed to create pipeline layout!");
         return MINIMAL_FAIL;
     }
@@ -134,12 +140,12 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
-    if (obeliskAllocateCommandBuffers(app->context.commandBuffers, VK_COMMAND_BUFFER_LEVEL_PRIMARY, MAX_FRAMES_IN_FLIGHT) != VK_SUCCESS) {
+    if (obeliskAllocateCommandBuffers(app->swapchain.commandBuffers, VK_COMMAND_BUFFER_LEVEL_PRIMARY, MAX_FRAMES_IN_FLIGHT) != VK_SUCCESS) {
         MINIMAL_ERROR("failed to allocate command buffers!");
         return MINIMAL_FAIL;
     }
 
-    if (!createSyncObjects(&app->context, &app->swapchain)) {
+    if (!createSyncObjects(&app->swapchain)) {
         MINIMAL_ERROR("failed to create synchronization objects for a frame!");
         return MINIMAL_FAIL;
     }
@@ -148,24 +154,23 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
 }
 
 void OnDestroy(MinimalApp* app) {
+    /* destroy pipeline */
     destroyShaderStages(&pipeline);
     destroyPipelineLayout(&pipeline);
     destroyPipeline(&pipeline);
 
-    destroyDescriptorSets(&app->context);
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        destroyBuffer(&app->context.uniformBuffers[i]);
-    }
-
     destroyBuffer(&vertexBuffer);
     destroyBuffer(&indexBuffer);
 
+    /* destroy swapchain */
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        destroyBuffer(&app->swapchain.uniformBuffers[i]);
+    }
+
+    destroyDescriptorLayout(&app->swapchain);
+    destroyDescriptorPool(&app->swapchain);
+    destroySyncObjects(&app->swapchain);
     destroySwapchain(&app->swapchain);
-
-    destroySyncObjects(&app->context, &app->swapchain);
-
-    vkDestroyDescriptorPool(obeliskGetDevice(), app->context.descriptorPool, NULL);
 
     obeliskDestroyCommandPool();
     obeliskDestroyContext();
@@ -198,10 +203,10 @@ void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, uint32_t frame, float 
 
     ubo.proj[1][1] *= -1;
 
-    writeBuffer(&app->context.uniformBuffers[frame], &ubo, sizeof(ubo));
+    writeBuffer(&app->swapchain.uniformBuffers[frame], &ubo, sizeof(ubo));
 
     vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
-    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, &app->context.descriptorSets[frame], 0, NULL);
+    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, &app->swapchain.descriptorSets[frame], 0, NULL);
 
     VkBuffer vertexBuffers[] = { vertexBuffer.handle };
     VkDeviceSize offsets[] = { 0 };

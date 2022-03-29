@@ -46,11 +46,11 @@ void destroyShaderStages(Pipeline* pipeline) {
     }
 }
 
-int createPipelineLayout(Pipeline* pipeline, VkDescriptorSetLayout descriptorSetLayout, const VertexInputDescription* desc) {
+int createPipelineLayout(Pipeline* pipeline, const ObeliskSwapchain* swapchain, const PipelineLayout* layout) {
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .pSetLayouts = &descriptorSetLayout,
+        .pSetLayouts = &swapchain->descriptorSetLayout,
         .setLayoutCount = 1,
         .pPushConstantRanges = NULL,
         .pushConstantRangeCount = 0
@@ -60,7 +60,13 @@ int createPipelineLayout(Pipeline* pipeline, VkDescriptorSetLayout descriptorSet
         return MINIMAL_FAIL;
     }
 
-    pipeline->inputDesc = *desc;
+    pipeline->vertexInputInfo = (VkPipelineVertexInputStateCreateInfo){
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .pVertexBindingDescriptions = layout->vertexInputBindings,
+        .vertexBindingDescriptionCount = layout->vertexInputBindingCount,
+        .pVertexAttributeDescriptions = layout->vertexInputAttributes,
+        .vertexAttributeDescriptionCount = layout->vertexInputAttributeCount
+    };
 
     return MINIMAL_OK;
 }
@@ -87,13 +93,6 @@ int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain) {
     };
 
     /* vertex input state */
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .pVertexBindingDescriptions = pipeline->inputDesc.bindings,
-        .vertexBindingDescriptionCount = pipeline->inputDesc.bindingCount,
-        .pVertexAttributeDescriptions = pipeline->inputDesc.attributes,
-        .vertexAttributeDescriptionCount = pipeline->inputDesc.attributeCount
-    };
 
     /* input assembly state */
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
@@ -187,7 +186,7 @@ int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain) {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         .pStages = shaderStages,
         .stageCount = SHADER_COUNT,
-        .pVertexInputState = &vertexInputInfo,
+        .pVertexInputState = &pipeline->vertexInputInfo,
         .pInputAssemblyState = &inputAssembly,
         .pViewportState = &viewportState,
         .pRasterizationState = &rasterizer,

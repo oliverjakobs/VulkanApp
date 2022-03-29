@@ -5,11 +5,12 @@
 #include "Core.h"
 
 typedef struct {
-    VkVertexInputBindingDescription* bindings;
-    uint32_t bindingCount;
-    VkVertexInputAttributeDescription* attributes;
-    uint32_t attributeCount;
-} VertexInputDescription;
+    VkVertexInputBindingDescription* vertexInputBindings;
+    uint32_t vertexInputBindingCount;
+    VkVertexInputAttributeDescription* vertexInputAttributes;
+    uint32_t vertexInputAttributeCount;
+
+} PipelineLayout;
 
 typedef enum {
     SHADER_VERT = 0,
@@ -20,7 +21,7 @@ typedef enum {
 typedef struct {
     VkPipeline handle;
     VkPipelineLayout layout;
-    VertexInputDescription inputDesc;
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo;
 
     VkShaderModule shaderModules[SHADER_COUNT];
 } Pipeline;
@@ -28,7 +29,7 @@ typedef struct {
 int createShaderStages(Pipeline* pipeline, const char* vertPath, const char* fragPath);
 void destroyShaderStages(Pipeline* pipeline);
 
-int createPipelineLayout(Pipeline* pipeline, VkDescriptorSetLayout descriptorSetLayout, const VertexInputDescription* desc);
+int createPipelineLayout(Pipeline* pipeline, const ObeliskSwapchain* swapchain, const PipelineLayout* layout);
 void destroyPipelineLayout(Pipeline* pipeline);
 
 int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain);

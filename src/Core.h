@@ -20,18 +20,6 @@ int obeliskCreateInstance(obeliskContext* context, const char* app, const char* 
 int obeliskPickPhysicalDevice(obeliskContext* context);
 int obeliskCreateLogicalDevice(obeliskContext* context);
 
-struct VulkanContext {
-
-    VkDescriptorPool descriptorPool;
-
-    VkDescriptorSetLayout descriptorSetLayout;
-
-    /* frames */
-    VkDescriptorSet descriptorSets[MAX_FRAMES_IN_FLIGHT];
-    VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT];
-    Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
-};
-
 /* */
 int obeliskCreateContext(GLFWwindow* window, const char* app, const char* engine, int debug);
 void obeliskDestroyContext();

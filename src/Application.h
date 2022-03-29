@@ -32,7 +32,6 @@ typedef void (*MinimalUpdateCB)  (MinimalApp* app, VkCommandBuffer cmdBuffer, ui
 
 struct MinimalApp {
     GLFWwindow* window;
-    VulkanContext context;
     ObeliskSwapchain swapchain;
 
     MinimalLoadCB    on_load;

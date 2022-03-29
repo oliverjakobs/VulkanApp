@@ -115,7 +115,7 @@ void MinimalRun(MinimalApp* app) {
         }
 
         /* start frame */
-        VkCommandBuffer cmdBuffer = app->context.commandBuffers[frame];
+        VkCommandBuffer cmdBuffer = app->swapchain.commandBuffers[frame];
         commandBufferStart(cmdBuffer, &app->swapchain, imageIndex);
 
         app->on_update(app, cmdBuffer, frame, (float)app->timer.deltatime);

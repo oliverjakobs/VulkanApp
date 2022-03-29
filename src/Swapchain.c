@@ -293,14 +293,16 @@ int createFramebuffers(ObeliskSwapchain* swapchain) {
 }
 
 int acquireSwapchainImage(ObeliskSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex) {
-    vkWaitForFences(obeliskGetDevice(), 1, &swapchain->frames[frame].fence, VK_TRUE, UINT64_MAX);
+    VkDevice device = obeliskGetDevice();
 
-    VkResult result = vkAcquireNextImageKHR(obeliskGetDevice(), swapchain->handle, UINT64_MAX, swapchain->frames[frame].imageAvailable, VK_NULL_HANDLE, imageIndex);
+    vkWaitForFences(device, 1, &swapchain->fences[frame], VK_TRUE, UINT64_MAX);
+
+    VkResult result = vkAcquireNextImageKHR(device, swapchain->handle, UINT64_MAX, swapchain->imageAvailable[frame], VK_NULL_HANDLE, imageIndex);
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         return MINIMAL_FAIL;
     }
 
-    vkResetFences(obeliskGetDevice(), 1, &swapchain->frames[frame].fence);
+    vkResetFences(device, 1, &swapchain->fences[frame]);
     return MINIMAL_OK;
 }
 
@@ -308,7 +310,7 @@ int submitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t
     VkSubmitInfo submitInfo = { 0 };
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = { swapchain->frames[frame].imageAvailable };
+    VkSemaphore waitSemaphores[] = { swapchain->imageAvailable[frame] };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
@@ -317,11 +319,11 @@ int submitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t
     submitInfo.pCommandBuffers = &cmdBuffer;
     submitInfo.commandBufferCount = 1;
 
-    VkSemaphore signalSemaphores[] = { swapchain->frames[frame].renderFinished };
+    VkSemaphore signalSemaphores[] = { swapchain->renderFinished[frame] };
     submitInfo.pSignalSemaphores = signalSemaphores;
     submitInfo.signalSemaphoreCount = 1;
 
-    if (vkQueueSubmit(obeliskGetGraphicsQueue(), 1, &submitInfo, swapchain->frames[frame].fence) != VK_SUCCESS) {
+    if (vkQueueSubmit(obeliskGetGraphicsQueue(), 1, &submitInfo, swapchain->fences[frame]) != VK_SUCCESS) {
         return MINIMAL_FAIL;
     }
     return MINIMAL_OK;
@@ -331,7 +333,7 @@ int presentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32_t fram
     VkPresentInfoKHR presentInfo = { 0 };
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-    VkSemaphore signalSemaphores[] = { swapchain->frames[frame].renderFinished };
+    VkSemaphore signalSemaphores[] = { swapchain->renderFinished[frame] };
     presentInfo.pWaitSemaphores = signalSemaphores;
     presentInfo.waitSemaphoreCount = 1;
 
@@ -382,7 +384,7 @@ void commandBufferEnd(VkCommandBuffer cmdBuffer) {
     }
 }
 
-int createDescriptorPool(VulkanContext* context) {
+int createDescriptorPool(ObeliskSwapchain* swapchain) {
     VkDescriptorPoolSize poolSize = {
         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = MAX_FRAMES_IN_FLIGHT
@@ -395,15 +397,18 @@ int createDescriptorPool(VulkanContext* context) {
         .maxSets = MAX_FRAMES_IN_FLIGHT
     };
 
-    if (vkCreateDescriptorPool(obeliskGetDevice(), &poolInfo, NULL, &context->descriptorPool) != VK_SUCCESS) {
+    if (vkCreateDescriptorPool(obeliskGetDevice(), &poolInfo, NULL, &swapchain->descriptorPool) != VK_SUCCESS) {
         return MINIMAL_FAIL;
     }
 
     return MINIMAL_OK;
 }
 
-int createDescriptorSets(VulkanContext* context) {
-    /* create descriptor set layout */
+void destroyDescriptorPool(ObeliskSwapchain* swapchain) {
+    vkDestroyDescriptorPool(obeliskGetDevice(), swapchain->descriptorPool, NULL);
+}
+
+int createDescriptorLayout(ObeliskSwapchain* swapchain) {
     VkDescriptorSetLayoutBinding uboLayoutBinding = {
         .binding = 0,
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -418,39 +423,44 @@ int createDescriptorSets(VulkanContext* context) {
         .bindingCount = 1
     };
 
-    if (vkCreateDescriptorSetLayout(obeliskGetDevice(), &layoutInfo, NULL, &context->descriptorSetLayout) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to create descriptor set layout!");
+    if (vkCreateDescriptorSetLayout(obeliskGetDevice(), &layoutInfo, NULL, &swapchain->descriptorSetLayout) != VK_SUCCESS) {
         return MINIMAL_FAIL;
     }
 
-    /* create descriptor sets */
+    return MINIMAL_OK;
+}
+
+void destroyDescriptorLayout(ObeliskSwapchain* swapchain) {
+    vkDestroyDescriptorSetLayout(obeliskGetDevice(), swapchain->descriptorSetLayout, NULL);
+}
+
+int createDescriptorSets(ObeliskSwapchain* swapchain) {
     VkDescriptorSetLayout layouts[MAX_FRAMES_IN_FLIGHT];
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        layouts[i] = context->descriptorSetLayout;
+        layouts[i] = swapchain->descriptorSetLayout;
     }
 
     VkDescriptorSetAllocateInfo allocInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = context->descriptorPool,
+        .descriptorPool = swapchain->descriptorPool,
         .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
         .pSetLayouts = layouts
     };
 
-    if (vkAllocateDescriptorSets(obeliskGetDevice(), &allocInfo, context->descriptorSets) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to allocate descriptor sets!");
+    if (vkAllocateDescriptorSets(obeliskGetDevice(), &allocInfo, swapchain->descriptorSets) != VK_SUCCESS) {
         return MINIMAL_FAIL;
     }
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         VkDescriptorBufferInfo bufferInfo = {
-            .buffer = context->uniformBuffers[i].handle,
-            .range = context->uniformBuffers[i].size,
+            .buffer = swapchain->uniformBuffers[i].handle,
+            .range = swapchain->uniformBuffers[i].size,
             .offset = 0
         };
 
         VkWriteDescriptorSet descriptorWrite = {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = context->descriptorSets[i],
+            .dstSet = swapchain->descriptorSets[i],
             .dstBinding = 0,
             .dstArrayElement = 0,
             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -464,11 +474,7 @@ int createDescriptorSets(VulkanContext* context) {
     return MINIMAL_OK;
 }
 
-void destroyDescriptorSets(VulkanContext* context) {
-    vkDestroyDescriptorSetLayout(obeliskGetDevice(), context->descriptorSetLayout, NULL);
-}
-
-int createSyncObjects(VulkanContext* context, ObeliskSwapchain* swapchain) {
+int createSyncObjects(ObeliskSwapchain* swapchain) {
     VkSemaphoreCreateInfo semaphoreInfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
     };
@@ -478,27 +484,26 @@ int createSyncObjects(VulkanContext* context, ObeliskSwapchain* swapchain) {
         .flags = VK_FENCE_CREATE_SIGNALED_BIT
     };
 
+    VkDevice device = obeliskGetDevice();
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        FrameInfo* frame = &swapchain->frames[i];
-
-        if (vkCreateSemaphore(obeliskGetDevice(), &semaphoreInfo, NULL, &frame->imageAvailable) != VK_SUCCESS)
+        if (vkCreateSemaphore(device, &semaphoreInfo, NULL, &swapchain->imageAvailable[i]) != VK_SUCCESS)
             return MINIMAL_FAIL;
 
-        if (vkCreateSemaphore(obeliskGetDevice(), &semaphoreInfo, NULL, &frame->renderFinished) != VK_SUCCESS)
+        if (vkCreateSemaphore(device, &semaphoreInfo, NULL, &swapchain->renderFinished[i]) != VK_SUCCESS)
             return MINIMAL_FAIL;
 
-        if (vkCreateFence(obeliskGetDevice(), &fenceInfo, NULL, &frame->fence) != VK_SUCCESS)
+        if (vkCreateFence(device, &fenceInfo, NULL, &swapchain->fences[i]) != VK_SUCCESS)
             return MINIMAL_FAIL;
     }
 
     return MINIMAL_OK;
 }
 
-void destroySyncObjects(VulkanContext* context, ObeliskSwapchain* swapchain) {
+void destroySyncObjects(ObeliskSwapchain* swapchain) {
+    VkDevice device = obeliskGetDevice();
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        FrameInfo* frame = &swapchain->frames[i];
-        vkDestroySemaphore(obeliskGetDevice(), frame->renderFinished, NULL);
-        vkDestroySemaphore(obeliskGetDevice(), frame->imageAvailable, NULL);
-        vkDestroyFence(obeliskGetDevice(), frame->fence, NULL);
+        vkDestroySemaphore(device, swapchain->imageAvailable[i], NULL);
+        vkDestroySemaphore(device, swapchain->renderFinished[i], NULL);
+        vkDestroyFence(device, swapchain->fences[i], NULL);
     }
 }

@@ -2,12 +2,9 @@
 #define SWAPCHAIN_H
 
 #include "common.h"
+#include "Buffer.h"
 
-typedef struct {
-    VkSemaphore imageAvailable;
-    VkSemaphore renderFinished;
-    VkFence fence;
-} FrameInfo;
+#define MAX_FRAMES_IN_FLIGHT 2
 
 typedef struct {
     VkSwapchainKHR handle;
@@ -21,7 +18,17 @@ typedef struct {
     VkExtent2D extent;
     VkRenderPass renderPass;
 
-    FrameInfo frames[MAX_FRAMES_IN_FLIGHT];
+    VkDescriptorPool descriptorPool;
+    VkDescriptorSetLayout descriptorSetLayout;
+
+    /* frame data */
+    VkSemaphore imageAvailable[MAX_FRAMES_IN_FLIGHT];
+    VkSemaphore renderFinished[MAX_FRAMES_IN_FLIGHT];
+    VkFence fences[MAX_FRAMES_IN_FLIGHT];
+
+    VkDescriptorSet descriptorSets[MAX_FRAMES_IN_FLIGHT];
+    VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT];
+    Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
 } ObeliskSwapchain;
 
 int createSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height);
@@ -38,11 +45,15 @@ int presentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32_t fram
 void commandBufferStart(VkCommandBuffer cmdBuffer, const ObeliskSwapchain* swapchain, uint32_t imageIndex);
 void commandBufferEnd(VkCommandBuffer cmdBuffer);
 
-int createDescriptorPool(VulkanContext* context);
-int createDescriptorSets(VulkanContext* context);
-void destroyDescriptorSets(VulkanContext* context);
+int createDescriptorPool(ObeliskSwapchain* swapchain);
+void destroyDescriptorPool(ObeliskSwapchain* swapchain);
 
-int createSyncObjects(VulkanContext* context, ObeliskSwapchain* swapchain);
-void destroySyncObjects(VulkanContext* context, ObeliskSwapchain* swapchain);
+int createDescriptorLayout(ObeliskSwapchain* swapchain);
+void destroyDescriptorLayout(ObeliskSwapchain* swapchain);
+
+int createDescriptorSets(ObeliskSwapchain* swapchain);
+
+int createSyncObjects(ObeliskSwapchain* swapchain);
+void destroySyncObjects(ObeliskSwapchain* swapchain);
 
 #endif // !SWAPCHAIN_H
