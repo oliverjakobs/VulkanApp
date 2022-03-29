@@ -136,6 +136,7 @@ void destroyBuffer(Buffer* buffer) {
 }
 
 void writeBuffer(Buffer* buffer, const void* src, VkDeviceSize size) {
+    MINIMAL_ASSERT(size <= buffer->size, "Buffer too small");
     void* dst;
     vkMapMemory(obeliskGetDevice(), buffer->memory, 0, size, 0, &dst);
     memcpy(dst, src, (size_t)size);

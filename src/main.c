@@ -37,7 +37,7 @@ static VkVertexInputAttributeDescription vertexAttributeDescs[] = {{
     .offset = offsetof(Vertex, color)
 }};
 
-static PipelineLayout pipelineLayout = {
+static ObeliskPipelineVertexLayout pipelineLayout = {
     .vertexInputBindings = vertexBindingDescs,
     .vertexInputBindingCount = sizeof(vertexBindingDescs) / sizeof(VkVertexInputBindingDescription),
     .vertexInputAttributes = vertexAttributeDescs,
@@ -71,7 +71,7 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     int width, height;
     glfwGetFramebufferSize(app->window, &width, &height);
 
-    if (!createSwapchain(&app->swapchain, (uint32_t)width, (uint32_t)height)) {
+    if (!createSwapchain(&app->swapchain, VK_NULL_HANDLE, (uint32_t)width, (uint32_t)height)) {
         MINIMAL_ERROR("failed to create swap chain!");
         return MINIMAL_FAIL;
     }
@@ -120,7 +120,7 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
-    if (!createPipeline(&pipeline, &app->swapchain)) {
+    if (!createPipeline(&pipeline, app->swapchain.renderPass)) {
         MINIMAL_ERROR("failed to create graphics pipeline!");
         return MINIMAL_FAIL;
     }
@@ -184,8 +184,8 @@ int OnEvent(MinimalApp* app, const MinimalEvent* e) {
 
         if (width == 0 || height == 0) return MINIMAL_FAIL;
 
-        recreateSwapchain(&app->swapchain, app->window);
-        recreatePipeline(&pipeline, &app->swapchain);
+        recreateSwapchain(&app->swapchain, width, height);
+        recreatePipeline(&pipeline, app->swapchain.renderPass);
     }
 
     return MINIMAL_OK;

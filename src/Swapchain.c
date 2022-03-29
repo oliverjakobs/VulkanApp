@@ -76,7 +76,7 @@ static uint32_t getSurfaceImageCount(const VkSurfaceCapabilitiesKHR* capabilitie
     return imageCount;
 }
 
-int createSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height) {
+int createSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapchain, uint32_t width, uint32_t height) {
     /* choose swap chain surface format */
     VkSurfaceFormatKHR surfaceFormat;
     if (!chooseSurfaceFormat(&surfaceFormat)) {
@@ -124,7 +124,7 @@ int createSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height
     createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
 
-    createInfo.oldSwapchain = VK_NULL_HANDLE;
+    createInfo.oldSwapchain = oldSwapchain;
 
     if (vkCreateSwapchainKHR(obeliskGetDevice(), &createInfo, NULL, &swapchain->handle) != VK_SUCCESS) {
         MINIMAL_ERROR("failed to create swap chain!");
@@ -173,15 +173,19 @@ int createSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height
     return MINIMAL_OK;
 }
 
-int recreateSwapchain(ObeliskSwapchain* swapchain, GLFWwindow* window) {
-    int width = 0, height = 0;
-    glfwGetFramebufferSize(window, &width, &height);
-
+int recreateSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height) {
     vkDeviceWaitIdle(obeliskGetDevice());
+
+    VkSwapchainKHR oldSwapchain = swapchain->handle;
+    swapchain->handle = VK_NULL_HANDLE;
 
     destroySwapchain(swapchain);
 
-    if (!createSwapchain(swapchain, (uint32_t)width, (uint32_t)height)) {
+    int result = createSwapchain(swapchain, oldSwapchain, width, height);
+
+    vkDestroySwapchainKHR(obeliskGetDevice(), oldSwapchain, NULL);
+
+    if (!result) {
         MINIMAL_ERROR("failed to recreate swap chain!");
         return MINIMAL_FAIL;
     }

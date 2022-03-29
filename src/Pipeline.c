@@ -46,7 +46,7 @@ void destroyShaderStages(Pipeline* pipeline) {
     }
 }
 
-int createPipelineLayout(Pipeline* pipeline, const ObeliskSwapchain* swapchain, const PipelineLayout* layout) {
+int createPipelineLayout(Pipeline* pipeline, const ObeliskSwapchain* swapchain, const ObeliskPipelineVertexLayout* layout) {
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -75,7 +75,7 @@ void destroyPipelineLayout(Pipeline* pipeline) {
     vkDestroyPipelineLayout(obeliskGetDevice(), pipeline->layout, NULL);
 }
 
-int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain) {
+int createPipeline(Pipeline* pipeline, VkRenderPass renderPass) {
     /* shader stages */
     VkPipelineShaderStageCreateInfo shaderStages[SHADER_COUNT];
     shaderStages[SHADER_VERT] = (VkPipelineShaderStageCreateInfo){
@@ -200,7 +200,7 @@ int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain) {
         .pColorBlendState = &colorBlending,
         .pDynamicState = &dynamicStateInfo,
         .layout = pipeline->layout,
-        .renderPass = swapchain->renderPass,
+        .renderPass = renderPass,
         .subpass = 0,
         .basePipelineHandle = VK_NULL_HANDLE,
         .basePipelineIndex = -1
@@ -213,10 +213,10 @@ int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain) {
     return MINIMAL_OK;
 }
 
-int recreatePipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain) {
+int recreatePipeline(Pipeline* pipeline, VkRenderPass renderPass) {
     destroyPipeline(pipeline);
 
-    if (!createPipeline(pipeline, swapchain)) {
+    if (!createPipeline(pipeline, renderPass)) {
         MINIMAL_ERROR("failed to recreate pipeline!");
         return MINIMAL_FAIL;
     }

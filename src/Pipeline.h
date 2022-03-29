@@ -9,8 +9,7 @@ typedef struct {
     uint32_t vertexInputBindingCount;
     VkVertexInputAttributeDescription* vertexInputAttributes;
     uint32_t vertexInputAttributeCount;
-
-} PipelineLayout;
+} ObeliskPipelineVertexLayout;
 
 typedef enum {
     SHADER_VERT = 0,
@@ -29,11 +28,11 @@ typedef struct {
 int createShaderStages(Pipeline* pipeline, const char* vertPath, const char* fragPath);
 void destroyShaderStages(Pipeline* pipeline);
 
-int createPipelineLayout(Pipeline* pipeline, const ObeliskSwapchain* swapchain, const PipelineLayout* layout);
+int createPipelineLayout(Pipeline* pipeline, const ObeliskSwapchain* swapchain, const ObeliskPipelineVertexLayout* layout);
 void destroyPipelineLayout(Pipeline* pipeline);
 
-int createPipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain);
-int recreatePipeline(Pipeline* pipeline, const ObeliskSwapchain* swapchain);
+int createPipeline(Pipeline* pipeline, VkRenderPass renderPass);
+int recreatePipeline(Pipeline* pipeline, VkRenderPass renderPass);
 void destroyPipeline(Pipeline* pipeline);
 
 

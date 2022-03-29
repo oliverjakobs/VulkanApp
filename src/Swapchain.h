@@ -31,8 +31,8 @@ typedef struct {
     Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
 } ObeliskSwapchain;
 
-int createSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height);
-int recreateSwapchain(ObeliskSwapchain* swapchain, GLFWwindow* window);
+int createSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapchain, uint32_t width, uint32_t height);
+int recreateSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height);
 void destroySwapchain(ObeliskSwapchain* swapchain);
 
 int createRenderPass(ObeliskSwapchain* swapchain);
