@@ -26,7 +26,7 @@ static int createShaderModuleSPIRV(VkShaderModule* module, const char* path) {
     return result;
 }
 
-int createShaderStages(Pipeline* pipeline, const char* vertPath, const char* fragPath) {
+int createShaderStages(ObeliskPipeline* pipeline, const char* vertPath, const char* fragPath) {
     if (!createShaderModuleSPIRV(&pipeline->shaderModules[SHADER_VERT], vertPath)) {
         MINIMAL_ERROR("failed to create shader module for %s", vertPath);
         return MINIMAL_FAIL;
@@ -40,17 +40,17 @@ int createShaderStages(Pipeline* pipeline, const char* vertPath, const char* fra
     return MINIMAL_OK;
 }
 
-void destroyShaderStages(Pipeline* pipeline) {
+void destroyShaderStages(ObeliskPipeline* pipeline) {
     for (size_t i = 0; i < SHADER_COUNT; ++i) {
         vkDestroyShaderModule(obeliskGetDevice(), pipeline->shaderModules[i], NULL);
     }
 }
 
-int createPipelineLayout(Pipeline* pipeline, const ObeliskSwapchain* swapchain, const ObeliskPipelineVertexLayout* layout) {
+int createPipelineLayout(ObeliskPipeline* pipeline, VkDescriptorSetLayout setLayout, const ObeliskVertexLayout* vertexLayout) {
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .pSetLayouts = &swapchain->descriptorSetLayout,
+        .pSetLayouts = &setLayout,
         .setLayoutCount = 1,
         .pPushConstantRanges = NULL,
         .pushConstantRangeCount = 0
@@ -60,22 +60,16 @@ int createPipelineLayout(Pipeline* pipeline, const ObeliskSwapchain* swapchain, 
         return MINIMAL_FAIL;
     }
 
-    pipeline->vertexInputInfo = (VkPipelineVertexInputStateCreateInfo){
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .pVertexBindingDescriptions = layout->vertexInputBindings,
-        .vertexBindingDescriptionCount = layout->vertexInputBindingCount,
-        .pVertexAttributeDescriptions = layout->vertexInputAttributes,
-        .vertexAttributeDescriptionCount = layout->vertexInputAttributeCount
-    };
+    pipeline->vertexLayout = vertexLayout;
 
     return MINIMAL_OK;
 }
 
-void destroyPipelineLayout(Pipeline* pipeline) {
+void destroyPipelineLayout(ObeliskPipeline* pipeline) {
     vkDestroyPipelineLayout(obeliskGetDevice(), pipeline->layout, NULL);
 }
 
-int createPipeline(Pipeline* pipeline, VkRenderPass renderPass) {
+int createPipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass) {
     /* shader stages */
     VkPipelineShaderStageCreateInfo shaderStages[SHADER_COUNT];
     shaderStages[SHADER_VERT] = (VkPipelineShaderStageCreateInfo){
@@ -93,16 +87,29 @@ int createPipeline(Pipeline* pipeline, VkRenderPass renderPass) {
     };
 
     /* vertex input state */
+    VkVertexInputBindingDescription vertexBindingDesc = {
+        .binding = 0,
+        .stride = pipeline->vertexLayout->stride,
+        .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+    };
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .pVertexBindingDescriptions = &vertexBindingDesc,
+        .vertexBindingDescriptionCount = 1,
+        .pVertexAttributeDescriptions = pipeline->vertexLayout->attributes,
+        .vertexAttributeDescriptionCount = pipeline->vertexLayout->attributeCount
+    };
 
     /* input assembly state */
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
+    VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
         .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
         .primitiveRestartEnable = VK_FALSE
     };
 
     /* viewport state */
-    VkPipelineViewportStateCreateInfo viewportState = {
+    VkPipelineViewportStateCreateInfo viewportStateInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
         .pViewports = NULL,
         .viewportCount = 1,
@@ -111,7 +118,7 @@ int createPipeline(Pipeline* pipeline, VkRenderPass renderPass) {
     };
 
     /* rasterization state  */
-    VkPipelineRasterizationStateCreateInfo rasterizer = {
+    VkPipelineRasterizationStateCreateInfo rasterizationInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
@@ -126,7 +133,7 @@ int createPipeline(Pipeline* pipeline, VkRenderPass renderPass) {
     };
 
     /* multisample state */
-    VkPipelineMultisampleStateCreateInfo multisampling = {
+    VkPipelineMultisampleStateCreateInfo multisampleInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
         .sampleShadingEnable = VK_FALSE,
         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
@@ -165,7 +172,7 @@ int createPipeline(Pipeline* pipeline, VkRenderPass renderPass) {
         .alphaBlendOp = VK_BLEND_OP_ADD
     };
 
-    VkPipelineColorBlendStateCreateInfo colorBlending = {
+    VkPipelineColorBlendStateCreateInfo colorBlendInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .logicOpEnable = VK_FALSE,
         .logicOp = VK_LOGIC_OP_COPY,
@@ -191,13 +198,13 @@ int createPipeline(Pipeline* pipeline, VkRenderPass renderPass) {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         .pStages = shaderStages,
         .stageCount = SHADER_COUNT,
-        .pVertexInputState = &pipeline->vertexInputInfo,
-        .pInputAssemblyState = &inputAssembly,
-        .pViewportState = &viewportState,
-        .pRasterizationState = &rasterizer,
-        .pMultisampleState = &multisampling,
+        .pVertexInputState = &vertexInputInfo,
+        .pInputAssemblyState = &inputAssemblyInfo,
+        .pViewportState = &viewportStateInfo,
+        .pRasterizationState = &rasterizationInfo,
+        .pMultisampleState = &multisampleInfo,
         .pDepthStencilState = &depthStencilInfo,
-        .pColorBlendState = &colorBlending,
+        .pColorBlendState = &colorBlendInfo,
         .pDynamicState = &dynamicStateInfo,
         .layout = pipeline->layout,
         .renderPass = renderPass,
@@ -213,7 +220,7 @@ int createPipeline(Pipeline* pipeline, VkRenderPass renderPass) {
     return MINIMAL_OK;
 }
 
-int recreatePipeline(Pipeline* pipeline, VkRenderPass renderPass) {
+int recreatePipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass) {
     destroyPipeline(pipeline);
 
     if (!createPipeline(pipeline, renderPass)) {
@@ -224,6 +231,6 @@ int recreatePipeline(Pipeline* pipeline, VkRenderPass renderPass) {
     return MINIMAL_OK;
 }
 
-void destroyPipeline(Pipeline* pipeline) {
+void destroyPipeline(ObeliskPipeline* pipeline) {
     vkDestroyPipeline(obeliskGetDevice(), pipeline->handle, NULL);
 }

@@ -4,7 +4,7 @@
 #include "Application.h"
 #include "Core.h"
 
-static int chooseSurfaceFormat(VkSurfaceFormatKHR* format) {
+static int obeliskChooseSurfaceFormat(VkSurfaceFormatKHR* format) {
     VkPhysicalDevice device = obeliskGetPhysicalDevice();
     VkSurfaceKHR surface = obeliskGetSurface();
 
@@ -30,7 +30,7 @@ static int chooseSurfaceFormat(VkSurfaceFormatKHR* format) {
     return MINIMAL_OK;
 }
 
-static int choosePresentMode(VkPresentModeKHR* mode) {
+static int obeliskChoosePresentMode(VkPresentModeKHR* mode) {
     VkPhysicalDevice device = obeliskGetPhysicalDevice();
     VkSurfaceKHR surface = obeliskGetSurface();
 
@@ -56,7 +56,7 @@ static int choosePresentMode(VkPresentModeKHR* mode) {
     return MINIMAL_OK;
 }
 
-static VkExtent2D getSurfaceExtent(const VkSurfaceCapabilitiesKHR* capabilities, uint32_t w, uint32_t h) {
+static VkExtent2D obeliskGetSurfaceExtent(const VkSurfaceCapabilitiesKHR* capabilities, uint32_t w, uint32_t h) {
     if (capabilities->currentExtent.width != UINT32_MAX)
         return capabilities->currentExtent;
 
@@ -68,7 +68,7 @@ static VkExtent2D getSurfaceExtent(const VkSurfaceCapabilitiesKHR* capabilities,
     return extent;
 }
 
-static uint32_t getSurfaceImageCount(const VkSurfaceCapabilitiesKHR* capabilities) {
+static uint32_t obeliskGetSurfaceImageCount(const VkSurfaceCapabilitiesKHR* capabilities) {
     uint32_t imageCount = capabilities->minImageCount + 1;
     if (capabilities->maxImageCount > 0 && imageCount > capabilities->maxImageCount) {
         imageCount = capabilities->maxImageCount;
@@ -76,80 +76,30 @@ static uint32_t getSurfaceImageCount(const VkSurfaceCapabilitiesKHR* capabilitie
     return imageCount;
 }
 
-int createSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapchain, uint32_t width, uint32_t height) {
-    /* choose swap chain surface format */
-    VkSurfaceFormatKHR surfaceFormat;
-    if (!chooseSurfaceFormat(&surfaceFormat)) {
-        MINIMAL_ERROR("failed to choose swap chain surface format!");
-        return MINIMAL_FAIL;
-    }
+int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
+    MINIMAL_ASSERT(swapchain->imageCount > 0, "image count must be greater than zero");
 
-    /* choose swap chain presentation mode */
-    VkPresentModeKHR presentMode;
-    if (!choosePresentMode(&presentMode)) {
-        MINIMAL_ERROR("failed to choose swap chain presentation mode!");
-        return MINIMAL_FAIL;
-    }
-
-    VkSurfaceCapabilitiesKHR capabilities;
-    obeliskGetPhysicalDeviceSurfaceCapabilities(&capabilities);
-    swapchain->extent = getSurfaceExtent(&capabilities, width, height);
-    uint32_t imageCount = getSurfaceImageCount(&capabilities);
-    if (!imageCount) return MINIMAL_FAIL;
-
-    VkSwapchainCreateInfoKHR createInfo = {
-        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        .surface = obeliskGetSurface(),
-        .minImageCount = imageCount,
-        .imageFormat = surfaceFormat.format,
-        .imageColorSpace = surfaceFormat.colorSpace,
-        .imageExtent = swapchain->extent,
-        .imageArrayLayers = 1,
-        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-    };
-
-    uint32_t queueFamilyIndices[] = { obeliskGetQueueGraphicsFamilyIndex(), obeliskGetQueuePresentFamilyIndex() };
-    if (queueFamilyIndices[0] != queueFamilyIndices[1]) {
-        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        createInfo.pQueueFamilyIndices = queueFamilyIndices;
-        createInfo.queueFamilyIndexCount = 2;
-    } else {
-        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.pQueueFamilyIndices = NULL; // Optional
-        createInfo.queueFamilyIndexCount = 0; // Optional
-    }
-
-    createInfo.preTransform = capabilities.currentTransform;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = presentMode;
-    createInfo.clipped = VK_TRUE;
-
-    createInfo.oldSwapchain = oldSwapchain;
-
-    if (vkCreateSwapchainKHR(obeliskGetDevice(), &createInfo, NULL, &swapchain->handle) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to create swap chain!");
-        return MINIMAL_FAIL;
-    }
+    VkDevice device = obeliskGetDevice();
 
     /* create images */
-    swapchain->images = malloc(imageCount * sizeof(VkImage));
+    swapchain->images = malloc(swapchain->imageCount * sizeof(VkImage));
     if (!swapchain->images) return MINIMAL_FAIL;
 
-    if (vkGetSwapchainImagesKHR(obeliskGetDevice(), swapchain->handle, &imageCount, swapchain->images) != VK_SUCCESS) {
+    if (vkGetSwapchainImagesKHR(device, swapchain->handle, &swapchain->imageCount, swapchain->images) != VK_SUCCESS) {
         MINIMAL_ERROR("failed to get images");
         return MINIMAL_FAIL;
     }
 
     /* create image views */
-    swapchain->views = malloc(imageCount * sizeof(VkImageView));
-    if (!swapchain->views) return MINIMAL_FAIL;
+    swapchain->imageViews = malloc(swapchain->imageCount * sizeof(VkImageView));
+    if (!swapchain->imageViews) return MINIMAL_FAIL;
 
-    for (size_t i = 0; i < imageCount; ++i) {
+    for (size_t i = 0; i < swapchain->imageCount; ++i) {
         VkImageViewCreateInfo createInfo = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .image = swapchain->images[i],
             .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = surfaceFormat.format,
+            .format = swapchain->imageFormat,
             .components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
             .components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
             .components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -161,77 +111,16 @@ int createSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapchain, ui
             .subresourceRange.layerCount = 1
         };
 
-        if (vkCreateImageView(obeliskGetDevice(), &createInfo, NULL, &swapchain->views[i]) != VK_SUCCESS) {
+        if (vkCreateImageView(device, &createInfo, NULL, &swapchain->imageViews[i]) != VK_SUCCESS) {
             MINIMAL_ERROR("failed to create image view");
             return MINIMAL_FAIL;
         }
     }
-
-    swapchain->count = imageCount;
-    swapchain->format = surfaceFormat.format;
-    
-    return MINIMAL_OK;
 }
 
-int recreateSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height) {
-    vkDeviceWaitIdle(obeliskGetDevice());
-
-    VkSwapchainKHR oldSwapchain = swapchain->handle;
-    swapchain->handle = VK_NULL_HANDLE;
-
-    destroySwapchain(swapchain);
-
-    int result = createSwapchain(swapchain, oldSwapchain, width, height);
-
-    vkDestroySwapchainKHR(obeliskGetDevice(), oldSwapchain, NULL);
-
-    if (!result) {
-        MINIMAL_ERROR("failed to recreate swap chain!");
-        return MINIMAL_FAIL;
-    }
-
-    if (!createRenderPass(swapchain)) {
-        MINIMAL_ERROR("failed to recreate render pass!");
-        return MINIMAL_FAIL;
-    }
-
-    if (!createFramebuffers(swapchain)) {
-        MINIMAL_ERROR("failed to recreate framebuffer!");
-        return MINIMAL_FAIL;
-    }
-
-    return MINIMAL_OK;
-}
-
-void destroySwapchain(ObeliskSwapchain* swapchain) {
-    /* destroy framebuffers */
-    if (swapchain->framebuffers) {
-        for (size_t i = 0; i < swapchain->count; ++i) {
-            vkDestroyFramebuffer(obeliskGetDevice(), swapchain->framebuffers[i], NULL);
-        }
-        free(swapchain->framebuffers);
-    }
-
-    /* destroy render pass */
-    vkDestroyRenderPass(obeliskGetDevice(), swapchain->renderPass, NULL);
-
-    /* destroy images */
-    if (swapchain->images) free(swapchain->images);
-
-    if (swapchain->views) {
-        for (size_t i = 0; i < swapchain->count; ++i) {
-            vkDestroyImageView(obeliskGetDevice(), swapchain->views[i], NULL);
-        }
-        free(swapchain->views);
-    }
-
-    /* destroy handle */
-    vkDestroySwapchainKHR(obeliskGetDevice(), swapchain->handle, NULL);
-}
-
-int createRenderPass(ObeliskSwapchain* swapchain) {
+int obeliskSwapchainCreateRenderPass(ObeliskSwapchain* swapchain) {
     VkAttachmentDescription colorAttachment = {
-        .format = swapchain->format,
+        .format = swapchain->imageFormat,
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -261,21 +150,24 @@ int createRenderPass(ObeliskSwapchain* swapchain) {
     };
 
     if (vkCreateRenderPass(obeliskGetDevice(), &renderPassInfo, NULL, &swapchain->renderPass) != VK_SUCCESS) {
+        MINIMAL_ERROR("failed to create render pass!");
         return MINIMAL_FAIL;
     }
 
     return MINIMAL_OK;
 }
 
-int createFramebuffers(ObeliskSwapchain* swapchain) {
-    if (!swapchain->count) return MINIMAL_FAIL;
+int obeliskSwapchainCreateFramebuffers(ObeliskSwapchain* swapchain) {
+    MINIMAL_ASSERT(swapchain->imageCount > 0, "image count must be greater than zero");
 
-    swapchain->framebuffers = malloc(swapchain->count * sizeof(VkFramebuffer));
+    VkDevice device = obeliskGetDevice();
+
+    swapchain->framebuffers = malloc(swapchain->imageCount * sizeof(VkFramebuffer));
     if (!swapchain->framebuffers) return MINIMAL_FAIL;
 
-    for (size_t i = 0; i < swapchain->count; ++i) {
+    for (size_t i = 0; i < swapchain->imageCount; ++i) {
         VkImageView attachments[] = {
-            swapchain->views[i]
+            swapchain->imageViews[i]
         };
 
         VkFramebufferCreateInfo info = {
@@ -288,19 +180,173 @@ int createFramebuffers(ObeliskSwapchain* swapchain) {
             .layers = 1
         };
 
-        if (vkCreateFramebuffer(obeliskGetDevice(), &info, NULL, &swapchain->framebuffers[i]) != VK_SUCCESS)
+        if (vkCreateFramebuffer(device, &info, NULL, &swapchain->framebuffers[i]) != VK_SUCCESS) {
+            MINIMAL_ERROR("failed to create framebuffer");
+            return MINIMAL_FAIL;
+        }
+    }
+
+    return MINIMAL_OK;
+}
+
+int obeliskCreateSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapchain, uint32_t width, uint32_t height) {
+    /* choose swap chain surface format */
+    VkSurfaceFormatKHR surfaceFormat;
+    if (!obeliskChooseSurfaceFormat(&surfaceFormat)) {
+        MINIMAL_ERROR("failed to choose swap chain surface format!");
+        return MINIMAL_FAIL;
+    }
+
+    /* choose swap chain presentation mode */
+    VkPresentModeKHR presentMode;
+    if (!obeliskChoosePresentMode(&presentMode)) {
+        MINIMAL_ERROR("failed to choose swap chain presentation mode!");
+        return MINIMAL_FAIL;
+    }
+
+    VkSurfaceCapabilitiesKHR capabilities;
+    obeliskGetPhysicalDeviceSurfaceCapabilities(&capabilities);
+    VkExtent2D extent = obeliskGetSurfaceExtent(&capabilities, width, height);
+    uint32_t imageCount = obeliskGetSurfaceImageCount(&capabilities);
+    if (!imageCount) return MINIMAL_FAIL;
+
+    VkSwapchainCreateInfoKHR createInfo = {
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .surface = obeliskGetSurface(),
+        .minImageCount = imageCount,
+        .imageFormat = surfaceFormat.format,
+        .imageColorSpace = surfaceFormat.colorSpace,
+        .imageExtent = extent,
+        .imageArrayLayers = 1,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+    };
+
+    uint32_t queueFamilyIndices[] = { obeliskGetQueueGraphicsFamilyIndex(), obeliskGetQueuePresentFamilyIndex() };
+    if (queueFamilyIndices[0] != queueFamilyIndices[1]) {
+        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        createInfo.pQueueFamilyIndices = queueFamilyIndices;
+        createInfo.queueFamilyIndexCount = 2;
+    } else {
+        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        createInfo.pQueueFamilyIndices = NULL; // Optional
+        createInfo.queueFamilyIndexCount = 0; // Optional
+    }
+
+    createInfo.preTransform = capabilities.currentTransform;
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode = presentMode;
+    createInfo.clipped = VK_TRUE;
+
+    createInfo.oldSwapchain = oldSwapchain;
+
+    if (vkCreateSwapchainKHR(obeliskGetDevice(), &createInfo, NULL, &swapchain->handle) != VK_SUCCESS) {
+        MINIMAL_ERROR("failed to create swap chain!");
+        return MINIMAL_FAIL;
+    }
+
+    swapchain->imageCount = imageCount;
+    swapchain->imageFormat = surfaceFormat.format;
+    swapchain->extent = extent;
+
+    if (!obeliskSwapchainCreateImages(swapchain))
+        return MINIMAL_FAIL;
+
+    if (!obeliskSwapchainCreateRenderPass(swapchain))
+        return MINIMAL_FAIL;
+
+    if (!obeliskSwapchainCreateFramebuffers(swapchain))
+        return MINIMAL_FAIL;
+    
+    return MINIMAL_OK;
+}
+
+int obeliskRecreateSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height) {
+    vkDeviceWaitIdle(obeliskGetDevice());
+
+    VkSwapchainKHR oldSwapchain = swapchain->handle;
+    swapchain->handle = VK_NULL_HANDLE;
+
+    obeliskDestroySwapchain(swapchain);
+
+    int result = obeliskCreateSwapchain(swapchain, oldSwapchain, width, height);
+
+    vkDestroySwapchainKHR(obeliskGetDevice(), oldSwapchain, NULL);
+
+    if (!result) {
+        MINIMAL_ERROR("failed to recreate swap chain!");
+        return MINIMAL_FAIL;
+    }
+
+    return MINIMAL_OK;
+}
+
+void obeliskDestroySwapchain(ObeliskSwapchain* swapchain) {
+    /* destroy framebuffers */
+    if (swapchain->framebuffers) {
+        for (size_t i = 0; i < swapchain->imageCount; ++i) {
+            vkDestroyFramebuffer(obeliskGetDevice(), swapchain->framebuffers[i], NULL);
+        }
+        free(swapchain->framebuffers);
+    }
+
+    /* destroy render pass */
+    vkDestroyRenderPass(obeliskGetDevice(), swapchain->renderPass, NULL);
+
+    /* destroy images */
+    if (swapchain->images) free(swapchain->images);
+
+    if (swapchain->imageViews) {
+        for (size_t i = 0; i < swapchain->imageCount; ++i) {
+            vkDestroyImageView(obeliskGetDevice(), swapchain->imageViews[i], NULL);
+        }
+        free(swapchain->imageViews);
+    }
+
+    /* destroy handle */
+    vkDestroySwapchainKHR(obeliskGetDevice(), swapchain->handle, NULL);
+}
+
+int obeliskCreateSyncObjects(ObeliskSwapchain* swapchain) {
+    VkSemaphoreCreateInfo semaphoreInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+    };
+
+    VkFenceCreateInfo fenceInfo = {
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .flags = VK_FENCE_CREATE_SIGNALED_BIT
+    };
+
+    VkDevice device = obeliskGetDevice();
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        if (vkCreateSemaphore(device, &semaphoreInfo, NULL, &swapchain->imageAvailable[i]) != VK_SUCCESS)
+            return MINIMAL_FAIL;
+
+        if (vkCreateSemaphore(device, &semaphoreInfo, NULL, &swapchain->renderFinished[i]) != VK_SUCCESS)
+            return MINIMAL_FAIL;
+
+        if (vkCreateFence(device, &fenceInfo, NULL, &swapchain->fences[i]) != VK_SUCCESS)
             return MINIMAL_FAIL;
     }
 
     return MINIMAL_OK;
 }
 
-int acquireSwapchainImage(ObeliskSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex) {
+void obeliskDestroySyncObjects(ObeliskSwapchain* swapchain) {
+    VkDevice device = obeliskGetDevice();
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroySemaphore(device, swapchain->imageAvailable[i], NULL);
+        vkDestroySemaphore(device, swapchain->renderFinished[i], NULL);
+        vkDestroyFence(device, swapchain->fences[i], NULL);
+    }
+}
+
+int obeliskAcquireSwapchainImage(ObeliskSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex) {
     VkDevice device = obeliskGetDevice();
 
     vkWaitForFences(device, 1, &swapchain->fences[frame], VK_TRUE, UINT64_MAX);
 
-    VkResult result = vkAcquireNextImageKHR(device, swapchain->handle, UINT64_MAX, swapchain->imageAvailable[frame], VK_NULL_HANDLE, imageIndex);
+    VkSemaphore semaphore = swapchain->imageAvailable[frame];
+    VkResult result = vkAcquireNextImageKHR(device, swapchain->handle, UINT64_MAX, semaphore, VK_NULL_HANDLE, imageIndex);
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         return MINIMAL_FAIL;
     }
@@ -309,7 +355,7 @@ int acquireSwapchainImage(ObeliskSwapchain* swapchain, uint32_t frame, uint32_t*
     return MINIMAL_OK;
 }
 
-int submitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t frame) {
+int obeliskSubmitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t frame) {
     VkSubmitInfo submitInfo = { 0 };
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -332,7 +378,7 @@ int submitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t
     return MINIMAL_OK;
 }
 
-int presentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32_t frame) {
+int obeliskPresentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32_t frame) {
     VkPresentInfoKHR presentInfo = { 0 };
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -350,6 +396,8 @@ int presentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32_t fram
     }
     return MINIMAL_OK;
 }
+
+
 
 void commandBufferStart(VkCommandBuffer cmdBuffer, const ObeliskSwapchain* swapchain, uint32_t imageIndex) {
     vkResetCommandBuffer(cmdBuffer, /*VkCommandBufferResetFlagBits*/ 0);
@@ -475,38 +523,4 @@ int createDescriptorSets(ObeliskSwapchain* swapchain) {
     }
 
     return MINIMAL_OK;
-}
-
-int createSyncObjects(ObeliskSwapchain* swapchain) {
-    VkSemaphoreCreateInfo semaphoreInfo = {
-        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
-    };
-
-    VkFenceCreateInfo fenceInfo = {
-        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-        .flags = VK_FENCE_CREATE_SIGNALED_BIT
-    };
-
-    VkDevice device = obeliskGetDevice();
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        if (vkCreateSemaphore(device, &semaphoreInfo, NULL, &swapchain->imageAvailable[i]) != VK_SUCCESS)
-            return MINIMAL_FAIL;
-
-        if (vkCreateSemaphore(device, &semaphoreInfo, NULL, &swapchain->renderFinished[i]) != VK_SUCCESS)
-            return MINIMAL_FAIL;
-
-        if (vkCreateFence(device, &fenceInfo, NULL, &swapchain->fences[i]) != VK_SUCCESS)
-            return MINIMAL_FAIL;
-    }
-
-    return MINIMAL_OK;
-}
-
-void destroySyncObjects(ObeliskSwapchain* swapchain) {
-    VkDevice device = obeliskGetDevice();
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroySemaphore(device, swapchain->imageAvailable[i], NULL);
-        vkDestroySemaphore(device, swapchain->renderFinished[i], NULL);
-        vkDestroyFence(device, swapchain->fences[i], NULL);
-    }
 }

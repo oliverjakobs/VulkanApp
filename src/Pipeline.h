@@ -4,12 +4,17 @@
 #include "common.h"
 #include "Core.h"
 
+
 typedef struct {
-    VkVertexInputBindingDescription* vertexInputBindings;
-    uint32_t vertexInputBindingCount;
-    VkVertexInputAttributeDescription* vertexInputAttributes;
-    uint32_t vertexInputAttributeCount;
-} ObeliskPipelineVertexLayout;
+    VkFormat format;
+    uint32_t offset;
+} ObeliskVertexAttribute;
+
+typedef struct {
+    uint32_t stride;
+    const VkVertexInputAttributeDescription* attributes;
+    uint32_t attributeCount;
+} ObeliskVertexLayout;
 
 typedef enum {
     SHADER_VERT = 0,
@@ -19,21 +24,22 @@ typedef enum {
 
 typedef struct {
     VkPipeline handle;
+
     VkPipelineLayout layout;
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo;
+    const ObeliskVertexLayout* vertexLayout;
 
     VkShaderModule shaderModules[SHADER_COUNT];
-} Pipeline;
+} ObeliskPipeline;
 
-int createShaderStages(Pipeline* pipeline, const char* vertPath, const char* fragPath);
-void destroyShaderStages(Pipeline* pipeline);
+int createShaderStages(ObeliskPipeline* pipeline, const char* vertPath, const char* fragPath);
+void destroyShaderStages(ObeliskPipeline* pipeline);
 
-int createPipelineLayout(Pipeline* pipeline, const ObeliskSwapchain* swapchain, const ObeliskPipelineVertexLayout* layout);
-void destroyPipelineLayout(Pipeline* pipeline);
+int createPipelineLayout(ObeliskPipeline* pipeline, VkDescriptorSetLayout setLayout, const ObeliskVertexLayout* vertexLayout);
+void destroyPipelineLayout(ObeliskPipeline* pipeline);
 
-int createPipeline(Pipeline* pipeline, VkRenderPass renderPass);
-int recreatePipeline(Pipeline* pipeline, VkRenderPass renderPass);
-void destroyPipeline(Pipeline* pipeline);
+int createPipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass);
+int recreatePipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass);
+void destroyPipeline(ObeliskPipeline* pipeline);
 
 
 #endif // !PIPELINE_H

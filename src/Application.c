@@ -109,7 +109,7 @@ void MinimalRun(MinimalApp* app) {
 
         /* acquire swap chain image */
         uint32_t imageIndex = 0;
-        if (!acquireSwapchainImage(&app->swapchain, frame, &imageIndex)) {
+        if (!obeliskAcquireSwapchainImage(&app->swapchain, frame, &imageIndex)) {
             MINIMAL_ERROR("failed to acquire swap chain image!");
             continue;
         }
@@ -124,13 +124,13 @@ void MinimalRun(MinimalApp* app) {
         commandBufferEnd(cmdBuffer);
 
         /* submit frame */
-        if (!submitFrame(&app->swapchain, cmdBuffer, frame)) {
+        if (!obeliskSubmitFrame(&app->swapchain, cmdBuffer, frame)) {
             MINIMAL_ERROR("failed to submit draw command buffer!");
             continue;
         }
 
         /* present frame */
-        if (!presentFrame(&app->swapchain, imageIndex, frame)) {
+        if (!obeliskPresentFrame(&app->swapchain, imageIndex, frame)) {
             MINIMAL_ERROR("failed to present swap chain image!");
             continue;
         }

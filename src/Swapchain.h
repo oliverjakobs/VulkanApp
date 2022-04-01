@@ -9,39 +9,43 @@
 typedef struct {
     VkSwapchainKHR handle;
 
-    VkImage* images;
-    VkImageView* views;
-    VkFramebuffer* framebuffers;
-    uint32_t count;
-
-    VkFormat format;
+    VkFormat imageFormat;
     VkExtent2D extent;
-    VkRenderPass renderPass;
 
-    VkDescriptorPool descriptorPool;
-    VkDescriptorSetLayout descriptorSetLayout;
+    uint32_t imageCount;
+    VkImage* images;
+    VkImageView* imageViews;
+
+    VkFramebuffer* framebuffers;
+    VkRenderPass renderPass;
 
     /* frame data */
     VkSemaphore imageAvailable[MAX_FRAMES_IN_FLIGHT];
     VkSemaphore renderFinished[MAX_FRAMES_IN_FLIGHT];
     VkFence fences[MAX_FRAMES_IN_FLIGHT];
 
+    /* TODO move to renderer */
+    VkDescriptorPool descriptorPool;
+    VkDescriptorSetLayout descriptorSetLayout;
+
     VkDescriptorSet descriptorSets[MAX_FRAMES_IN_FLIGHT];
     VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT];
     Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
 } ObeliskSwapchain;
 
-int createSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapchain, uint32_t width, uint32_t height);
-int recreateSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height);
-void destroySwapchain(ObeliskSwapchain* swapchain);
+int obeliskCreateSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapchain, uint32_t width, uint32_t height);
+int obeliskRecreateSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height);
+void obeliskDestroySwapchain(ObeliskSwapchain* swapchain);
 
-int createRenderPass(ObeliskSwapchain* swapchain);
-int createFramebuffers(ObeliskSwapchain* swapchain);
+int obeliskCreateSyncObjects(ObeliskSwapchain* swapchain);
+void obeliskDestroySyncObjects(ObeliskSwapchain* swapchain);
 
-int acquireSwapchainImage(ObeliskSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex);
-int submitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t frame);
-int presentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32_t frame);
+int obeliskAcquireSwapchainImage(ObeliskSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex);
 
+int obeliskSubmitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t frame);
+int obeliskPresentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32_t frame);
+
+/* TODO move to renderer */
 void commandBufferStart(VkCommandBuffer cmdBuffer, const ObeliskSwapchain* swapchain, uint32_t imageIndex);
 void commandBufferEnd(VkCommandBuffer cmdBuffer);
 
@@ -52,8 +56,5 @@ int createDescriptorLayout(ObeliskSwapchain* swapchain);
 void destroyDescriptorLayout(ObeliskSwapchain* swapchain);
 
 int createDescriptorSets(ObeliskSwapchain* swapchain);
-
-int createSyncObjects(ObeliskSwapchain* swapchain);
-void destroySyncObjects(ObeliskSwapchain* swapchain);
 
 #endif // !SWAPCHAIN_H

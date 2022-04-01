@@ -51,6 +51,12 @@ const char* const validationLayers[] = {
 
 const uint32_t validationLayerCount = sizeof(validationLayers) / sizeof(validationLayers[0]);
 
+typedef struct {
+    uint32_t familiesSet;
+    uint32_t graphicsFamily;
+    uint32_t presentFamily;
+} QueueFamilyIndices;
+
 struct obeliskContext {
     VkInstance instance;
     VkSurfaceKHR surface;
@@ -164,6 +170,7 @@ typedef enum {
     OBELSIK_QUEUE_FAMILY_PRESENT = 1 << 1,
     OBELSIK_QUEUE_FAMILY_ALL = OBELSIK_QUEUE_FAMILY_GRAPHICS | OBELSIK_QUEUE_FAMILY_PRESENT
 } QueueFamilyFlag;
+
 
 int queueFamilyIndicesComplete(QueueFamilyIndices indices) {
     return indices.familiesSet & OBELSIK_QUEUE_FAMILY_GRAPHICS && indices.familiesSet & OBELSIK_QUEUE_FAMILY_PRESENT;
@@ -321,9 +328,9 @@ int obeliskCreateLogicalDevice(obeliskContext* context) {
 static obeliskContext _context = { 0 };
 static VkDebugUtilsMessengerEXT _debugMessenger = VK_NULL_HANDLE;
 
-int obeliskCreateContext(GLFWwindow* window, const char* app, const char* engine, int debug) {
+int obeliskCreateContext(GLFWwindow* window, const char* app, int debug) {
     /* create instance */
-    if (!obeliskCreateInstance(&_context, app, engine, debug)) {
+    if (!obeliskCreateInstance(&_context, app, "obelisk", debug)) {
         MINIMAL_ERROR("Failed to create vulkan instance!");
         return MINIMAL_FAIL;
     }
@@ -354,10 +361,25 @@ int obeliskCreateContext(GLFWwindow* window, const char* app, const char* engine
         return MINIMAL_FAIL;
     }
 
+    /* create command pool */
+    VkCommandPoolCreateInfo info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .queueFamilyIndex = _context.indices.graphicsFamily
+    };
+
+    if (vkCreateCommandPool(_context.device, &info, NULL, &_context.commandPool) != VK_SUCCESS) {
+        MINIMAL_ERROR("failed to create command pool!");
+        return MINIMAL_FAIL;
+    }
+
     return MINIMAL_OK;
 }
 
 void obeliskDestroyContext() {
+    /* destroy command pool */
+    vkDestroyCommandPool(_context.device, _context.commandPool, NULL);
+
     /* destroy device */
     vkDestroyDevice(_context.device, NULL);
 
@@ -386,23 +408,6 @@ void obeliskPrintInfo() {
     VkPhysicalDeviceProperties properties;
     vkGetPhysicalDeviceProperties(_context.physicalDevice, &properties);
     MINIMAL_INFO("Physical device: %s", properties.deviceName);
-}
-
-int obeliskCreateCommandPool() {
-    VkCommandPoolCreateInfo info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = _context.indices.graphicsFamily
-    };
-
-    if (vkCreateCommandPool(_context.device, &info, NULL, &_context.commandPool) != VK_SUCCESS)
-        return MINIMAL_FAIL;
-
-    return MINIMAL_OK;
-}
-
-void obeliskDestroyCommandPool() {
-    vkDestroyCommandPool(_context.device, _context.commandPool, NULL);
 }
 
 VkResult obeliskAllocateCommandBuffers(VkCommandBuffer* buffers, VkCommandBufferLevel level, uint32_t count) {
