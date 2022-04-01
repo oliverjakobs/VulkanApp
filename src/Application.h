@@ -2,9 +2,10 @@
 #define MINIMAL_APPLICATION_H
 
 #include "common.h"
-#include "Core.h"
 #include "Event.h"
 #include "Input.h"
+
+#include "Renderer.h"
 
 /* --------------------------| timer |----------------------------------- */
 typedef struct {
@@ -28,11 +29,11 @@ typedef int  (*MinimalLoadCB)    (MinimalApp* app, uint32_t w, uint32_t h);
 typedef void (*MinimalDestroyCB) (MinimalApp* app);
 
 typedef int  (*MinimalEventCB)   (MinimalApp* app, const MinimalEvent* e);
-typedef void (*MinimalUpdateCB)  (MinimalApp* app, VkCommandBuffer cmdBuffer, uint32_t frame, float deltatime);
+typedef void (*MinimalUpdateCB)  (MinimalApp* app, VkCommandBuffer cmdBuffer, float deltatime);
 
 struct MinimalApp {
     GLFWwindow* window;
-    ObeliskSwapchain swapchain;
+    ObeliskRenderer renderer;
 
     MinimalLoadCB    on_load;
     MinimalDestroyCB on_destroy;

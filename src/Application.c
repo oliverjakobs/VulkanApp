@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "Swapchain.h"
+#include "Core.h"
 
 /* --------------------------| timer |----------------------------------- */
 void MinimalTimerReset(MinimalTimer* timer) {
@@ -99,7 +100,6 @@ void MinimalRun(MinimalApp* app) {
     MINIMAL_ASSERT(app, "");
     MINIMAL_ASSERT(app->on_update, "Update callback missing!");
 
-    uint32_t frame = 0;
     while (!glfwWindowShouldClose(app->window)) {
         MinimalTimerStart(&app->timer, glfwGetTime());
         MinimalUpdateInput(app->window);
@@ -107,37 +107,14 @@ void MinimalRun(MinimalApp* app) {
 
         if (app->inconified) continue;
 
-        /* acquire swap chain image */
-        uint32_t imageIndex = 0;
-        if (!obeliskAcquireSwapchainImage(&app->swapchain, frame, &imageIndex)) {
-            MINIMAL_ERROR("failed to acquire swap chain image!");
-            continue;
-        }
+        /* begin frame */
+        VkCommandBuffer cmdBuffer = obeliskBeginFrame(&app->renderer);
+        if (cmdBuffer == VK_NULL_HANDLE) break;
 
-        /* start frame */
-        VkCommandBuffer cmdBuffer = app->swapchain.commandBuffers[frame];
-        commandBufferStart(cmdBuffer, &app->swapchain, imageIndex);
-
-        app->on_update(app, cmdBuffer, frame, (float)app->timer.deltatime);
+        app->on_update(app, cmdBuffer, (float)app->timer.deltatime);
 
         /* end frame */
-        commandBufferEnd(cmdBuffer);
-
-        /* submit frame */
-        if (!obeliskSubmitFrame(&app->swapchain, cmdBuffer, frame)) {
-            MINIMAL_ERROR("failed to submit draw command buffer!");
-            continue;
-        }
-
-        /* present frame */
-        if (!obeliskPresentFrame(&app->swapchain, imageIndex, frame)) {
-            MINIMAL_ERROR("failed to present swap chain image!");
-            continue;
-        }
-
-        /* next frame */
-        frame = (frame + 1) % MAX_FRAMES_IN_FLIGHT;
-
+        obeliskEndFrame(&app->renderer);
         MinimalTimerEnd(&app->timer, glfwGetTime());
     }
 

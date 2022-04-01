@@ -9,12 +9,6 @@
 const int debug = 1;
 
 typedef struct {
-    mat4 model;
-    mat4 view;
-    mat4 proj;
-} UniformBufferObject;
-
-typedef struct {
     float pos[2];
     float color[3];
 } Vertex;
@@ -53,45 +47,22 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
-    /* create swap chain */
-    int width, height;
-    glfwGetFramebufferSize(app->window, &width, &height);
-
-    if (!obeliskCreateSwapchain(&app->swapchain, VK_NULL_HANDLE, (uint32_t)width, (uint32_t)height)) {
-        MINIMAL_ERROR("failed to create swap chain!");
-        return MINIMAL_FAIL;
+    if (!obeliskCreateRenderer(&app->renderer, app->window)) {
+        MINIMAL_ERROR("Failed to create renderer!");
     }
 
-    if (!obeliskCreateSyncObjects(&app->swapchain)) {
-        MINIMAL_ERROR("failed to create synchronization objects for a frame!");
-        return MINIMAL_FAIL;
-    }
-
-    /* create uniform buffers */
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (!createUniformBuffer(&app->swapchain.uniformBuffers[i], sizeof(UniformBufferObject))) {
-            MINIMAL_ERROR("failed to create uniform buffer!");
-            return MINIMAL_FAIL;
-        }
-    }
-
-    if (!createDescriptorPool(&app->swapchain)) {
+    if (!obeliskCreateDescriptorPool(&app->renderer)) {
         MINIMAL_ERROR("failed to create descriptor pool!");
         return MINIMAL_FAIL;
     }
 
-    if (!createDescriptorLayout(&app->swapchain)) {
+    if (!obeliskCreateDescriptorLayout(&app->renderer)) {
         MINIMAL_ERROR("failed to create descriptor set layout!");
         return MINIMAL_FAIL;
     }
 
-    if (!createDescriptorSets(&app->swapchain)) {
+    if (!obeliskCreateDescriptorSets(&app->renderer)) {
         MINIMAL_ERROR("failed to allocate descriptor sets!");
-        return MINIMAL_FAIL;
-    }
-
-    if (obeliskAllocateCommandBuffers(app->swapchain.commandBuffers, VK_COMMAND_BUFFER_LEVEL_PRIMARY, MAX_FRAMES_IN_FLIGHT) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to allocate command buffers!");
         return MINIMAL_FAIL;
     }
 
@@ -101,12 +72,12 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
-    if (!createPipelineLayout(&pipeline, app->swapchain.descriptorSetLayout, &pipelineVertexLayout)) {
+    if (!createPipelineLayout(&pipeline, app->renderer.descriptorSetLayout, &pipelineVertexLayout)) {
         MINIMAL_ERROR("Failed to create pipeline layout!");
         return MINIMAL_FAIL;
     }
 
-    if (!createPipeline(&pipeline, app->swapchain.renderPass)) {
+    if (!createPipeline(&pipeline, app->renderer.swapchain.renderPass)) {
         MINIMAL_ERROR("failed to create graphics pipeline!");
         return MINIMAL_FAIL;
     }
@@ -134,16 +105,11 @@ void OnDestroy(MinimalApp* app) {
     destroyBuffer(&vertexBuffer);
     destroyBuffer(&indexBuffer);
 
-    /* destroy swapchain */
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        destroyBuffer(&app->swapchain.uniformBuffers[i]);
-    }
+    /* destroy renderer */
+    obeliskDestroyDescriptorLayout(&app->renderer);
+    obeliskDestroyDescriptorPool(&app->renderer);
 
-    destroyDescriptorLayout(&app->swapchain);
-    destroyDescriptorPool(&app->swapchain);
-
-    obeliskDestroySyncObjects(&app->swapchain);
-    obeliskDestroySwapchain(&app->swapchain);
+    obeliskDestroyRenderer(&app->renderer);
 
     obeliskDestroyContext();
 }
@@ -156,18 +122,18 @@ int OnEvent(MinimalApp* app, const MinimalEvent* e) {
 
         if (width == 0 || height == 0) return MINIMAL_FAIL;
 
-        obeliskRecreateSwapchain(&app->swapchain, width, height);
-        recreatePipeline(&pipeline, app->swapchain.renderPass);
+        obeliskRecreateSwapchain(&app->renderer.swapchain, width, height);
+        recreatePipeline(&pipeline, app->renderer.swapchain.renderPass);
     }
 
     return MINIMAL_OK;
 }
 
-void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, uint32_t frame, float deltatime) {
+void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, float deltatime) {
     static float time;
     time += deltatime;
 
-    VkExtent2D extent = app->swapchain.extent;
+    VkExtent2D extent = app->renderer.swapchain.extent;
 
     UniformBufferObject ubo = { 0 };
     glm_rotate_make(ubo.model, time * glm_rad(90.0f), (vec3){ 0.0f, 0.0f, 1.0f });
@@ -177,27 +143,12 @@ void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, uint32_t frame, float 
 
     ubo.proj[1][1] *= -1;
 
-    writeBuffer(&app->swapchain.uniformBuffers[frame], &ubo, sizeof(ubo));
+    obeliskWriteUniform(&app->renderer, &ubo);
 
-    VkViewport viewport = {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = (float)extent.width,
-        .height = (float)extent.height,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f
-    };
-
-    VkRect2D scissor = {
-        .offset = { 0, 0 },
-        .extent = extent
-    };
-
-    vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
-    vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
+    obeliskBeginRenderPass(&app->renderer, cmdBuffer);
 
     vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
-    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, &app->swapchain.descriptorSets[frame], 0, NULL);
+    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, &app->renderer.descriptorSets[app->renderer.frame], 0, NULL);
 
     VkBuffer vertexBuffers[] = { vertexBuffer.handle };
     VkDeviceSize offsets[] = { 0 };
@@ -205,6 +156,8 @@ void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, uint32_t frame, float 
     vkCmdBindIndexBuffer(cmdBuffer, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdDrawIndexed(cmdBuffer, indexCount, 1, 0, 0, 0);
+
+    obeliskEndRenderPass(&app->renderer, cmdBuffer);
 }
 
 int main() {

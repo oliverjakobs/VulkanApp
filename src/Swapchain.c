@@ -56,13 +56,18 @@ static int obeliskChoosePresentMode(VkPresentModeKHR* mode) {
     return MINIMAL_OK;
 }
 
+static uint32_t obeliskClamp32(uint32_t val, uint32_t min, uint32_t max) {
+    const uint32_t t = val < min ? min : val;
+    return t > max ? max : t;
+}
+
 static VkExtent2D obeliskGetSurfaceExtent(const VkSurfaceCapabilitiesKHR* capabilities, uint32_t w, uint32_t h) {
     if (capabilities->currentExtent.width != UINT32_MAX)
         return capabilities->currentExtent;
 
     VkExtent2D extent = {
-        .width = clamp32(w, capabilities->minImageExtent.width, capabilities->maxImageExtent.width),
-        .height = clamp32(h, capabilities->minImageExtent.height, capabilities->maxImageExtent.height)
+        .width = obeliskClamp32(w, capabilities->minImageExtent.width, capabilities->maxImageExtent.width),
+        .height = obeliskClamp32(h, capabilities->minImageExtent.height, capabilities->maxImageExtent.height)
     };
 
     return extent;
@@ -116,6 +121,8 @@ int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
             return MINIMAL_FAIL;
         }
     }
+
+    return MINIMAL_OK;
 }
 
 int obeliskSwapchainCreateRenderPass(ObeliskSwapchain* swapchain) {
@@ -394,133 +401,5 @@ int obeliskPresentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32
     if (vkQueuePresentKHR(obeliskGetPresentQueue(), &presentInfo) != VK_SUCCESS) {
         return MINIMAL_FAIL;
     }
-    return MINIMAL_OK;
-}
-
-
-
-void commandBufferStart(VkCommandBuffer cmdBuffer, const ObeliskSwapchain* swapchain, uint32_t imageIndex) {
-    vkResetCommandBuffer(cmdBuffer, /*VkCommandBufferResetFlagBits*/ 0);
-
-    VkCommandBufferBeginInfo beginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
-    };
-
-    if (vkBeginCommandBuffer(cmdBuffer, &beginInfo) != VK_SUCCESS) {
-        MINIMAL_WARN("failed to begin recording command buffer!");
-        return;
-    }
-
-    VkClearValue clearValue = {
-        .color = {{0.0f, 0.0f, 0.0f, 1.0f}}
-    };
-
-    VkRenderPassBeginInfo renderPassInfo = {
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .renderPass = swapchain->renderPass,
-        .framebuffer = swapchain->framebuffers[imageIndex],
-        .renderArea.offset = { 0, 0 },
-        .renderArea.extent = swapchain->extent,
-        .pClearValues = &clearValue,
-        .clearValueCount = 1,
-    };
-
-    vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-}
-
-void commandBufferEnd(VkCommandBuffer cmdBuffer) {
-    vkCmdEndRenderPass(cmdBuffer);
-    if (vkEndCommandBuffer(cmdBuffer) != VK_SUCCESS) {
-        MINIMAL_WARN("failed to record command buffer!");
-    }
-}
-
-int createDescriptorPool(ObeliskSwapchain* swapchain) {
-    VkDescriptorPoolSize poolSize = {
-        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = MAX_FRAMES_IN_FLIGHT
-    };
-
-    VkDescriptorPoolCreateInfo poolInfo = {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .pPoolSizes = &poolSize,
-        .poolSizeCount = 1,
-        .maxSets = MAX_FRAMES_IN_FLIGHT
-    };
-
-    if (vkCreateDescriptorPool(obeliskGetDevice(), &poolInfo, NULL, &swapchain->descriptorPool) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
-    }
-
-    return MINIMAL_OK;
-}
-
-void destroyDescriptorPool(ObeliskSwapchain* swapchain) {
-    vkDestroyDescriptorPool(obeliskGetDevice(), swapchain->descriptorPool, NULL);
-}
-
-int createDescriptorLayout(ObeliskSwapchain* swapchain) {
-    VkDescriptorSetLayoutBinding uboLayoutBinding = {
-        .binding = 0,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-        .pImmutableSamplers = NULL // Optional
-    };
-
-    VkDescriptorSetLayoutCreateInfo layoutInfo = {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .pBindings = &uboLayoutBinding,
-        .bindingCount = 1
-    };
-
-    if (vkCreateDescriptorSetLayout(obeliskGetDevice(), &layoutInfo, NULL, &swapchain->descriptorSetLayout) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
-    }
-
-    return MINIMAL_OK;
-}
-
-void destroyDescriptorLayout(ObeliskSwapchain* swapchain) {
-    vkDestroyDescriptorSetLayout(obeliskGetDevice(), swapchain->descriptorSetLayout, NULL);
-}
-
-int createDescriptorSets(ObeliskSwapchain* swapchain) {
-    VkDescriptorSetLayout layouts[MAX_FRAMES_IN_FLIGHT];
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        layouts[i] = swapchain->descriptorSetLayout;
-    }
-
-    VkDescriptorSetAllocateInfo allocInfo = {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = swapchain->descriptorPool,
-        .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
-        .pSetLayouts = layouts
-    };
-
-    if (vkAllocateDescriptorSets(obeliskGetDevice(), &allocInfo, swapchain->descriptorSets) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
-    }
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        VkDescriptorBufferInfo bufferInfo = {
-            .buffer = swapchain->uniformBuffers[i].handle,
-            .range = swapchain->uniformBuffers[i].size,
-            .offset = 0
-        };
-
-        VkWriteDescriptorSet descriptorWrite = {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = swapchain->descriptorSets[i],
-            .dstBinding = 0,
-            .dstArrayElement = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .descriptorCount = 1,
-            .pBufferInfo = &bufferInfo
-        };
-
-        vkUpdateDescriptorSets(obeliskGetDevice(), 1, &descriptorWrite, 0, NULL);
-    }
-
     return MINIMAL_OK;
 }

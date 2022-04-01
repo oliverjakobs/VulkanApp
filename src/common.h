@@ -76,7 +76,6 @@ void MinimalLoggerPrintV(FILE* const stream, MinimalLogLevel level, const char* 
 #endif
 
 /* --------------------------| utils |----------------------------------- */
-uint32_t clamp32(uint32_t val, uint32_t min, uint32_t max);
 char* readFile(const char* path, size_t* sizeptr);
 
 

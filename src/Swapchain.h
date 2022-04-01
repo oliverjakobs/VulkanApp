@@ -25,12 +25,6 @@ typedef struct {
     VkFence fences[MAX_FRAMES_IN_FLIGHT];
 
     /* TODO move to renderer */
-    VkDescriptorPool descriptorPool;
-    VkDescriptorSetLayout descriptorSetLayout;
-
-    VkDescriptorSet descriptorSets[MAX_FRAMES_IN_FLIGHT];
-    VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT];
-    Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
 } ObeliskSwapchain;
 
 int obeliskCreateSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapchain, uint32_t width, uint32_t height);
@@ -44,17 +38,5 @@ int obeliskAcquireSwapchainImage(ObeliskSwapchain* swapchain, uint32_t frame, ui
 
 int obeliskSubmitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t frame);
 int obeliskPresentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32_t frame);
-
-/* TODO move to renderer */
-void commandBufferStart(VkCommandBuffer cmdBuffer, const ObeliskSwapchain* swapchain, uint32_t imageIndex);
-void commandBufferEnd(VkCommandBuffer cmdBuffer);
-
-int createDescriptorPool(ObeliskSwapchain* swapchain);
-void destroyDescriptorPool(ObeliskSwapchain* swapchain);
-
-int createDescriptorLayout(ObeliskSwapchain* swapchain);
-void destroyDescriptorLayout(ObeliskSwapchain* swapchain);
-
-int createDescriptorSets(ObeliskSwapchain* swapchain);
 
 #endif // !SWAPCHAIN_H
