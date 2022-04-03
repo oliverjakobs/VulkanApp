@@ -16,6 +16,10 @@ typedef struct {
     VkImage* images;
     VkImageView* imageViews;
 
+    VkImage* depthImages;
+    VkImageView* depthImageViews;
+    VkDeviceMemory* depthImageMemories;
+
     VkFramebuffer* framebuffers;
     VkRenderPass renderPass;
 

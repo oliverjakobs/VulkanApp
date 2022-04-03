@@ -2,6 +2,8 @@
 
 #include "Buffer.h"
 
+#include "cglm/cglm.h"
+
 static int createShaderModuleSrc(VkShaderModule* module, const uint32_t* code, size_t size) {
     VkShaderModuleCreateInfo info = { 
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -46,21 +48,25 @@ void destroyShaderStages(ObeliskPipeline* pipeline) {
     }
 }
 
-int createPipelineLayout(ObeliskPipeline* pipeline, VkDescriptorSetLayout setLayout, const ObeliskVertexLayout* vertexLayout) {
+int createPipelineLayout(ObeliskPipeline* pipeline, VkDescriptorSetLayout setLayout) {
+
+    VkPushConstantRange pushConstantRange = {
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .offset = 0,
+        .size = sizeof(mat4)
+    };
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .pSetLayouts = &setLayout,
         .setLayoutCount = 1,
-        .pPushConstantRanges = NULL,
-        .pushConstantRangeCount = 0
+        .pPushConstantRanges = &pushConstantRange,
+        .pushConstantRangeCount = 1
     };
 
     if (vkCreatePipelineLayout(obeliskGetDevice(), &pipelineLayoutInfo, NULL, &pipeline->layout) != VK_SUCCESS) {
         return MINIMAL_FAIL;
     }
-
-    pipeline->vertexLayout = vertexLayout;
 
     return MINIMAL_OK;
 }
@@ -69,7 +75,9 @@ void destroyPipelineLayout(ObeliskPipeline* pipeline) {
     vkDestroyPipelineLayout(obeliskGetDevice(), pipeline->layout, NULL);
 }
 
-int createPipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass) {
+int createPipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass, const ObeliskVertexLayout* vertexLayout) {
+    pipeline->vertexLayout = vertexLayout;
+
     /* shader stages */
     VkPipelineShaderStageCreateInfo shaderStages[SHADER_COUNT];
     shaderStages[SHADER_VERT] = (VkPipelineShaderStageCreateInfo){
@@ -223,7 +231,7 @@ int createPipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass) {
 int recreatePipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass) {
     destroyPipeline(pipeline);
 
-    if (!createPipeline(pipeline, renderPass)) {
+    if (!createPipeline(pipeline, renderPass, pipeline->vertexLayout)) {
         MINIMAL_ERROR("failed to recreate pipeline!");
         return MINIMAL_FAIL;
     }

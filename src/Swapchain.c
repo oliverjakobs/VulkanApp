@@ -288,29 +288,31 @@ int obeliskRecreateSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32
 }
 
 void obeliskDestroySwapchain(ObeliskSwapchain* swapchain) {
+    VkDevice device = obeliskGetDevice();
+
     /* destroy framebuffers */
     if (swapchain->framebuffers) {
         for (size_t i = 0; i < swapchain->imageCount; ++i) {
-            vkDestroyFramebuffer(obeliskGetDevice(), swapchain->framebuffers[i], NULL);
+            vkDestroyFramebuffer(device, swapchain->framebuffers[i], NULL);
         }
         free(swapchain->framebuffers);
     }
 
     /* destroy render pass */
-    vkDestroyRenderPass(obeliskGetDevice(), swapchain->renderPass, NULL);
+    vkDestroyRenderPass(device, swapchain->renderPass, NULL);
 
     /* destroy images */
     if (swapchain->images) free(swapchain->images);
 
     if (swapchain->imageViews) {
         for (size_t i = 0; i < swapchain->imageCount; ++i) {
-            vkDestroyImageView(obeliskGetDevice(), swapchain->imageViews[i], NULL);
+            vkDestroyImageView(device, swapchain->imageViews[i], NULL);
         }
         free(swapchain->imageViews);
     }
 
     /* destroy handle */
-    vkDestroySwapchainKHR(obeliskGetDevice(), swapchain->handle, NULL);
+    vkDestroySwapchainKHR(device, swapchain->handle, NULL);
 }
 
 int obeliskCreateSyncObjects(ObeliskSwapchain* swapchain) {

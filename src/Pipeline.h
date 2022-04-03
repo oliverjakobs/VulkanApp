@@ -34,10 +34,10 @@ typedef struct {
 int createShaderStages(ObeliskPipeline* pipeline, const char* vertPath, const char* fragPath);
 void destroyShaderStages(ObeliskPipeline* pipeline);
 
-int createPipelineLayout(ObeliskPipeline* pipeline, VkDescriptorSetLayout setLayout, const ObeliskVertexLayout* vertexLayout);
+int createPipelineLayout(ObeliskPipeline* pipeline, VkDescriptorSetLayout setLayout);
 void destroyPipelineLayout(ObeliskPipeline* pipeline);
 
-int createPipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass);
+int createPipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass, const ObeliskVertexLayout* vertexLayout);
 int recreatePipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass);
 void destroyPipeline(ObeliskPipeline* pipeline);
 
