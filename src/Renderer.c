@@ -20,7 +20,7 @@ int obeliskCreateRenderer(ObeliskRenderer* renderer, GLFWwindow* window) {
 
     /* create uniform buffers */
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (!createUniformBuffer(&renderer->uniformBuffers[i], sizeof(UniformBufferObject))) {
+        if (!obeliskCreateUniformBuffer(&renderer->uniformBuffers[i], sizeof(UniformBufferObject))) {
             MINIMAL_ERROR("failed to create uniform buffer!");
             return MINIMAL_FAIL;
         }
@@ -41,7 +41,7 @@ int obeliskCreateRenderer(ObeliskRenderer* renderer, GLFWwindow* window) {
 void obeliskDestroyRenderer(ObeliskRenderer* renderer) {
     /* destroy uniform buffers */
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        destroyBuffer(&renderer->uniformBuffers[i]);
+        obeliskDestroyBuffer(&renderer->uniformBuffers[i]);
     }
 
     /* destroy snyc objects */
@@ -227,7 +227,8 @@ void obeliskEndRenderPass(ObeliskRenderer* renderer, VkCommandBuffer cmdBuffer) 
 }
 
 void obeliskWriteUniform(ObeliskRenderer* renderer, UniformBufferObject* ubo) {
-    writeBuffer(&renderer->uniformBuffers[renderer->frame], ubo, sizeof(UniformBufferObject));
+    ObeliskBuffer* uniformBuffer = &renderer->uniformBuffers[renderer->frame];
+    obeliskWriteBuffer(uniformBuffer, ubo, uniformBuffer->size);
 }
 
 float obeliskGetRendererAspect(const ObeliskRenderer* renderer) {

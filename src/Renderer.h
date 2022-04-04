@@ -20,7 +20,7 @@ typedef struct {
 
     VkDescriptorSet descriptorSets[MAX_FRAMES_IN_FLIGHT];
     VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT];
-    Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
+    ObeliskBuffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
 } ObeliskRenderer;
 
 int obeliskCreateRenderer(ObeliskRenderer* renderer, GLFWwindow* window);

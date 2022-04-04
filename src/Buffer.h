@@ -1,5 +1,5 @@
-#ifndef BUFFER_H
-#define BUFFER_H
+#ifndef OBELISK_BUFFER_H
+#define OBELISK_BUFFER_H
 
 #include "common.h"
 
@@ -7,13 +7,13 @@ typedef struct {
     VkBuffer handle;
     VkDeviceMemory memory;
     VkDeviceSize size;
-} Buffer;
+} ObeliskBuffer;
 
-int createVertexBuffer(Buffer* buffer, const void* vertices, VkDeviceSize size);
-int createIndexBuffer(Buffer* buffer, const uint16_t* indices, uint32_t count);
-int createUniformBuffer(Buffer* buffer, VkDeviceSize size);
-void destroyBuffer(Buffer* buffer);
+int obeliskCreateVertexBuffer(ObeliskBuffer* buffer, const void* vertices, uint32_t count, uint32_t vertexSize);
+int obeliskCreateIndexBuffer(ObeliskBuffer* buffer, const uint32_t* indices, uint32_t count);
+int obeliskCreateUniformBuffer(ObeliskBuffer* buffer, VkDeviceSize size);
+void obeliskDestroyBuffer(ObeliskBuffer* buffer);
 
-void writeBuffer(Buffer* buffer, const void* src, VkDeviceSize size);
+void obeliskWriteBuffer(ObeliskBuffer* buffer, const void* src, VkDeviceSize size);
 
-#endif // !BUFFER_H
+#endif // !OBELISK_BUFFER_H

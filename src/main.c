@@ -27,66 +27,55 @@ static ObeliskVertexLayout pipelineVertexLayout = {
 };
 
 const Vertex vertices[] = {
-
     // left face (white)
-    {{-.5f, -.5f, -.5f}, {.9f, .9f, .9f}},
-    {{-.5f, .5f, .5f}, {.9f, .9f, .9f}},
-    {{-.5f, -.5f, .5f}, {.9f, .9f, .9f}},
-    {{-.5f, -.5f, -.5f}, {.9f, .9f, .9f}},
-    {{-.5f, .5f, -.5f}, {.9f, .9f, .9f}},
-    {{-.5f, .5f, .5f}, {.9f, .9f, .9f}},
-
+    { { -0.5f, -0.5f, -0.5f }, { 0.9f, 0.9f, 0.9f } },
+    { { -0.5f,  0.5f,  0.5f }, { 0.9f, 0.9f, 0.9f } },
+    { { -0.5f, -0.5f,  0.5f }, { 0.9f, 0.9f, 0.9f } },
+    { { -0.5f,  0.5f, -0.5f }, { 0.9f, 0.9f, 0.9f } },
     // right face (yellow)
-    {{.5f, -.5f, -.5f}, {.8f, .8f, .1f}},
-    {{.5f, .5f, .5f}, {.8f, .8f, .1f}},
-    {{.5f, -.5f, .5f}, {.8f, .8f, .1f}},
-    {{.5f, -.5f, -.5f}, {.8f, .8f, .1f}},
-    {{.5f, .5f, -.5f}, {.8f, .8f, .1f}},
-    {{.5f, .5f, .5f}, {.8f, .8f, .1f}},
-
+    { {  0.5f, -0.5f, -0.5f }, { 0.8f, 0.8f, 0.1f } },
+    { {  0.5f,  0.5f,  0.5f }, { 0.8f, 0.8f, 0.1f } },
+    { {  0.5f, -0.5f,  0.5f }, { 0.8f, 0.8f, 0.1f } },
+    { {  0.5f,  0.5f, -0.5f }, { 0.8f, 0.8f, 0.1f } },
     // top face (orange, remember y axis points down)
-    {{-.5f, -.5f, -.5f}, {.9f, .6f, .1f}},
-    {{.5f, -.5f, .5f}, {.9f, .6f, .1f}},
-    {{-.5f, -.5f, .5f}, {.9f, .6f, .1f}},
-    {{-.5f, -.5f, -.5f}, {.9f, .6f, .1f}},
-    {{.5f, -.5f, -.5f}, {.9f, .6f, .1f}},
-    {{.5f, -.5f, .5f}, {.9f, .6f, .1f}},
-
+    { { -0.5f, -0.5f, -0.5f }, { 0.9f, 0.6f, 0.1f } },
+    { {  0.5f, -0.5f,  0.5f }, { 0.9f, 0.6f, 0.1f } },
+    { { -0.5f, -0.5f,  0.5f }, { 0.9f, 0.6f, 0.1f } },
+    { {  0.5f, -0.5f, -0.5f }, { 0.9f, 0.6f, 0.1f } },
     // bottom face (red)
-    {{-.5f, .5f, -.5f}, {.8f, .1f, .1f}},
-    {{.5f, .5f, .5f}, {.8f, .1f, .1f}},
-    {{-.5f, .5f, .5f}, {.8f, .1f, .1f}},
-    {{-.5f, .5f, -.5f}, {.8f, .1f, .1f}},
-    {{.5f, .5f, -.5f}, {.8f, .1f, .1f}},
-    {{.5f, .5f, .5f}, {.8f, .1f, .1f}},
-
+    { { -0.5f,  0.5f, -0.5f }, { 0.8f, 0.1f, 0.1f } },
+    { {  0.5f,  0.5f,  0.5f }, { 0.8f, 0.1f, 0.1f } },
+    { { -0.5f,  0.5f,  0.5f }, { 0.8f, 0.1f, 0.1f } },
+    { {  0.5f,  0.5f, -0.5f }, { 0.8f, 0.1f, 0.1f } },
     // nose face (blue)
-    {{-.5f, -.5f, 0.5f}, {.1f, .1f, .8f}},
-    {{.5f, .5f, 0.5f}, {.1f, .1f, .8f}},
-    {{-.5f, .5f, 0.5f}, {.1f, .1f, .8f}},
-    {{-.5f, -.5f, 0.5f}, {.1f, .1f, .8f}},
-    {{.5f, -.5f, 0.5f}, {.1f, .1f, .8f}},
-    {{.5f, .5f, 0.5f}, {.1f, .1f, .8f}},
-
+    { { -0.5f, -0.5f,  0.5f }, { 0.1f, 0.1f, 0.8f } },
+    { {  0.5f,  0.5f,  0.5f }, { 0.1f, 0.1f, 0.8f } },
+    { { -0.5f,  0.5f,  0.5f }, { 0.1f, 0.1f, 0.8f } },
+    { {  0.5f, -0.5f,  0.5f }, { 0.1f, 0.1f, 0.8f } },
     // tail face (green)
-    {{-.5f, -.5f, -0.5f}, {.1f, .8f, .1f}},
-    {{.5f, .5f, -0.5f}, {.1f, .8f, .1f}},
-    {{-.5f, .5f, -0.5f}, {.1f, .8f, .1f}},
-    {{-.5f, -.5f, -0.5f}, {.1f, .8f, .1f}},
-    {{.5f, -.5f, -0.5f}, {.1f, .8f, .1f}},
-    {{.5f, .5f, -0.5f}, {.1f, .8f, .1f}},
-
+    { { -0.5f, -0.5f, -0.5f }, { 0.1f, 0.8f, 0.1f } },
+    { {  0.5f,  0.5f, -0.5f }, { 0.1f, 0.8f, 0.1f } },
+    { { -0.5f,  0.5f, -0.5f }, { 0.1f, 0.8f, 0.1f } },
+    { {  0.5f, -0.5f, -0.5f }, { 0.1f, 0.8f, 0.1f } },
 };
 
 uint32_t vertexCount = sizeof(vertices) / sizeof(vertices[0]);
-vec3 rotation = { 0.0f };
 
+const uint32_t indices[] = {
+     0,  1,  2,  0,  3,  1,
+     4,  5,  6,  4,  7,  5,
+     8,  9,  10, 8,  11, 9,
+    12, 13, 14, 12, 15, 13,
+    16, 17, 18, 16, 19, 17,
+    20, 21, 22, 20, 23, 21
+};
 
-const uint16_t indices[] = { 0, 1, 2, 2, 3, 0 };
 uint32_t indexCount = sizeof(indices) / sizeof(indices[0]);
 
-Buffer vertexBuffer;
-Buffer indexBuffer;
+ObeliskBuffer vertexBuffer;
+ObeliskBuffer indexBuffer;
+
+vec3 rotation = { 0.0f };
 
 int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     if (!obeliskCreateContext(app->window, "VulkanApp", debug)) {
@@ -129,12 +118,12 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
         return MINIMAL_FAIL;
     }
 
-    if (!createVertexBuffer(&vertexBuffer, vertices, vertexCount * sizeof(vertices))) {
+    if (!obeliskCreateVertexBuffer(&vertexBuffer, vertices, vertexCount, sizeof(Vertex))) {
         MINIMAL_ERROR("failed to create vertex buffer!");
         return MINIMAL_FAIL;
     }
 
-    if (!createIndexBuffer(&indexBuffer, indices, indexCount)) {
+    if (!obeliskCreateIndexBuffer(&indexBuffer, indices, indexCount)) {
         MINIMAL_ERROR("failed to create index buffer!");
         return MINIMAL_FAIL;
     }
@@ -149,8 +138,8 @@ void OnDestroy(MinimalApp* app) {
     destroyPipeline(&pipeline);
 
     /* destroy buffers */
-    destroyBuffer(&vertexBuffer);
-    destroyBuffer(&indexBuffer);
+    obeliskDestroyBuffer(&vertexBuffer);
+    obeliskDestroyBuffer(&indexBuffer);
 
     /* destroy renderer */
     obeliskDestroyDescriptorLayout(&app->renderer);
@@ -200,10 +189,10 @@ void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, float deltatime) {
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vertexBuffers, offsets);
 
-    // vkCmdBindIndexBuffer(cmdBuffer, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT16);
-    // vkCmdDrawIndexed(cmdBuffer, indexCount, 1, 0, 0, 0);
+    vkCmdBindIndexBuffer(cmdBuffer, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(cmdBuffer, indexCount, 1, 0, 0, 0);
 
-    vkCmdDraw(cmdBuffer, vertexCount, 1, 0, 0);
+    // vkCmdDraw(cmdBuffer, vertexCount, 1, 0, 0);
 
     obeliskEndRenderPass(&app->renderer, cmdBuffer);
 }

@@ -4,7 +4,7 @@
 
 #include <string.h>
 
-int createBuffer(Buffer* buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
+static int obeliskCreateBuffer(ObeliskBuffer* buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
     VkBufferCreateInfo bufferInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .size = size,
@@ -32,11 +32,10 @@ int createBuffer(Buffer* buffer, VkDeviceSize size, VkBufferUsageFlags usage, Vk
     }
 
     vkBindBufferMemory(obeliskGetDevice(), buffer->handle, buffer->memory, 0);
-    buffer->size = size;
     return MINIMAL_OK;
 }
 
-void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+static void obeliskCopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
     VkCommandBuffer commandBuffer;
     obeliskAllocateCommandBuffers(&commandBuffer, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
 
@@ -64,64 +63,72 @@ void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
     obeliskFreeCommandBuffers(&commandBuffer, 1);
 }
 
-int createVertexBuffer(Buffer* buffer, const void* vertices, VkDeviceSize size) {
-    Buffer staging = { 0 };
+static int obeliskStageBuffer(ObeliskBuffer* target, const void* data, VkBufferUsageFlags targetUsage) {
+    VkDeviceSize size = target->size;
+
+    ObeliskBuffer staging = { 0 };
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    if (!createBuffer(&staging, size, usage, properties))
-        return MINIMAL_FAIL;
-
-    writeBuffer(&staging, vertices, size);
-
-    usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    if (!createBuffer(buffer, size, usage, properties)) {
-        destroyBuffer(&staging);
+    if (!obeliskCreateBuffer(&staging, size, usage, properties)) {
+        MINIMAL_ERROR("failed to create staging buffer!");
         return MINIMAL_FAIL;
     }
 
-    copyBuffer(staging.handle, buffer->handle, size);
-    destroyBuffer(&staging);
+    void* dst;
+    vkMapMemory(obeliskGetDevice(), staging.memory, 0, size, 0, &dst);
+    memcpy(dst, data, (size_t)size);
+    vkUnmapMemory(obeliskGetDevice(), staging.memory);
+
+    usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | targetUsage;
+    properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    int result = obeliskCreateBuffer(target, size, usage, properties);
+    if (result) {
+        obeliskCopyBuffer(staging.handle, target->handle, size);
+    }
+
+    obeliskDestroyBuffer(&staging);
+
+    return result;
+}
+
+int obeliskCreateVertexBuffer(ObeliskBuffer* buffer, const void* vertices, uint32_t count, uint32_t vertexSize) {
+    buffer->size = (VkDeviceSize)count * vertexSize;
+
+    if (!obeliskStageBuffer(buffer, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)) {
+        return MINIMAL_FAIL;
+    }
 
     return MINIMAL_OK;
 }
 
-int createIndexBuffer(Buffer* buffer, const uint16_t* indices, uint32_t count) {
-    VkDeviceSize size = count * sizeof(*indices);
+int obeliskCreateIndexBuffer(ObeliskBuffer* buffer, const uint32_t* indices, uint32_t count) {
+    buffer->size = count * sizeof(uint32_t);
 
-    Buffer staging = { 0 };
-    VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    if (!createBuffer(&staging, size, usage, properties))
-        return MINIMAL_FAIL;
-
-    writeBuffer(&staging, indices, size);
-
-    usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-    properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    if (!createBuffer(buffer, size, usage, properties)) {
-        destroyBuffer(&staging);
+    if (!obeliskStageBuffer(buffer, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT)) {
         return MINIMAL_FAIL;
     }
-
-    copyBuffer(staging.handle, buffer->handle, size);
-    destroyBuffer(&staging);
 
     return MINIMAL_OK;
 }
 
-int createUniformBuffer(Buffer* buffer, VkDeviceSize size) {
+int obeliskCreateUniformBuffer(ObeliskBuffer* buffer, VkDeviceSize size) {
+    buffer->size = size;
+
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    return createBuffer(buffer, size, usage, properties);
+    if (!obeliskCreateBuffer(buffer, size, usage, properties)) {
+        return MINIMAL_FAIL;
+    }
+
+    return MINIMAL_OK;
 }
 
-void destroyBuffer(Buffer* buffer) {
+void obeliskDestroyBuffer(ObeliskBuffer* buffer) {
     vkDestroyBuffer(obeliskGetDevice(), buffer->handle, NULL);
     vkFreeMemory(obeliskGetDevice(), buffer->memory, NULL);
 }
 
-void writeBuffer(Buffer* buffer, const void* src, VkDeviceSize size) {
+void obeliskWriteBuffer(ObeliskBuffer* buffer, const void* src, VkDeviceSize size) {
     MINIMAL_ASSERT(size <= buffer->size, "Buffer too small");
     void* dst;
     vkMapMemory(obeliskGetDevice(), buffer->memory, 0, size, 0, &dst);
