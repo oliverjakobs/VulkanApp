@@ -25,6 +25,10 @@ uint32_t obeliskGetQueuePresentFamilyIndex();
 
 VkResult obeliskGetPhysicalDeviceSurfaceCapabilities(VkSurfaceCapabilitiesKHR* capabilities);
 
+VkFormat obeliskGetPhysicalDeviceFormat(const VkFormat* candidates, uint32_t count, VkImageTiling tiling, VkFormatFeatureFlags features);
+
+uint32_t obeliskFindMemoryTypeIndex(uint32_t filter, VkMemoryPropertyFlags properties);
+
 void obeliskPrintInfo();
 
 VkResult obeliskAllocateCommandBuffers(VkCommandBuffer* buffers, VkCommandBufferLevel level, uint32_t count);

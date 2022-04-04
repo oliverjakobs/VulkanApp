@@ -404,6 +404,33 @@ VkResult obeliskGetPhysicalDeviceSurfaceCapabilities(VkSurfaceCapabilitiesKHR* c
     return vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_context.physicalDevice, _context.surface, capabilities);
 }
 
+VkFormat obeliskGetPhysicalDeviceFormat(const VkFormat* candidates, uint32_t count, VkImageTiling tiling, VkFormatFeatureFlags features) {
+    for (uint32_t i = 0; i < count; ++i) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(_context.physicalDevice, candidates[i], &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+            return candidates[i];
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+            return candidates[i];
+    }
+    return VK_FORMAT_UNDEFINED;
+}
+
+uint32_t obeliskFindMemoryTypeIndex(uint32_t filter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memoryProps;
+    vkGetPhysicalDeviceMemoryProperties(obeliskGetPhysicalDevice(), &memoryProps);
+
+    for (uint32_t i = 0; i < memoryProps.memoryTypeCount; i++) {
+        if ((filter & (1 << i)) && (memoryProps.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    MINIMAL_ERROR("failed to find suitable memory type!");
+    return 0;
+}
+
 void obeliskPrintInfo() {
     VkPhysicalDeviceProperties properties;
     vkGetPhysicalDeviceProperties(_context.physicalDevice, &properties);

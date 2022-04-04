@@ -79,6 +79,7 @@ const Vertex vertices[] = {
 };
 
 uint32_t vertexCount = sizeof(vertices) / sizeof(vertices[0]);
+vec3 rotation = { 0.0f };
 
 
 const uint16_t indices[] = { 0, 1, 2, 2, 3, 0 };
@@ -176,22 +177,17 @@ int OnEvent(MinimalApp* app, const MinimalEvent* e) {
 }
 
 void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, float deltatime) {
-    static float time;
-    time += deltatime;
-
-    VkExtent2D extent = app->renderer.swapchain.extent;
-
     UniformBufferObject ubo = { 0 };
     glm_lookat((vec3) { 2.0f, 2.0f, 2.0f }, (vec3) { 0.0f, 0.0f, 0.0f }, (vec3){ 0.0f, 0.0f, 1.0f }, ubo.view);
-    float aspect = extent.width / (float)extent.height;
-    glm_perspective(glm_rad(45.0f), aspect, 0.1f, 10.0f, ubo.proj);
-
-    ubo.proj[1][1] *= -1;
+    glm_perspective(glm_rad(45.0f), obeliskGetRendererAspect(&app->renderer), 0.1f, 10.0f, ubo.proj);
 
     obeliskWriteUniform(&app->renderer, &ubo);
 
-    mat4 model = { 0 };
-    glm_rotate_make(model, time * glm_rad(90.0f), (vec3) { 0.0f, 0.0f, 1.0f });
+    rotation[0] += 0.5f * deltatime;
+    rotation[1] += 1.0f * deltatime;
+
+    mat4 model = GLM_MAT4_IDENTITY_INIT;
+    glm_euler_yxz(rotation, model);
 
     vkCmdPushConstants(cmdBuffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &model);
 

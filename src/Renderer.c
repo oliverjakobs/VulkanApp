@@ -187,8 +187,9 @@ void obeliskEndFrame(ObeliskRenderer* renderer) {
 }
 
 void obeliskBeginRenderPass(ObeliskRenderer* renderer, VkCommandBuffer cmdBuffer) {
-    VkClearValue clearValue = {
-        .color = {{0.0f, 0.0f, 0.0f, 1.0f}}
+    VkClearValue clearValues[] = {
+        {.color = { 0.0f, 0.0f, 0.0f, 1.0f } },
+        {.depthStencil = {1.0f, 0}}
     };
 
     VkRenderPassBeginInfo renderPassInfo = {
@@ -197,8 +198,8 @@ void obeliskBeginRenderPass(ObeliskRenderer* renderer, VkCommandBuffer cmdBuffer
         .framebuffer = renderer->swapchain.framebuffers[renderer->imageIndex],
         .renderArea.offset = { 0, 0 },
         .renderArea.extent = renderer->swapchain.extent,
-        .pClearValues = &clearValue,
-        .clearValueCount = 1,
+        .pClearValues = clearValues,
+        .clearValueCount = sizeof(clearValues) / sizeof(VkClearValue)
     };
 
     vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -227,4 +228,8 @@ void obeliskEndRenderPass(ObeliskRenderer* renderer, VkCommandBuffer cmdBuffer) 
 
 void obeliskWriteUniform(ObeliskRenderer* renderer, UniformBufferObject* ubo) {
     writeBuffer(&renderer->uniformBuffers[renderer->frame], ubo, sizeof(UniformBufferObject));
+}
+
+float obeliskGetRendererAspect(const ObeliskRenderer* renderer) {
+    return renderer->swapchain.extent.width / (float)renderer->swapchain.extent.height;
 }

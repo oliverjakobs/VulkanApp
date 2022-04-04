@@ -4,20 +4,6 @@
 
 #include <string.h>
 
-static uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memoryProps;
-    vkGetPhysicalDeviceMemoryProperties(obeliskGetPhysicalDevice(), &memoryProps);
-
-    for (uint32_t i = 0; i < memoryProps.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memoryProps.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
-        }
-    }
-
-    MINIMAL_ERROR("failed to find suitable memory type!");
-    return 0;
-}
-
 int createBuffer(Buffer* buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
     VkBufferCreateInfo bufferInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -37,7 +23,7 @@ int createBuffer(Buffer* buffer, VkDeviceSize size, VkBufferUsageFlags usage, Vk
     VkMemoryAllocateInfo allocInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .allocationSize = memoryReq.size,
-        .memoryTypeIndex = findMemoryType(memoryReq.memoryTypeBits, properties)
+        .memoryTypeIndex = obeliskFindMemoryTypeIndex(memoryReq.memoryTypeBits, properties)
     };
 
     if (vkAllocateMemory(obeliskGetDevice(), &allocInfo, NULL, &buffer->memory) != VK_SUCCESS) {

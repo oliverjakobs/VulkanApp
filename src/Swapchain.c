@@ -122,6 +122,76 @@ int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
         }
     }
 
+    /* create depth images and depth image views */
+    swapchain->depthImages = malloc(swapchain->imageCount * sizeof(VkImage));
+    if (!swapchain->depthImages) return MINIMAL_FAIL;
+
+    swapchain->depthImageViews = malloc(swapchain->imageCount * sizeof(VkImageView));
+    if (!swapchain->depthImageViews) return MINIMAL_FAIL;
+
+    swapchain->depthImageMemories = malloc(swapchain->imageCount * sizeof(VkDeviceMemory));
+    if (!swapchain->depthImageMemories) return MINIMAL_FAIL;
+
+    for (size_t i = 0; i < swapchain->imageCount; ++i) {
+        VkImageCreateInfo imageInfo = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            .imageType = VK_IMAGE_TYPE_2D,
+            .extent.width = swapchain->extent.width,
+            .extent.height = swapchain->extent.height,
+            .extent.depth = 1,
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .format = swapchain->depthFormat,
+            .tiling = VK_IMAGE_TILING_OPTIMAL,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .flags = 0
+        };
+
+        if (vkCreateImage(device, &imageInfo, NULL, &swapchain->depthImages[i]) != VK_SUCCESS) {
+            MINIMAL_ERROR("failed to create image!");
+            return MINIMAL_FAIL;
+        }
+
+        VkMemoryRequirements memRequirements;
+        vkGetImageMemoryRequirements(device, swapchain->depthImages[i], &memRequirements);
+
+        VkMemoryAllocateInfo allocInfo = {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .allocationSize = memRequirements.size,
+            .memoryTypeIndex = obeliskFindMemoryTypeIndex(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+        };
+
+        if (vkAllocateMemory(device, &allocInfo, NULL, &swapchain->depthImageMemories[i]) != VK_SUCCESS) {
+            MINIMAL_ERROR("failed to allocate image memory!");
+            return MINIMAL_FAIL;
+        }
+
+        if (vkBindImageMemory(device, swapchain->depthImages[i], swapchain->depthImageMemories[i], 0) != VK_SUCCESS) {
+            MINIMAL_ERROR("failed to bind image memory!");
+            return MINIMAL_FAIL;
+        }
+
+        VkImageViewCreateInfo viewInfo = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = swapchain->depthImages[i],
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = swapchain->depthFormat,
+            .subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+            .subresourceRange.baseMipLevel = 0,
+            .subresourceRange.levelCount = 1,
+            .subresourceRange.baseArrayLayer = 0,
+            .subresourceRange.layerCount = 1
+        };
+
+        if (vkCreateImageView(device, &viewInfo, NULL, &swapchain->depthImageViews[i]) != VK_SUCCESS) {
+            MINIMAL_ERROR("failed to create depth image view!");
+            return MINIMAL_FAIL;
+        }
+    }
+
     return MINIMAL_OK;
 }
 
@@ -142,18 +212,48 @@ int obeliskSwapchainCreateRenderPass(ObeliskSwapchain* swapchain) {
         .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
 
+    VkAttachmentDescription depthAttachment = {
+        .format = swapchain->depthFormat,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    };
+
+    VkAttachmentReference depthAttachmentRef = {
+        .attachment = 1,
+        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    };
+
     VkSubpassDescription subpass = {
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .pColorAttachments = &colorAttachmentRef,
-        .colorAttachmentCount = 1
+        .colorAttachmentCount = 1,
+        .pDepthStencilAttachment = &depthAttachmentRef
     };
+
+    VkSubpassDependency dependency = {
+        .dstSubpass = 0,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .srcAccessMask = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    };
+
+    VkAttachmentDescription attachments[] = { colorAttachment, depthAttachment };
 
     VkRenderPassCreateInfo renderPassInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .pAttachments = &colorAttachment,
-        .attachmentCount = 1,
+        .pAttachments = attachments,
+        .attachmentCount = sizeof(attachments) / sizeof(VkAttachmentDescription),
         .pSubpasses = &subpass,
-        .subpassCount = 1
+        .subpassCount = 1,
+        .pDependencies = &dependency,
+        .dependencyCount = 1
     };
 
     if (vkCreateRenderPass(obeliskGetDevice(), &renderPassInfo, NULL, &swapchain->renderPass) != VK_SUCCESS) {
@@ -174,14 +274,15 @@ int obeliskSwapchainCreateFramebuffers(ObeliskSwapchain* swapchain) {
 
     for (size_t i = 0; i < swapchain->imageCount; ++i) {
         VkImageView attachments[] = {
-            swapchain->imageViews[i]
+            swapchain->imageViews[i],
+            swapchain->depthImageViews[i]
         };
 
         VkFramebufferCreateInfo info = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             .renderPass = swapchain->renderPass,
             .pAttachments = attachments,
-            .attachmentCount = 1,
+            .attachmentCount = sizeof(attachments) / sizeof(VkImageView),
             .width = swapchain->extent.width,
             .height = swapchain->extent.height,
             .layers = 1
@@ -251,9 +352,12 @@ int obeliskCreateSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapch
         return MINIMAL_FAIL;
     }
 
+    swapchain->extent = extent;
     swapchain->imageCount = imageCount;
     swapchain->imageFormat = surfaceFormat.format;
-    swapchain->extent = extent;
+    VkFormat candidates[] = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
+    uint32_t candidateCount = sizeof(candidates) / sizeof(VkFormat);
+    swapchain->depthFormat = obeliskGetPhysicalDeviceFormat(candidates, candidateCount, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
     if (!obeliskSwapchainCreateImages(swapchain))
         return MINIMAL_FAIL;
@@ -309,6 +413,18 @@ void obeliskDestroySwapchain(ObeliskSwapchain* swapchain) {
             vkDestroyImageView(device, swapchain->imageViews[i], NULL);
         }
         free(swapchain->imageViews);
+    }
+
+    /* destroy depth images */
+    if (swapchain->depthImages) {
+        for (size_t i = 0; i < swapchain->imageCount; ++i) {
+            vkDestroyImageView(device, swapchain->depthImageViews[i], NULL);
+            vkDestroyImage(device, swapchain->depthImages[i], NULL);
+            vkFreeMemory(device, swapchain->depthImageMemories[i], NULL);
+        }
+        free(swapchain->depthImages);
+        free(swapchain->depthImageViews);
+        free(swapchain->depthImageMemories);
     }
 
     /* destroy handle */

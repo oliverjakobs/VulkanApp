@@ -42,4 +42,6 @@ void obeliskEndRenderPass(ObeliskRenderer* renderer, VkCommandBuffer cmdBuffer);
 
 void obeliskWriteUniform(ObeliskRenderer* renderer, UniformBufferObject* ubo);
 
+float obeliskGetRendererAspect(const ObeliskRenderer* renderer);
+
 #endif // !OBELISK_RENDERER_H

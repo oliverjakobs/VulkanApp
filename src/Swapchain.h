@@ -10,6 +10,7 @@ typedef struct {
     VkSwapchainKHR handle;
 
     VkFormat imageFormat;
+    VkFormat depthFormat;
     VkExtent2D extent;
 
     uint32_t imageCount;
