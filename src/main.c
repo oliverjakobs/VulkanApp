@@ -1,8 +1,10 @@
-#include "Application.h"
+#include "core/Application.h"
 
-#include "Swapchain.h"
-#include "Pipeline.h"
-#include "Buffer.h"
+#include "graphics/Swapchain.h"
+#include "graphics/Pipeline.h"
+#include "graphics/Buffer.h"
+
+#include "Utils.h"
 
 #include "cglm/cglm.h"
 
@@ -59,7 +61,7 @@ const Vertex vertices[] = {
     { {  0.5f, -0.5f, -0.5f }, { 0.1f, 0.8f, 0.1f } },
 };
 
-uint32_t vertexCount = sizeof(vertices) / sizeof(vertices[0]);
+uint32_t vertexCount = OBELISK_ARRAY_LEN(vertices);
 
 const uint32_t indices[] = {
      0,  1,  2,  0,  3,  1,
@@ -70,20 +72,20 @@ const uint32_t indices[] = {
     20, 21, 22, 20, 23, 21
 };
 
-uint32_t indexCount = sizeof(indices) / sizeof(indices[0]);
+uint32_t indexCount = OBELISK_ARRAY_LEN(indices);
 
 ObeliskBuffer vertexBuffer;
 ObeliskBuffer indexBuffer;
 
 vec3 rotation = { 0.0f };
 
-int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
+int OnLoad(ObeliskApp* app, uint32_t width, uint32_t height) {
     if (!obeliskCreateContext(app->window, "VulkanApp", debug)) {
         OBELISK_ERROR("Failed to create vulkan instance!");
         return OBELISK_FAIL;
     }
 
-    if (!obeliskCreateRenderer(&app->renderer, app->window)) {
+    if (!obeliskCreateRenderer(&app->renderer, width, height)) {
         OBELISK_ERROR("Failed to create renderer!");
     }
 
@@ -103,17 +105,17 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     }
 
     /* create pipeline */
-    if (!createShaderStages(&pipeline, "res/shader/vert.spv", "res/shader/frag.spv")) {
+    if (!obeliskCreateShaderStages(&pipeline, "res/shader/vert.spv", "res/shader/frag.spv")) {
         OBELISK_ERROR("failed to create shader stages!");
         return OBELISK_FAIL;
     }
 
-    if (!createPipelineLayout(&pipeline, app->renderer.descriptorSetLayout)) {
+    if (!obeliskCreatePipelineLayout(&pipeline, app->renderer.descriptorSetLayout, sizeof(mat4))) {
         OBELISK_ERROR("Failed to create pipeline layout!");
         return OBELISK_FAIL;
     }
 
-    if (!createPipeline(&pipeline, app->renderer.swapchain.renderPass, &pipelineVertexLayout)) {
+    if (!obeliskCreatePipeline(&pipeline, app->renderer.swapchain.renderPass, &pipelineVertexLayout)) {
         OBELISK_ERROR("failed to create graphics pipeline!");
         return OBELISK_FAIL;
     }
@@ -131,11 +133,11 @@ int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     return OBELISK_OK;
 }
 
-void OnDestroy(MinimalApp* app) {
+void OnDestroy(ObeliskApp* app) {
     /* destroy pipeline */
-    destroyShaderStages(&pipeline);
-    destroyPipelineLayout(&pipeline);
-    destroyPipeline(&pipeline);
+    obeliskDestroyShaderStages(&pipeline);
+    obeliskDestroyPipelineLayout(&pipeline);
+    obeliskDestroyPipeline(&pipeline);
 
     /* destroy buffers */
     obeliskDestroyBuffer(&vertexBuffer);
@@ -150,22 +152,21 @@ void OnDestroy(MinimalApp* app) {
     obeliskDestroyContext();
 }
 
-int OnEvent(MinimalApp* app, const MinimalEvent* e) {
-    if (MinimalEventKeyPressed(e) == GLFW_KEY_ESCAPE) MinimalClose(app);
+int OnEvent(ObeliskApp* app, const ObeliskEvent* e) {
+    if (obeliskEventKeyPressed(e) == GLFW_KEY_ESCAPE) obeliskClose(app);
 
     uint32_t width, height;
-    if (MinimalEventFramebufferSize(e, &width, &height)) {
-
+    if (obeliskEventFramebufferSize(e, &width, &height)) {
         if (width == 0 || height == 0) return OBELISK_FAIL;
 
         obeliskRecreateSwapchain(&app->renderer.swapchain, width, height);
-        recreatePipeline(&pipeline, app->renderer.swapchain.renderPass);
+        obeliskRecreatePipeline(&pipeline, app->renderer.swapchain.renderPass);
     }
 
     return OBELISK_OK;
 }
 
-void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, float deltatime) {
+void OnUpdate(ObeliskApp* app, VkCommandBuffer cmdBuffer, float deltatime) {
     UniformBufferObject ubo = { 0 };
     glm_lookat((vec3) { 2.0f, 2.0f, 2.0f }, (vec3) { 0.0f, 0.0f, 0.0f }, (vec3){ 0.0f, 0.0f, 1.0f }, ubo.view);
     glm_perspective(glm_rad(45.0f), obeliskGetRendererAspect(&app->renderer), 0.1f, 10.0f, ubo.proj);
@@ -198,17 +199,17 @@ void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, float deltatime) {
 }
 
 int main() {
-    MinimalApp app = {
+    ObeliskApp app = {
         .on_load = OnLoad,
         .on_destroy = OnDestroy,
         .on_event = OnEvent,
         .on_update = OnUpdate
     };
 
-    if (MinimalLoad(&app, "VulkanApp", 1024, 800))
-        MinimalRun(&app);
+    if (obeliskLoad(&app, "VulkanApp", 1024, 800))
+        obeliskRun(&app);
 
-    MinimalDestroy(&app);
+    obeliskDestroy(&app);
 
     return 0;
 }

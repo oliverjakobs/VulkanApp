@@ -1,9 +1,10 @@
 #ifndef OBELISK_CORE_H
 #define OBELISK_CORE_H
 
-#include "common.h"
-#include "Buffer.h"
-#include "Swapchain.h"
+#include "../common.h"
+#include "../platform/platform.h"
+
+#include <vulkan/vulkan.h>
 
 /* context */
 int obeliskCreateContext(GLFWwindow* window, const char* app, int debug);

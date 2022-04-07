@@ -1,11 +1,8 @@
-#include "Pipeline.h"
+#include "pipeline.h"
 
-#include "Buffer.h"
-#include "Utils.h"
+#include "../utils.h"
 
-#include "cglm/cglm.h"
-
-static int createShaderModuleSrc(VkShaderModule* module, const uint32_t* code, size_t size) {
+static int obeliskCreateShaderModuleSrc(VkShaderModule* module, const uint32_t* code, size_t size) {
     VkShaderModuleCreateInfo info = { 
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .codeSize = size,
@@ -19,23 +16,23 @@ static int createShaderModuleSrc(VkShaderModule* module, const uint32_t* code, s
     return OBELISK_OK;
 }
 
-static int createShaderModuleSPIRV(VkShaderModule* module, const char* path) {
+static int obeliskCreateShaderModuleSPIRV(VkShaderModule* module, const char* path) {
     size_t size = 0;
     char* code = obeliskReadFile(path, &size);
     if (!code) return OBELISK_FAIL;
 
-    int result = createShaderModuleSrc(module, (const uint32_t*)code, size);
+    int result = obeliskCreateShaderModuleSrc(module, (const uint32_t*)code, size);
     free(code);
     return result;
 }
 
-int createShaderStages(ObeliskPipeline* pipeline, const char* vertPath, const char* fragPath) {
-    if (!createShaderModuleSPIRV(&pipeline->shaderModules[SHADER_VERT], vertPath)) {
+int obeliskCreateShaderStages(ObeliskPipeline* pipeline, const char* vertPath, const char* fragPath) {
+    if (!obeliskCreateShaderModuleSPIRV(&pipeline->shaderModules[OBELISK_SHADER_VERT], vertPath)) {
         OBELISK_ERROR("failed to create shader module for %s", vertPath);
         return OBELISK_FAIL;
     }
 
-    if (!createShaderModuleSPIRV(&pipeline->shaderModules[SHADER_FRAG], fragPath)) {
+    if (!obeliskCreateShaderModuleSPIRV(&pipeline->shaderModules[OBELISK_SHADER_FRAG], fragPath)) {
         OBELISK_ERROR("failed to create shader module for %s", fragPath);
         return OBELISK_FAIL;
     }
@@ -43,18 +40,17 @@ int createShaderStages(ObeliskPipeline* pipeline, const char* vertPath, const ch
     return OBELISK_OK;
 }
 
-void destroyShaderStages(ObeliskPipeline* pipeline) {
-    for (size_t i = 0; i < SHADER_COUNT; ++i) {
+void obeliskDestroyShaderStages(ObeliskPipeline* pipeline) {
+    for (size_t i = 0; i < OBELISK_SHADER_COUNT; ++i) {
         vkDestroyShaderModule(obeliskGetDevice(), pipeline->shaderModules[i], NULL);
     }
 }
 
-int createPipelineLayout(ObeliskPipeline* pipeline, VkDescriptorSetLayout setLayout) {
-
+int obeliskCreatePipelineLayout(ObeliskPipeline* pipeline, VkDescriptorSetLayout setLayout, uint32_t pushConstantSize) {
     VkPushConstantRange pushConstantRange = {
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
         .offset = 0,
-        .size = sizeof(mat4)
+        .size = pushConstantSize
     };
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
@@ -72,26 +68,26 @@ int createPipelineLayout(ObeliskPipeline* pipeline, VkDescriptorSetLayout setLay
     return OBELISK_OK;
 }
 
-void destroyPipelineLayout(ObeliskPipeline* pipeline) {
+void obeliskDestroyPipelineLayout(ObeliskPipeline* pipeline) {
     vkDestroyPipelineLayout(obeliskGetDevice(), pipeline->layout, NULL);
 }
 
-int createPipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass, const ObeliskVertexLayout* vertexLayout) {
+int obeliskCreatePipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass, const ObeliskVertexLayout* vertexLayout) {
     pipeline->vertexLayout = vertexLayout;
 
     /* shader stages */
-    VkPipelineShaderStageCreateInfo shaderStages[SHADER_COUNT];
-    shaderStages[SHADER_VERT] = (VkPipelineShaderStageCreateInfo){
+    VkPipelineShaderStageCreateInfo shaderStages[OBELISK_SHADER_COUNT];
+    shaderStages[OBELISK_SHADER_VERT] = (VkPipelineShaderStageCreateInfo){
         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         .stage = VK_SHADER_STAGE_VERTEX_BIT,
-        .module = pipeline->shaderModules[SHADER_VERT],
+        .module = pipeline->shaderModules[OBELISK_SHADER_VERT],
         .pName = "main"
     };
 
-    shaderStages[SHADER_FRAG] = (VkPipelineShaderStageCreateInfo){
+    shaderStages[OBELISK_SHADER_FRAG] = (VkPipelineShaderStageCreateInfo){
         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-        .module = pipeline->shaderModules[SHADER_FRAG],
+        .module = pipeline->shaderModules[OBELISK_SHADER_FRAG],
         .pName = "main"
     };
 
@@ -206,7 +202,7 @@ int createPipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass, const Obe
     VkGraphicsPipelineCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         .pStages = shaderStages,
-        .stageCount = SHADER_COUNT,
+        .stageCount = OBELISK_SHADER_COUNT,
         .pVertexInputState = &vertexInputInfo,
         .pInputAssemblyState = &inputAssemblyInfo,
         .pViewportState = &viewportStateInfo,
@@ -229,10 +225,10 @@ int createPipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass, const Obe
     return OBELISK_OK;
 }
 
-int recreatePipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass) {
-    destroyPipeline(pipeline);
+int obeliskRecreatePipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass) {
+    obeliskDestroyPipeline(pipeline);
 
-    if (!createPipeline(pipeline, renderPass, pipeline->vertexLayout)) {
+    if (!obeliskCreatePipeline(pipeline, renderPass, pipeline->vertexLayout)) {
         OBELISK_ERROR("failed to recreate pipeline!");
         return OBELISK_FAIL;
     }
@@ -240,6 +236,6 @@ int recreatePipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass) {
     return OBELISK_OK;
 }
 
-void destroyPipeline(ObeliskPipeline* pipeline) {
+void obeliskDestroyPipeline(ObeliskPipeline* pipeline) {
     vkDestroyPipeline(obeliskGetDevice(), pipeline->handle, NULL);
 }

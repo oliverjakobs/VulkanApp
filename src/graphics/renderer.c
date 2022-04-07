@@ -1,13 +1,8 @@
 #include "Renderer.h"
 
-#include "Core.h"
-
-int obeliskCreateRenderer(ObeliskRenderer* renderer, GLFWwindow* window) {
+int obeliskCreateRenderer(ObeliskRenderer* renderer, uint32_t width, uint32_t height) {
     /* create swap chain */
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-
-    if (!obeliskCreateSwapchain(&renderer->swapchain, VK_NULL_HANDLE, (uint32_t)width, (uint32_t)height)) {
+    if (!obeliskCreateSwapchain(&renderer->swapchain, VK_NULL_HANDLE, width, height)) {
         OBELISK_ERROR("failed to create swap chain!");
         return OBELISK_FAIL;
     }

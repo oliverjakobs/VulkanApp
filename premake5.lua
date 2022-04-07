@@ -72,8 +72,8 @@ project "VulkanApp"
 
 	filter "system:linux"
 		links { "dl", "pthread" }
-		defines { "OBELISK_PLATFORM_GLFW", "_X11" }
+		defines { "_X11" }
 
 	filter "system:windows"
 		systemversion "latest"
-		defines { "OBELISK_PLATFORM_GLFW", "WINDOWS", "_CRT_SECURE_NO_WARNINGS" }
+		defines { "WINDOWS", "_CRT_SECURE_NO_WARNINGS" }

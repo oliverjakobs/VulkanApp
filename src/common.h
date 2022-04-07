@@ -5,11 +5,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
-#include <vulkan/vulkan.h>
-
 #define OBELISK_FAIL    0
 #define OBELISK_OK      1
 
@@ -23,12 +18,11 @@
 #define OBELISK_VERSION_MINOR       4
 #define OBELISK_VERSION_REVISION    0
 
-void ObeliskGetVersion(int* major, int* minor, int* rev);
-const char* ObeliskGetVersionString();
+void obeliskGetVersion(int* major, int* minor, int* rev);
+const char* obeliskGetVersionString();
 
-typedef struct MinimalEvent MinimalEvent;
-typedef struct MinimalApp MinimalApp;
-typedef struct VulkanContext VulkanContext;
+typedef struct ObeliskEvent ObeliskEvent;
+typedef struct ObeliskApp ObeliskApp;
 
 /* --------------------------| logging |--------------------------------- */
 #ifndef OBELISK_DISABLE_LOGGING

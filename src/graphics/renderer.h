@@ -1,7 +1,8 @@
 #ifndef OBELISK_RENDERER_H
 #define OBELISK_RENDERER_H
 
-#include "Swapchain.h"
+#include "swapchain.h"
+#include "buffer.h"
 
 #include "cglm/cglm.h"
 
@@ -23,7 +24,7 @@ typedef struct {
     ObeliskBuffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
 } ObeliskRenderer;
 
-int obeliskCreateRenderer(ObeliskRenderer* renderer, GLFWwindow* window);
+int obeliskCreateRenderer(ObeliskRenderer* renderer, uint32_t width, uint32_t height);
 void obeliskDestroyRenderer(ObeliskRenderer* renderer);
 
 int obeliskCreateDescriptorPool(ObeliskRenderer* renderer);

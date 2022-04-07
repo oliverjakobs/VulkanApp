@@ -2,7 +2,7 @@
 
 #include <stdarg.h>
 
-void ObeliskGetVersion(int* major, int* minor, int* rev) {
+void obeliskGetVersion(int* major, int* minor, int* rev) {
     if (major != NULL) *major = OBELISK_VERSION_MAJOR;
     if (minor != NULL) *minor = OBELISK_VERSION_MINOR;
     if (rev != NULL)   *rev =   OBELISK_VERSION_REVISION;
@@ -11,7 +11,7 @@ void ObeliskGetVersion(int* major, int* minor, int* rev) {
 #define OBELISK_CONCAT_VERSION(m, n, r) #m "." #n "." #r
 #define OBELISK_MAKE_VERSION_STR(m, n, r) OBELISK_CONCAT_VERSION(m, n, r)
 
-const char* ObeliskGetVersionString() {
+const char* obeliskGetVersionString() {
     return OBELISK_MAKE_VERSION_STR(OBELISK_VERSION_MAJOR, OBELISK_VERSION_MINOR, OBELISK_VERSION_REVISION);
 }
 

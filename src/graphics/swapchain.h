@@ -1,8 +1,7 @@
-#ifndef SWAPCHAIN_H
-#define SWAPCHAIN_H
+#ifndef OBELISK_SWAPCHAIN_H
+#define OBELISK_SWAPCHAIN_H
 
-#include "common.h"
-#include "Buffer.h"
+#include "context.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
@@ -28,8 +27,6 @@ typedef struct {
     VkSemaphore imageAvailable[MAX_FRAMES_IN_FLIGHT];
     VkSemaphore renderFinished[MAX_FRAMES_IN_FLIGHT];
     VkFence fences[MAX_FRAMES_IN_FLIGHT];
-
-    /* TODO move to renderer */
 } ObeliskSwapchain;
 
 int obeliskCreateSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapchain, uint32_t width, uint32_t height);
@@ -44,4 +41,4 @@ int obeliskAcquireSwapchainImage(ObeliskSwapchain* swapchain, uint32_t frame, ui
 int obeliskSubmitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t frame);
 int obeliskPresentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32_t frame);
 
-#endif // !SWAPCHAIN_H
+#endif // !OBELISK_SWAPCHAIN_H

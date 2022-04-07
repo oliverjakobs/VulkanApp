@@ -15,11 +15,11 @@ typedef struct {
     double seconds;
     double deltatime;
     double lastframe;
-} MinimalTimer;
+} ObeliskTimer;
 
-void MinimalTimerReset(MinimalTimer* timer);
+void obeliskResetTimer(ObeliskTimer* timer);
 
-void MinimalTimerStart(MinimalTimer* timer, double seconds);
-void MinimalTimerEnd(MinimalTimer* timer, double seconds);
+void obeliskStartTimer(ObeliskTimer* timer, double seconds);
+void obeliskEndTimer(ObeliskTimer* timer, double seconds);
 
 #endif // !OBELISK_UTILS

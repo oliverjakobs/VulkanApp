@@ -1,8 +1,4 @@
-#include "Swapchain.h"
-
-#include "Pipeline.h"
-#include "Application.h"
-#include "Core.h"
+#include "swapchain.h"
 
 static int obeliskChooseSurfaceFormat(VkSurfaceFormatKHR* format) {
     VkPhysicalDevice device = obeliskGetPhysicalDevice();
