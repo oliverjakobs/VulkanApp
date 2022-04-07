@@ -2,81 +2,87 @@
 #define COMMON_H
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <stdint.h>
-#include <stdarg.h>
-#include <stdlib.h>
+#include <stdio.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 #include <vulkan/vulkan.h>
 
-#define MINIMAL_FAIL    0
-#define MINIMAL_OK      1
+#define OBELISK_FAIL    0
+#define OBELISK_OK      1
 
 #ifndef _DEBUG
-#define MINIMAL_DISABLE_LOGGING
-#define MINIMAL_DISABLE_ASSERT
+#define OBELISK_DISABLE_LOGGING
+#define OBELISK_DISABLE_ASSERT
 #endif
 
-/* minimal version numbers */
-#define MINIMAL_VERSION_MAJOR       1
-#define MINIMAL_VERSION_MINOR       3
-#define MINIMAL_VERSION_REVISION    3
+/* obelisk version numbers */
+#define OBELISK_VERSION_MAJOR       0
+#define OBELISK_VERSION_MINOR       4
+#define OBELISK_VERSION_REVISION    0
 
-void MinimalGetVersion(int* major, int* minor, int* rev);
-const char* MinimalGetVersionString();
+void ObeliskGetVersion(int* major, int* minor, int* rev);
+const char* ObeliskGetVersionString();
 
 typedef struct MinimalEvent MinimalEvent;
 typedef struct MinimalApp MinimalApp;
 typedef struct VulkanContext VulkanContext;
 
 /* --------------------------| logging |--------------------------------- */
-#ifndef MINIMAL_DISABLE_LOGGING
+#ifndef OBELISK_DISABLE_LOGGING
 
-#define MINIMAL_TRACE(s, ...)     MinimalLoggerPrint(stdout, MINIMAL_LOG_TRACE, s, __VA_ARGS__)
-#define MINIMAL_INFO(s, ...)      MinimalLoggerPrint(stdout, MINIMAL_LOG_INFO, s, __VA_ARGS__)
-#define MINIMAL_WARN(s, ...)      MinimalLoggerPrint(stdout, MINIMAL_LOG_WARN, s, __VA_ARGS__)
-#define MINIMAL_ERROR(s, ...)     MinimalLoggerPrint(stdout, MINIMAL_LOG_ERROR, s, __VA_ARGS__)
-#define MINIMAL_CRITICAL(s, ...)  MinimalLoggerPrint(stdout, MINIMAL_LOG_CRITICAL, s, __VA_ARGS__)
+#define OBELISK_TRACE(s, ...)   obeliskPrintf(stdout, OBELISK_LOG_LVL_TRACE, s, __VA_ARGS__)
+#define OBELISK_INFO(s, ...)    obeliskPrintf(stdout, OBELISK_LOG_LVL_INFO, s, __VA_ARGS__)
+#define OBELISK_WARN(s, ...)    obeliskPrintf(stdout, OBELISK_LOG_LVL_WARN, s, __VA_ARGS__)
+#define OBELISK_ERROR(s, ...)   obeliskPrintf(stderr, OBELISK_LOG_LVL_ERROR, s, __VA_ARGS__)
+#define OBELISK_FATAL(s, ...)   obeliskPrintf(stderr, OBELISK_LOG_LVL_FATAL, s, __VA_ARGS__)
 
 #else
 
-#define MINIMAL_TRACE(s, ...)
-#define MINIMAL_INFO(s, ...)
-#define MINIMAL_WARN(s, ...)
-#define MINIMAL_ERROR(s, ...)
-#define MINIMAL_CRITICAL(s, ...)
+#define OBELISK_TRACE(s, ...)
+#define OBELISK_INFO(s, ...)
+#define OBELISK_WARN(s, ...)
+#define OBELISK_ERROR(s, ...)
+#define OBELISK_FATAL(s, ...)
 
 #endif
 
 typedef enum {
-    MINIMAL_LOG_TRACE,
-    MINIMAL_LOG_INFO,
-    MINIMAL_LOG_WARN,
-    MINIMAL_LOG_ERROR,
-    MINIMAL_LOG_CRITICAL
-} MinimalLogLevel;
+    OBELISK_LOG_LVL_TRACE,
+    OBELISK_LOG_LVL_INFO,
+    OBELISK_LOG_LVL_WARN,
+    OBELISK_LOG_LVL_ERROR,
+    OBELISK_LOG_LVL_FATAL
+} ObeliskLogLevel;
 
-void MinimalLoggerPrint(FILE* const stream, MinimalLogLevel level, const char* fmt, ...);
-void MinimalLoggerPrintV(FILE* const stream, MinimalLogLevel level, const char* fmt, va_list args);
+void obeliskPrintf(FILE* const stream, ObeliskLogLevel level, const char* fmt, ...);
 
 /* --------------------------| assert |---------------------------------- */
-#ifndef MINIMAL_DISABLE_ASSERT
+void obeliskLogAssertFailure(const char* expr, const char* msg, const char* file, uint32_t line);
 
-#include <assert.h>
+#ifndef OBELISK_DISABLE_ASSERT
 
-#define MINIMAL_ASSERT(expr, msg) assert(((void)(msg), (expr)))
+#if _MSC_VER
+#include <intrin.h>
+#define obeliskDebugBreak() __debugbreak()
+#else
+#define obeliskDebugBreak() __builtin_trap()
+#endif
+
+#define OBELISK_ASSERT(expr, msg)                                    \
+    {                                                                \
+        if (!(expr)) {                                               \
+            obeliskLogAssertFailure(#expr, msg, __FILE__, __LINE__); \
+            obeliskDebugBreak();                                     \
+        }                                                            \
+    }
 
 #else
 
-#define MINIMAL_ASSERT(expr, msg) 
+#define OBELISK_ASSERT(expr, msg)
 
 #endif
-
-/* --------------------------| utils |----------------------------------- */
-char* readFile(const char* path, size_t* sizeptr);
-
 
 #endif // !COMMON_H

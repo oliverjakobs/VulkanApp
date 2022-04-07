@@ -1,5 +1,7 @@
 #include "Core.h"
 
+#include "Utils.h"
+
 #include <string.h>
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -9,11 +11,11 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     void* user_data) {
 
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-        MINIMAL_ERROR("validation layer: %s", callback_data->pMessage);
+        OBELISK_ERROR("validation layer: %s", callback_data->pMessage);
     return VK_FALSE;
 }
 
-VkDebugUtilsMessengerCreateInfoEXT debugInfo = {
+static VkDebugUtilsMessengerCreateInfoEXT debugInfo = {
     .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
     .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
         | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
@@ -25,7 +27,7 @@ VkDebugUtilsMessengerCreateInfoEXT debugInfo = {
     .pUserData = NULL
 };
 
-VkResult vkCreateDebugUtilsMessengerEXT(
+static VkResult vkCreateDebugUtilsMessengerEXT(
     VkInstance instance,
     const VkDebugUtilsMessengerCreateInfoEXT* info,
     const VkAllocationCallbacks* allocator,
@@ -36,7 +38,7 @@ VkResult vkCreateDebugUtilsMessengerEXT(
     return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
-void vkDestroyDebugUtilsMessengerEXT(
+static void vkDestroyDebugUtilsMessengerEXT(
     VkInstance instance,
     VkDebugUtilsMessengerEXT messenger,
     const VkAllocationCallbacks* allocator) {
@@ -45,23 +47,31 @@ void vkDestroyDebugUtilsMessengerEXT(
     if (func) ((PFN_vkDestroyDebugUtilsMessengerEXT)func)(instance, messenger, allocator);
 }
 
-const char* const validationLayers[] = {
+static const char* const validationLayers[] = {
     "VK_LAYER_KHRONOS_validation"
 };
 
-const uint32_t validationLayerCount = sizeof(validationLayers) / sizeof(validationLayers[0]);
+static const uint32_t validationLayerCount = OBELISK_ARRAY_LEN(validationLayers);
+
+typedef enum {
+    OBELISK_QUEUE_GRAPHICS,
+    OBELISK_QUEUE_PRESENT,
+    OBELISK_QUEUE_COUNT
+} ObeliskQueueFamilyIndex;
+
+typedef enum {
+    OBELISK_QUEUE_FLAG_NONE = 0,
+    OBELISK_QUEUE_FLAG_GRAPHICS = 1 << 0,
+    OBELISK_QUEUE_FLAG_PRESENT = 1 << 1,
+    OBELISK_QUEUE_FLAG_ALL = OBELISK_QUEUE_FLAG_GRAPHICS | OBELISK_QUEUE_FLAG_PRESENT
+} ObaliskQueueFamilyFlag;
 
 typedef struct {
-    uint32_t familiesSet;
-    uint32_t graphicsFamily;
-    uint32_t presentFamily;
-} QueueFamilyIndices;
-
-struct obeliskContext {
     VkInstance instance;
     VkSurfaceKHR surface;
 
-    QueueFamilyIndices indices;
+    uint32_t queueFamiliesSet;
+    uint32_t queueFamilyIndices[OBELISK_QUEUE_COUNT];
 
     VkPhysicalDevice physicalDevice;
     VkDevice device;
@@ -70,9 +80,9 @@ struct obeliskContext {
 
     VkQueue graphicsQueue;
     VkQueue presentQueue;
-};
+} ObeliskContext;
 
-static char** getRequiredExtensions(int debug, uint32_t* count) {
+static char** obeliskGetRequiredExtensions(int debug, uint32_t* count) {
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
     if (!glfwExtensionCount) return NULL;
@@ -88,7 +98,7 @@ static char** getRequiredExtensions(int debug, uint32_t* count) {
     return extensions;
 }
 
-static int checkValidationLayerSupport() {
+static int obeliskCheckValidationLayerSupport() {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, NULL);
     if (!layerCount) return 0;
@@ -117,10 +127,10 @@ static int checkValidationLayerSupport() {
     return layerFound;
 }
 
-int obeliskCreateInstance(obeliskContext* context, const char* app, const char* engine, int debug) {
-    if (debug && !checkValidationLayerSupport()) {
-        MINIMAL_ERROR("validation layers requested, but not available!");
-        return MINIMAL_FAIL;
+static int obeliskCreateInstance(ObeliskContext* context, const char* app, const char* engine, int debug) {
+    if (debug && !obeliskCheckValidationLayerSupport()) {
+        OBELISK_ERROR("validation layers requested, but not available!");
+        return OBELISK_FAIL;
     }
 
     VkApplicationInfo appInfo = {
@@ -133,7 +143,7 @@ int obeliskCreateInstance(obeliskContext* context, const char* app, const char* 
     };
 
     uint32_t extensionCount = 0;
-    char** extensions = getRequiredExtensions(debug, &extensionCount);
+    char** extensions = obeliskGetRequiredExtensions(debug, &extensionCount);
 
     VkInstanceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
@@ -146,8 +156,7 @@ int obeliskCreateInstance(obeliskContext* context, const char* app, const char* 
         createInfo.enabledLayerCount = validationLayerCount;
         createInfo.ppEnabledLayerNames = validationLayers;
         createInfo.pNext = &debugInfo;
-    }
-    else {
+    } else {
         createInfo.enabledLayerCount = 0;
         createInfo.pNext = NULL;
     }
@@ -158,63 +167,50 @@ int obeliskCreateInstance(obeliskContext* context, const char* app, const char* 
     free(extensions);
 
     if (result != VK_SUCCESS) {
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
-typedef enum {
-    OBELSIK_QUEUE_FAMILY_NONE = 0,
-    OBELSIK_QUEUE_FAMILY_GRAPHICS = 1 << 0,
-    OBELSIK_QUEUE_FAMILY_PRESENT = 1 << 1,
-    OBELSIK_QUEUE_FAMILY_ALL = OBELSIK_QUEUE_FAMILY_GRAPHICS | OBELSIK_QUEUE_FAMILY_PRESENT
-} QueueFamilyFlag;
-
-
-int queueFamilyIndicesComplete(QueueFamilyIndices indices) {
-    return indices.familiesSet & OBELSIK_QUEUE_FAMILY_GRAPHICS && indices.familiesSet & OBELSIK_QUEUE_FAMILY_PRESENT;
-}
-
-QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
-    QueueFamilyIndices indices = { 0 };
-
+static uint32_t obeliskFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t* indices) {
     uint32_t propertyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &propertyCount, NULL);
-    if (!propertyCount) return indices;
+    if (!propertyCount) return 0;
 
     VkQueueFamilyProperties* properties = malloc(sizeof(VkQueueFamilyProperties) * propertyCount);
-    if (!properties) return indices;
+    if (!properties) return 0;
 
     vkGetPhysicalDeviceQueueFamilyProperties(device, &propertyCount, properties);
 
+    uint32_t familiesSet = 0;
     for (uint32_t i = 0; i < propertyCount; ++i) {
         if (properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            indices.graphicsFamily = i;
-            indices.familiesSet |= OBELSIK_QUEUE_FAMILY_GRAPHICS;
+            indices[OBELISK_QUEUE_GRAPHICS] = i;
+            familiesSet |= OBELISK_QUEUE_FLAG_GRAPHICS;
         }
 
         VkBool32 supported = 0;
         vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &supported);
         if (supported) {
-            indices.presentFamily = i;
-            indices.familiesSet |= OBELSIK_QUEUE_FAMILY_PRESENT;
+            indices[OBELISK_QUEUE_PRESENT] = i;
+            familiesSet |= OBELISK_QUEUE_FLAG_PRESENT;
         }
 
-        if (queueFamilyIndicesComplete(indices)) break;
+        if (familiesSet & OBELISK_QUEUE_FLAG_ALL) break;
     }
 
     free(properties);
-    return indices;
+    return familiesSet;
 }
 
-const char* const deviceExtensions[] = {
+static const char* const deviceExtensions[] = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-const uint32_t deviceExtensionCount = sizeof(deviceExtensions) / sizeof(deviceExtensions[0]);
+static const uint32_t deviceExtensionCount = OBELISK_ARRAY_LEN(deviceExtensions);
 
-static int checkDeviceExtensionSupport(VkPhysicalDevice device) {
+static int obaliskCheckDeviceExtensionSupport(VkPhysicalDevice device) {
     uint32_t extensionCount = 0;
     vkEnumerateDeviceExtensionProperties(device, NULL, &extensionCount, NULL);
     if (!extensionCount) return 0;
@@ -238,7 +234,7 @@ static int checkDeviceExtensionSupport(VkPhysicalDevice device) {
     return 0;
 }
 
-static int querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
+static int obaliskQuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, NULL);
 
@@ -248,26 +244,26 @@ static int querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) 
     return formatCount > 0 && presentModeCount > 0;
 }
 
-static int isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
-    if (!checkDeviceExtensionSupport(device)) return 0;
-    return querySwapChainSupport(device, surface);
+static int obeliskIsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
+    if (!obaliskCheckDeviceExtensionSupport(device)) return 0;
+    return obaliskQuerySwapChainSupport(device, surface);
 }
 
-int obeliskPickPhysicalDevice(obeliskContext* context) {
+static int obeliskPickPhysicalDevice(ObeliskContext* context) {
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(context->instance, &device_count, NULL);
-    if (!device_count) return MINIMAL_FAIL;
+    if (!device_count) return OBELISK_FAIL;
 
     VkPhysicalDevice* devices = malloc(sizeof(VkPhysicalDevice) * device_count);
-    if (!devices) return MINIMAL_FAIL;
+    if (!devices) return OBELISK_FAIL;
 
     vkEnumeratePhysicalDevices(context->instance, &device_count, devices);
 
     for (uint32_t i = 0; i < device_count; ++i) {
-        QueueFamilyIndices indices = findQueueFamilies(devices[i], context->surface);
-        if (queueFamilyIndicesComplete(indices) && isDeviceSuitable(devices[i], context->surface)) {
+        uint32_t familiesSet = obeliskFindQueueFamilies(devices[i], context->surface, context->queueFamilyIndices);
+        if (familiesSet & OBELISK_QUEUE_FLAG_ALL && obeliskIsDeviceSuitable(devices[i], context->surface)) {
             context->physicalDevice = devices[i];
-            context->indices = indices;
+            context->queueFamiliesSet = familiesSet;
             break;
         }
     }
@@ -276,7 +272,6 @@ int obeliskPickPhysicalDevice(obeliskContext* context) {
     return context->physicalDevice != VK_NULL_HANDLE;
 }
 
-#define OBELSIK_MAX_QUEUE_COUNT 2
 
 static int obeliskArrayCheckUnique(uint32_t arr[], uint32_t size) {
     for (uint32_t i = 1; i < size; ++i)
@@ -284,21 +279,23 @@ static int obeliskArrayCheckUnique(uint32_t arr[], uint32_t size) {
     return 1;
 }
 
-int obeliskCreateLogicalDevice(obeliskContext* context) {
+static int obeliskCreateLogicalDevice(ObeliskContext* context) {
     uint32_t queueCreateInfoCount = 0;
-    VkDeviceQueueCreateInfo queueCreateInfos[OBELSIK_MAX_QUEUE_COUNT] = { 0 };
+    VkDeviceQueueCreateInfo queueCreateInfos[OBELISK_QUEUE_COUNT] = { 0 };
 
-    uint32_t indexValues[] = { context->indices.graphicsFamily, context->indices.presentFamily };
-    uint32_t indexValueCount = sizeof(indexValues) / sizeof(uint32_t);
+    uint32_t indexValues[] = { 
+        context->queueFamilyIndices[OBELISK_QUEUE_GRAPHICS],
+        context->queueFamilyIndices[OBELISK_QUEUE_PRESENT]
+    };
 
     float queuePriority = 1.0f;
-    for (uint32_t i = 0; i < indexValueCount; ++i) {
-        if (!obeliskArrayCheckUnique(indexValues + i, indexValueCount - i))
+    for (uint32_t i = 0; i < OBELISK_QUEUE_COUNT; ++i) {
+        if (!obeliskArrayCheckUnique(context->queueFamilyIndices + i, OBELISK_QUEUE_COUNT - i))
             continue;
 
         queueCreateInfos[queueCreateInfoCount++] = (VkDeviceQueueCreateInfo){
             .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-            .queueFamilyIndex = indexValues[i],
+            .queueFamilyIndex = context->queueFamilyIndices[i],
             .queueCount = 1,
             .pQueuePriorities = &queuePriority,
         };
@@ -316,64 +313,64 @@ int obeliskCreateLogicalDevice(obeliskContext* context) {
     };
 
     if (vkCreateDevice(context->physicalDevice, &createInfo, NULL, &context->device) != VK_SUCCESS)
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
 
     /* get queues */
-    vkGetDeviceQueue(context->device, context->indices.graphicsFamily, 0, &context->graphicsQueue);
-    vkGetDeviceQueue(context->device, context->indices.presentFamily, 0, &context->presentQueue);
+    vkGetDeviceQueue(context->device, context->queueFamilyIndices[OBELISK_QUEUE_GRAPHICS], 0, &context->graphicsQueue);
+    vkGetDeviceQueue(context->device, context->queueFamilyIndices[OBELISK_QUEUE_PRESENT], 0, &context->presentQueue);
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
-static obeliskContext _context = { 0 };
+static ObeliskContext _context = { 0 };
 static VkDebugUtilsMessengerEXT _debugMessenger = VK_NULL_HANDLE;
 
 int obeliskCreateContext(GLFWwindow* window, const char* app, int debug) {
     /* create instance */
     if (!obeliskCreateInstance(&_context, app, "obelisk", debug)) {
-        MINIMAL_ERROR("Failed to create vulkan instance!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("Failed to create vulkan instance!");
+        return OBELISK_FAIL;
     }
 
     /* setup debug messenger */
     if (debug) {
         if (vkCreateDebugUtilsMessengerEXT(_context.instance, &debugInfo, NULL, &_debugMessenger) != VK_SUCCESS) {
-            MINIMAL_ERROR("failed to set up debug messenger!");
-            return MINIMAL_FAIL;
+            OBELISK_ERROR("failed to set up debug messenger!");
+            return OBELISK_FAIL;
         }
     }
 
     /* create surface */
     if (glfwCreateWindowSurface(_context.instance, window, NULL, &_context.surface) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to create window surface!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create window surface!");
+        return OBELISK_FAIL;
     }
 
     /* pick physical device */
     if (!obeliskPickPhysicalDevice(&_context)) {
-        MINIMAL_ERROR("failed to find a suitable GPU!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to find a suitable GPU!");
+        return OBELISK_FAIL;
     }
 
     /* create logical device */
     if (!obeliskCreateLogicalDevice(&_context)) {
-        MINIMAL_ERROR("failed to create logical device!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create logical device!");
+        return OBELISK_FAIL;
     }
 
     /* create command pool */
     VkCommandPoolCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = _context.indices.graphicsFamily
+        .queueFamilyIndex = _context.queueFamilyIndices[OBELISK_QUEUE_GRAPHICS]
     };
 
     if (vkCreateCommandPool(_context.device, &info, NULL, &_context.commandPool) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to create command pool!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create command pool!");
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 void obeliskDestroyContext() {
@@ -397,8 +394,8 @@ VkPhysicalDevice  obeliskGetPhysicalDevice() { return _context.physicalDevice; }
 VkSurfaceKHR      obeliskGetSurface()        { return _context.surface; }
 VkQueue           obeliskGetGraphicsQueue()  { return _context.graphicsQueue; }
 VkQueue           obeliskGetPresentQueue()   { return _context.presentQueue; }
-uint32_t          obeliskGetQueueGraphicsFamilyIndex() { return _context.indices.graphicsFamily; }
-uint32_t          obeliskGetQueuePresentFamilyIndex()  { return _context.indices.presentFamily; }
+uint32_t          obeliskGetQueueGraphicsFamilyIndex() { return _context.queueFamilyIndices[OBELISK_QUEUE_GRAPHICS]; }
+uint32_t          obeliskGetQueuePresentFamilyIndex()  { return _context.queueFamilyIndices[OBELISK_QUEUE_PRESENT]; }
 
 VkResult obeliskGetPhysicalDeviceSurfaceCapabilities(VkSurfaceCapabilitiesKHR* capabilities) {
     return vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_context.physicalDevice, _context.surface, capabilities);
@@ -422,19 +419,18 @@ uint32_t obeliskFindMemoryTypeIndex(uint32_t filter, VkMemoryPropertyFlags prope
     vkGetPhysicalDeviceMemoryProperties(obeliskGetPhysicalDevice(), &memoryProps);
 
     for (uint32_t i = 0; i < memoryProps.memoryTypeCount; i++) {
-        if ((filter & (1 << i)) && (memoryProps.memoryTypes[i].propertyFlags & properties) == properties) {
+        if ((filter & (1 << i)) && (memoryProps.memoryTypes[i].propertyFlags & properties) == properties)
             return i;
-        }
     }
 
-    MINIMAL_ERROR("failed to find suitable memory type!");
+    OBELISK_ERROR("failed to find suitable memory type!");
     return 0;
 }
 
 void obeliskPrintInfo() {
     VkPhysicalDeviceProperties properties;
     vkGetPhysicalDeviceProperties(_context.physicalDevice, &properties);
-    MINIMAL_INFO("Physical device: %s", properties.deviceName);
+    OBELISK_INFO("Physical device: %s", properties.deviceName);
 }
 
 VkResult obeliskAllocateCommandBuffers(VkCommandBuffer* buffers, VkCommandBufferLevel level, uint32_t count) {

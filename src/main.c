@@ -79,56 +79,56 @@ vec3 rotation = { 0.0f };
 
 int OnLoad(MinimalApp* app, uint32_t w, uint32_t h) {
     if (!obeliskCreateContext(app->window, "VulkanApp", debug)) {
-        MINIMAL_ERROR("Failed to create vulkan instance!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("Failed to create vulkan instance!");
+        return OBELISK_FAIL;
     }
 
     if (!obeliskCreateRenderer(&app->renderer, app->window)) {
-        MINIMAL_ERROR("Failed to create renderer!");
+        OBELISK_ERROR("Failed to create renderer!");
     }
 
     if (!obeliskCreateDescriptorPool(&app->renderer)) {
-        MINIMAL_ERROR("failed to create descriptor pool!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create descriptor pool!");
+        return OBELISK_FAIL;
     }
 
     if (!obeliskCreateDescriptorLayout(&app->renderer)) {
-        MINIMAL_ERROR("failed to create descriptor set layout!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create descriptor set layout!");
+        return OBELISK_FAIL;
     }
 
     if (!obeliskCreateDescriptorSets(&app->renderer)) {
-        MINIMAL_ERROR("failed to allocate descriptor sets!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to allocate descriptor sets!");
+        return OBELISK_FAIL;
     }
 
     /* create pipeline */
     if (!createShaderStages(&pipeline, "res/shader/vert.spv", "res/shader/frag.spv")) {
-        MINIMAL_ERROR("failed to create shader stages!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create shader stages!");
+        return OBELISK_FAIL;
     }
 
     if (!createPipelineLayout(&pipeline, app->renderer.descriptorSetLayout)) {
-        MINIMAL_ERROR("Failed to create pipeline layout!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("Failed to create pipeline layout!");
+        return OBELISK_FAIL;
     }
 
     if (!createPipeline(&pipeline, app->renderer.swapchain.renderPass, &pipelineVertexLayout)) {
-        MINIMAL_ERROR("failed to create graphics pipeline!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create graphics pipeline!");
+        return OBELISK_FAIL;
     }
 
     if (!obeliskCreateVertexBuffer(&vertexBuffer, vertices, vertexCount, sizeof(Vertex))) {
-        MINIMAL_ERROR("failed to create vertex buffer!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create vertex buffer!");
+        return OBELISK_FAIL;
     }
 
     if (!obeliskCreateIndexBuffer(&indexBuffer, indices, indexCount)) {
-        MINIMAL_ERROR("failed to create index buffer!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create index buffer!");
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 void OnDestroy(MinimalApp* app) {
@@ -156,13 +156,13 @@ int OnEvent(MinimalApp* app, const MinimalEvent* e) {
     uint32_t width, height;
     if (MinimalEventFramebufferSize(e, &width, &height)) {
 
-        if (width == 0 || height == 0) return MINIMAL_FAIL;
+        if (width == 0 || height == 0) return OBELISK_FAIL;
 
         obeliskRecreateSwapchain(&app->renderer.swapchain, width, height);
         recreatePipeline(&pipeline, app->renderer.swapchain.renderPass);
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 void OnUpdate(MinimalApp* app, VkCommandBuffer cmdBuffer, float deltatime) {

@@ -2,27 +2,11 @@
 #define MINIMAL_APPLICATION_H
 
 #include "common.h"
+#include "Utils.h"
 #include "Event.h"
 #include "Input.h"
 
 #include "Renderer.h"
-
-/* --------------------------| timer |----------------------------------- */
-typedef struct {
-    uint32_t frames;
-    uint32_t fps;
-
-    double seconds;
-    double deltatime;
-    double lastframe;
-} MinimalTimer;
-
-void MinimalTimerReset(MinimalTimer* timer);
-
-void MinimalTimerStart(MinimalTimer* timer, double seconds);
-void MinimalTimerEnd(MinimalTimer* timer, double seconds);
-
-uint32_t MinimalGetFps(const MinimalApp* app);
 
 /* --------------------------| minimal app |----------------------------- */
 typedef int  (*MinimalLoadCB)    (MinimalApp* app, uint32_t w, uint32_t h);
@@ -53,6 +37,8 @@ void MinimalDestroy(MinimalApp* app);
 
 void MinimalRun(MinimalApp* app);
 void MinimalClose(MinimalApp* app);
+
+uint32_t MinimalGetFps(const MinimalApp* app);
 
 /* --------------------------| settings |-------------------------------- */
 void MinimalSetWindowTitle(MinimalApp* app, const char* title);

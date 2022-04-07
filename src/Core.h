@@ -1,17 +1,11 @@
-#ifndef CORE_H
-#define CORE_H
+#ifndef OBELISK_CORE_H
+#define OBELISK_CORE_H
 
 #include "common.h"
 #include "Buffer.h"
 #include "Swapchain.h"
 
-typedef struct obeliskContext obeliskContext;
-
-int obeliskCreateInstance(obeliskContext* context, const char* app, const char* engine, int debug);
-int obeliskPickPhysicalDevice(obeliskContext* context);
-int obeliskCreateLogicalDevice(obeliskContext* context);
-
-/* */
+/* context */
 int obeliskCreateContext(GLFWwindow* window, const char* app, int debug);
 void obeliskDestroyContext();
 
@@ -31,7 +25,8 @@ uint32_t obeliskFindMemoryTypeIndex(uint32_t filter, VkMemoryPropertyFlags prope
 
 void obeliskPrintInfo();
 
+/* command buffers */
 VkResult obeliskAllocateCommandBuffers(VkCommandBuffer* buffers, VkCommandBufferLevel level, uint32_t count);
 void obeliskFreeCommandBuffers(const VkCommandBuffer* buffers, uint32_t count);
 
-#endif // !CORE_H
+#endif // !OBELISK_CORE_H

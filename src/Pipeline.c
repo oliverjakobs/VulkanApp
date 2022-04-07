@@ -1,6 +1,7 @@
 #include "Pipeline.h"
 
 #include "Buffer.h"
+#include "Utils.h"
 
 #include "cglm/cglm.h"
 
@@ -12,16 +13,16 @@ static int createShaderModuleSrc(VkShaderModule* module, const uint32_t* code, s
     };
 
     if (vkCreateShaderModule(obeliskGetDevice(), &info, NULL, module) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 static int createShaderModuleSPIRV(VkShaderModule* module, const char* path) {
     size_t size = 0;
-    char* code = readFile(path, &size);
-    if (!code) return MINIMAL_FAIL;
+    char* code = obeliskReadFile(path, &size);
+    if (!code) return OBELISK_FAIL;
 
     int result = createShaderModuleSrc(module, (const uint32_t*)code, size);
     free(code);
@@ -30,16 +31,16 @@ static int createShaderModuleSPIRV(VkShaderModule* module, const char* path) {
 
 int createShaderStages(ObeliskPipeline* pipeline, const char* vertPath, const char* fragPath) {
     if (!createShaderModuleSPIRV(&pipeline->shaderModules[SHADER_VERT], vertPath)) {
-        MINIMAL_ERROR("failed to create shader module for %s", vertPath);
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create shader module for %s", vertPath);
+        return OBELISK_FAIL;
     }
 
     if (!createShaderModuleSPIRV(&pipeline->shaderModules[SHADER_FRAG], fragPath)) {
-        MINIMAL_ERROR("failed to create shader module for %s", fragPath);
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create shader module for %s", fragPath);
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 void destroyShaderStages(ObeliskPipeline* pipeline) {
@@ -65,10 +66,10 @@ int createPipelineLayout(ObeliskPipeline* pipeline, VkDescriptorSetLayout setLay
     };
 
     if (vkCreatePipelineLayout(obeliskGetDevice(), &pipelineLayoutInfo, NULL, &pipeline->layout) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 void destroyPipelineLayout(ObeliskPipeline* pipeline) {
@@ -222,21 +223,21 @@ int createPipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass, const Obe
     };
 
     if (vkCreateGraphicsPipelines(obeliskGetDevice(), VK_NULL_HANDLE, 1, &info, NULL, &pipeline->handle) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 int recreatePipeline(ObeliskPipeline* pipeline, VkRenderPass renderPass) {
     destroyPipeline(pipeline);
 
     if (!createPipeline(pipeline, renderPass, pipeline->vertexLayout)) {
-        MINIMAL_ERROR("failed to recreate pipeline!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to recreate pipeline!");
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 void destroyPipeline(ObeliskPipeline* pipeline) {

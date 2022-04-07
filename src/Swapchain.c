@@ -12,7 +12,7 @@ static int obeliskChooseSurfaceFormat(VkSurfaceFormatKHR* format) {
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, NULL);
 
     VkSurfaceFormatKHR* formats;
-    if (!count || !(formats = malloc(sizeof(VkSurfaceFormatKHR) * count))) return MINIMAL_FAIL;
+    if (!count || !(formats = malloc(sizeof(VkSurfaceFormatKHR) * count))) return OBELISK_FAIL;
 
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, formats);
 
@@ -27,7 +27,7 @@ static int obeliskChooseSurfaceFormat(VkSurfaceFormatKHR* format) {
     }
 
     free(formats);
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 static int obeliskChoosePresentMode(VkPresentModeKHR* mode) {
@@ -38,7 +38,7 @@ static int obeliskChoosePresentMode(VkPresentModeKHR* mode) {
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, NULL);
 
     VkPresentModeKHR* modes;
-    if (!count || !(modes = malloc(sizeof(VkPresentModeKHR) * count))) return MINIMAL_FAIL;
+    if (!count || !(modes = malloc(sizeof(VkPresentModeKHR) * count))) return OBELISK_FAIL;
 
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, modes);
 
@@ -53,7 +53,7 @@ static int obeliskChoosePresentMode(VkPresentModeKHR* mode) {
     }
 
     free(modes);
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 static uint32_t obeliskClamp32(uint32_t val, uint32_t min, uint32_t max) {
@@ -82,22 +82,22 @@ static uint32_t obeliskGetSurfaceImageCount(const VkSurfaceCapabilitiesKHR* capa
 }
 
 int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
-    MINIMAL_ASSERT(swapchain->imageCount > 0, "image count must be greater than zero");
+    OBELISK_ASSERT(swapchain->imageCount > 0, "image count must be greater than zero");
 
     VkDevice device = obeliskGetDevice();
 
     /* create images */
     swapchain->images = malloc(swapchain->imageCount * sizeof(VkImage));
-    if (!swapchain->images) return MINIMAL_FAIL;
+    if (!swapchain->images) return OBELISK_FAIL;
 
     if (vkGetSwapchainImagesKHR(device, swapchain->handle, &swapchain->imageCount, swapchain->images) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to get images");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to get images");
+        return OBELISK_FAIL;
     }
 
     /* create image views */
     swapchain->imageViews = malloc(swapchain->imageCount * sizeof(VkImageView));
-    if (!swapchain->imageViews) return MINIMAL_FAIL;
+    if (!swapchain->imageViews) return OBELISK_FAIL;
 
     for (size_t i = 0; i < swapchain->imageCount; ++i) {
         VkImageViewCreateInfo createInfo = {
@@ -117,20 +117,20 @@ int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
         };
 
         if (vkCreateImageView(device, &createInfo, NULL, &swapchain->imageViews[i]) != VK_SUCCESS) {
-            MINIMAL_ERROR("failed to create image view");
-            return MINIMAL_FAIL;
+            OBELISK_ERROR("failed to create image view");
+            return OBELISK_FAIL;
         }
     }
 
     /* create depth images and depth image views */
     swapchain->depthImages = malloc(swapchain->imageCount * sizeof(VkImage));
-    if (!swapchain->depthImages) return MINIMAL_FAIL;
+    if (!swapchain->depthImages) return OBELISK_FAIL;
 
     swapchain->depthImageViews = malloc(swapchain->imageCount * sizeof(VkImageView));
-    if (!swapchain->depthImageViews) return MINIMAL_FAIL;
+    if (!swapchain->depthImageViews) return OBELISK_FAIL;
 
     swapchain->depthImageMemories = malloc(swapchain->imageCount * sizeof(VkDeviceMemory));
-    if (!swapchain->depthImageMemories) return MINIMAL_FAIL;
+    if (!swapchain->depthImageMemories) return OBELISK_FAIL;
 
     for (size_t i = 0; i < swapchain->imageCount; ++i) {
         VkImageCreateInfo imageInfo = {
@@ -151,8 +151,8 @@ int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
         };
 
         if (vkCreateImage(device, &imageInfo, NULL, &swapchain->depthImages[i]) != VK_SUCCESS) {
-            MINIMAL_ERROR("failed to create image!");
-            return MINIMAL_FAIL;
+            OBELISK_ERROR("failed to create image!");
+            return OBELISK_FAIL;
         }
 
         VkMemoryRequirements memRequirements;
@@ -165,13 +165,13 @@ int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
         };
 
         if (vkAllocateMemory(device, &allocInfo, NULL, &swapchain->depthImageMemories[i]) != VK_SUCCESS) {
-            MINIMAL_ERROR("failed to allocate image memory!");
-            return MINIMAL_FAIL;
+            OBELISK_ERROR("failed to allocate image memory!");
+            return OBELISK_FAIL;
         }
 
         if (vkBindImageMemory(device, swapchain->depthImages[i], swapchain->depthImageMemories[i], 0) != VK_SUCCESS) {
-            MINIMAL_ERROR("failed to bind image memory!");
-            return MINIMAL_FAIL;
+            OBELISK_ERROR("failed to bind image memory!");
+            return OBELISK_FAIL;
         }
 
         VkImageViewCreateInfo viewInfo = {
@@ -187,12 +187,12 @@ int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
         };
 
         if (vkCreateImageView(device, &viewInfo, NULL, &swapchain->depthImageViews[i]) != VK_SUCCESS) {
-            MINIMAL_ERROR("failed to create depth image view!");
-            return MINIMAL_FAIL;
+            OBELISK_ERROR("failed to create depth image view!");
+            return OBELISK_FAIL;
         }
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 int obeliskSwapchainCreateRenderPass(ObeliskSwapchain* swapchain) {
@@ -257,20 +257,20 @@ int obeliskSwapchainCreateRenderPass(ObeliskSwapchain* swapchain) {
     };
 
     if (vkCreateRenderPass(obeliskGetDevice(), &renderPassInfo, NULL, &swapchain->renderPass) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to create render pass!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create render pass!");
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 int obeliskSwapchainCreateFramebuffers(ObeliskSwapchain* swapchain) {
-    MINIMAL_ASSERT(swapchain->imageCount > 0, "image count must be greater than zero");
+    OBELISK_ASSERT(swapchain->imageCount > 0, "image count must be greater than zero");
 
     VkDevice device = obeliskGetDevice();
 
     swapchain->framebuffers = malloc(swapchain->imageCount * sizeof(VkFramebuffer));
-    if (!swapchain->framebuffers) return MINIMAL_FAIL;
+    if (!swapchain->framebuffers) return OBELISK_FAIL;
 
     for (size_t i = 0; i < swapchain->imageCount; ++i) {
         VkImageView attachments[] = {
@@ -289,34 +289,34 @@ int obeliskSwapchainCreateFramebuffers(ObeliskSwapchain* swapchain) {
         };
 
         if (vkCreateFramebuffer(device, &info, NULL, &swapchain->framebuffers[i]) != VK_SUCCESS) {
-            MINIMAL_ERROR("failed to create framebuffer");
-            return MINIMAL_FAIL;
+            OBELISK_ERROR("failed to create framebuffer");
+            return OBELISK_FAIL;
         }
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 int obeliskCreateSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapchain, uint32_t width, uint32_t height) {
     /* choose swap chain surface format */
     VkSurfaceFormatKHR surfaceFormat;
     if (!obeliskChooseSurfaceFormat(&surfaceFormat)) {
-        MINIMAL_ERROR("failed to choose swap chain surface format!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to choose swap chain surface format!");
+        return OBELISK_FAIL;
     }
 
     /* choose swap chain presentation mode */
     VkPresentModeKHR presentMode;
     if (!obeliskChoosePresentMode(&presentMode)) {
-        MINIMAL_ERROR("failed to choose swap chain presentation mode!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to choose swap chain presentation mode!");
+        return OBELISK_FAIL;
     }
 
     VkSurfaceCapabilitiesKHR capabilities;
     obeliskGetPhysicalDeviceSurfaceCapabilities(&capabilities);
     VkExtent2D extent = obeliskGetSurfaceExtent(&capabilities, width, height);
     uint32_t imageCount = obeliskGetSurfaceImageCount(&capabilities);
-    if (!imageCount) return MINIMAL_FAIL;
+    if (!imageCount) return OBELISK_FAIL;
 
     VkSwapchainCreateInfoKHR createInfo = {
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -348,8 +348,8 @@ int obeliskCreateSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapch
     createInfo.oldSwapchain = oldSwapchain;
 
     if (vkCreateSwapchainKHR(obeliskGetDevice(), &createInfo, NULL, &swapchain->handle) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to create swap chain!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create swap chain!");
+        return OBELISK_FAIL;
     }
 
     swapchain->extent = extent;
@@ -360,15 +360,15 @@ int obeliskCreateSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapch
     swapchain->depthFormat = obeliskGetPhysicalDeviceFormat(candidates, candidateCount, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
     if (!obeliskSwapchainCreateImages(swapchain))
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
 
     if (!obeliskSwapchainCreateRenderPass(swapchain))
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
 
     if (!obeliskSwapchainCreateFramebuffers(swapchain))
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 int obeliskRecreateSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32_t height) {
@@ -384,11 +384,11 @@ int obeliskRecreateSwapchain(ObeliskSwapchain* swapchain, uint32_t width, uint32
     vkDestroySwapchainKHR(obeliskGetDevice(), oldSwapchain, NULL);
 
     if (!result) {
-        MINIMAL_ERROR("failed to recreate swap chain!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to recreate swap chain!");
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 void obeliskDestroySwapchain(ObeliskSwapchain* swapchain) {
@@ -444,16 +444,16 @@ int obeliskCreateSyncObjects(ObeliskSwapchain* swapchain) {
     VkDevice device = obeliskGetDevice();
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         if (vkCreateSemaphore(device, &semaphoreInfo, NULL, &swapchain->imageAvailable[i]) != VK_SUCCESS)
-            return MINIMAL_FAIL;
+            return OBELISK_FAIL;
 
         if (vkCreateSemaphore(device, &semaphoreInfo, NULL, &swapchain->renderFinished[i]) != VK_SUCCESS)
-            return MINIMAL_FAIL;
+            return OBELISK_FAIL;
 
         if (vkCreateFence(device, &fenceInfo, NULL, &swapchain->fences[i]) != VK_SUCCESS)
-            return MINIMAL_FAIL;
+            return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 void obeliskDestroySyncObjects(ObeliskSwapchain* swapchain) {
@@ -473,11 +473,11 @@ int obeliskAcquireSwapchainImage(ObeliskSwapchain* swapchain, uint32_t frame, ui
     VkSemaphore semaphore = swapchain->imageAvailable[frame];
     VkResult result = vkAcquireNextImageKHR(device, swapchain->handle, UINT64_MAX, semaphore, VK_NULL_HANDLE, imageIndex);
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     }
 
     vkResetFences(device, 1, &swapchain->fences[frame]);
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 int obeliskSubmitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, uint32_t frame) {
@@ -498,9 +498,9 @@ int obeliskSubmitFrame(ObeliskSwapchain* swapchain, VkCommandBuffer cmdBuffer, u
     submitInfo.signalSemaphoreCount = 1;
 
     if (vkQueueSubmit(obeliskGetGraphicsQueue(), 1, &submitInfo, swapchain->fences[frame]) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     }
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 int obeliskPresentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32_t frame) {
@@ -517,7 +517,7 @@ int obeliskPresentFrame(ObeliskSwapchain* swapchain, uint32_t imageIndex, uint32
     presentInfo.pImageIndices = &imageIndex;
 
     if (vkQueuePresentKHR(obeliskGetPresentQueue(), &presentInfo) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     }
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }

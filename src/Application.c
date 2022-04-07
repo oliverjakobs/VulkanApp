@@ -5,35 +5,11 @@
 #include "Swapchain.h"
 #include "Core.h"
 
-/* --------------------------| timer |----------------------------------- */
-void MinimalTimerReset(MinimalTimer* timer) {
-    timer->seconds = 0.0;
-    timer->frames = 0;
-    timer->fps = 0;
-
-    timer->deltatime = 0.0;
-    timer->lastframe = 0.0;
-}
-
-void MinimalTimerStart(MinimalTimer* timer, double seconds) {
-    timer->deltatime = seconds - timer->lastframe;
-    timer->lastframe = seconds;
-}
-
-void MinimalTimerEnd(MinimalTimer* timer, double seconds) {
-    timer->frames++;
-    if ((seconds - timer->seconds) > 1.0) {
-        timer->seconds += 1.0;
-        timer->fps = timer->frames;
-        timer->frames = 0;
-    }
-}
-
-uint32_t MinimalGetFps(const MinimalApp* app) { return app->timer.fps; }
+#include "platform/platform.h"
 
 /* --------------------------| minimal app |----------------------------- */
 void MinimalGLFWErrorCallback(int error, const char* desc) {
-    MINIMAL_ERROR("[GLFW] (%d) %s", error, desc);
+    OBELISK_ERROR("[GLFW] (%d) %s", error, desc);
 }
 
 void MinimalGLFWWindowSizeCallback(GLFWwindow* window, int width, int height);
@@ -47,7 +23,7 @@ void MinimalGLFWCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 void MinimalGLFWScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 static int MinimalInitGlfw(MinimalApp* app, const char* title, uint32_t w, uint32_t h) {
-    if (!glfwInit()) return MINIMAL_FAIL;
+    if (!glfwInit()) return OBELISK_FAIL;
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
@@ -55,7 +31,7 @@ static int MinimalInitGlfw(MinimalApp* app, const char* title, uint32_t w, uint3
 
     /* creating the window */
     app->window = glfwCreateWindow(w, h, title, NULL, NULL);
-    if (!app->window) return MINIMAL_FAIL;
+    if (!app->window) return OBELISK_FAIL;
 
     glfwSetWindowUserPointer(app->window, app);
 
@@ -69,14 +45,14 @@ static int MinimalInitGlfw(MinimalApp* app, const char* title, uint32_t w, uint3
     glfwSetCursorPosCallback(app->window,       MinimalGLFWCursorPosCallback);
     glfwSetScrollCallback(app->window,          MinimalGLFWScrollCallback);
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 int MinimalLoad(MinimalApp* app, const char* title, uint32_t w, uint32_t h) {
-    if (MinimalInitGlfw(app, title, w, h) != MINIMAL_OK) {
-        MINIMAL_ERROR("[GLFW] Failed to initialize GLFW.");
+    if (MinimalInitGlfw(app, title, w, h) != OBELISK_OK) {
+        OBELISK_ERROR("[GLFW] Failed to initialize GLFW.");
         glfwTerminate();
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     }
 
     /* apply settings */
@@ -87,7 +63,7 @@ int MinimalLoad(MinimalApp* app, const char* title, uint32_t w, uint32_t h) {
 
     MinimalTimerReset(&app->timer);
 
-    return (app->on_load) ? app->on_load(app, w, h) : MINIMAL_OK;
+    return (app->on_load) ? app->on_load(app, w, h) : OBELISK_OK;
 }
 
 void MinimalDestroy(MinimalApp* app) {
@@ -97,8 +73,8 @@ void MinimalDestroy(MinimalApp* app) {
 }
 
 void MinimalRun(MinimalApp* app) {
-    MINIMAL_ASSERT(app, "");
-    MINIMAL_ASSERT(app->on_update, "Update callback missing!");
+    OBELISK_ASSERT(app, "");
+    OBELISK_ASSERT(app->on_update, "Update callback missing!");
 
     while (!glfwWindowShouldClose(app->window)) {
         MinimalTimerStart(&app->timer, glfwGetTime());
@@ -122,6 +98,8 @@ void MinimalRun(MinimalApp* app) {
 }
 
 void MinimalClose(MinimalApp* app) { glfwSetWindowShouldClose(app->window, GLFW_TRUE); }
+
+uint32_t MinimalGetFps(const MinimalApp* app) { return app->timer.fps; }
 
 /* --------------------------| settings |-------------------------------- */
 void MinimalSetWindowTitle(MinimalApp* app, const char* title) { glfwSetWindowTitle(app->window, title); }

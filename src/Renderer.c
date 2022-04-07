@@ -8,34 +8,34 @@ int obeliskCreateRenderer(ObeliskRenderer* renderer, GLFWwindow* window) {
     glfwGetFramebufferSize(window, &width, &height);
 
     if (!obeliskCreateSwapchain(&renderer->swapchain, VK_NULL_HANDLE, (uint32_t)width, (uint32_t)height)) {
-        MINIMAL_ERROR("failed to create swap chain!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create swap chain!");
+        return OBELISK_FAIL;
     }
 
     /* create sync objects */
     if (!obeliskCreateSyncObjects(&renderer->swapchain)) {
-        MINIMAL_ERROR("failed to create synchronization objects!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to create synchronization objects!");
+        return OBELISK_FAIL;
     }
 
     /* create uniform buffers */
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         if (!obeliskCreateUniformBuffer(&renderer->uniformBuffers[i], sizeof(UniformBufferObject))) {
-            MINIMAL_ERROR("failed to create uniform buffer!");
-            return MINIMAL_FAIL;
+            OBELISK_ERROR("failed to create uniform buffer!");
+            return OBELISK_FAIL;
         }
     }
 
     /* allocate command buffers */
     if (obeliskAllocateCommandBuffers(renderer->commandBuffers, VK_COMMAND_BUFFER_LEVEL_PRIMARY, MAX_FRAMES_IN_FLIGHT) != VK_SUCCESS) {
-        MINIMAL_ERROR("failed to allocate command buffers!");
-        return MINIMAL_FAIL;
+        OBELISK_ERROR("failed to allocate command buffers!");
+        return OBELISK_FAIL;
     }
 
     renderer->frame = 0;
     renderer->imageIndex = 0;
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 void obeliskDestroyRenderer(ObeliskRenderer* renderer) {
@@ -65,10 +65,10 @@ int obeliskCreateDescriptorPool(ObeliskRenderer* renderer) {
     };
 
     if (vkCreateDescriptorPool(obeliskGetDevice(), &poolInfo, NULL, &renderer->descriptorPool) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 void obeliskDestroyDescriptorPool(ObeliskRenderer* renderer) {
@@ -91,10 +91,10 @@ int obeliskCreateDescriptorLayout(ObeliskRenderer* renderer) {
     };
 
     if (vkCreateDescriptorSetLayout(obeliskGetDevice(), &layoutInfo, NULL, &renderer->descriptorSetLayout) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 void obeliskDestroyDescriptorLayout(ObeliskRenderer* renderer) {
@@ -115,7 +115,7 @@ int obeliskCreateDescriptorSets(ObeliskRenderer* renderer) {
     };
 
     if (vkAllocateDescriptorSets(obeliskGetDevice(), &allocInfo, renderer->descriptorSets) != VK_SUCCESS) {
-        return MINIMAL_FAIL;
+        return OBELISK_FAIL;
     }
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -138,13 +138,13 @@ int obeliskCreateDescriptorSets(ObeliskRenderer* renderer) {
         vkUpdateDescriptorSets(obeliskGetDevice(), 1, &descriptorWrite, 0, NULL);
     }
 
-    return MINIMAL_OK;
+    return OBELISK_OK;
 }
 
 VkCommandBuffer obeliskBeginFrame(ObeliskRenderer* renderer) {
     /* acquire swap chain image */
     if (!obeliskAcquireSwapchainImage(&renderer->swapchain, renderer->frame, &renderer->imageIndex)) {
-        MINIMAL_ERROR("failed to acquire swap chain image!");
+        OBELISK_ERROR("failed to acquire swap chain image!");
         return VK_NULL_HANDLE;
     }
 
@@ -158,7 +158,7 @@ VkCommandBuffer obeliskBeginFrame(ObeliskRenderer* renderer) {
     };
 
     if (vkBeginCommandBuffer(cmdBuffer, &beginInfo) != VK_SUCCESS) {
-        MINIMAL_WARN("failed to begin recording command buffer!");
+        OBELISK_WARN("failed to begin recording command buffer!");
         return VK_NULL_HANDLE;
     }
 
@@ -167,18 +167,18 @@ VkCommandBuffer obeliskBeginFrame(ObeliskRenderer* renderer) {
 
 void obeliskEndFrame(ObeliskRenderer* renderer) {
     if (vkEndCommandBuffer(renderer->commandBuffers[renderer->frame]) != VK_SUCCESS) {
-        MINIMAL_WARN("failed to record command buffer!");
+        OBELISK_WARN("failed to record command buffer!");
     }
 
     /* submit frame */
     if (!obeliskSubmitFrame(&renderer->swapchain, renderer->commandBuffers[renderer->frame], renderer->frame)) {
-        MINIMAL_ERROR("failed to submit draw command buffer!");
+        OBELISK_ERROR("failed to submit draw command buffer!");
         return;
     }
 
     /* present frame */
     if (!obeliskPresentFrame(&renderer->swapchain, renderer->imageIndex, renderer->frame)) {
-        MINIMAL_ERROR("failed to present swap chain image!");
+        OBELISK_ERROR("failed to present swap chain image!");
         return;
     }
 
