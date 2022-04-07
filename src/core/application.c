@@ -6,7 +6,8 @@
 
 /* --------------------------| minimal app |----------------------------- */
 int obeliskLoad(ObeliskApp* app, const char* title, uint32_t w, uint32_t h) {
-    if (obeliskInitPlatform(app, title, w, h) != OBELISK_OK) {
+    app->window = obeliskInitPlatform(title, w, h, app);
+    if (!app->window) {
         OBELISK_ERROR("[GLFW] Failed to initialize GLFW.");
         return OBELISK_FAIL;
     }
@@ -24,7 +25,7 @@ int obeliskLoad(ObeliskApp* app, const char* title, uint32_t w, uint32_t h) {
 
 void obeliskDestroy(ObeliskApp* app) {
     if (app->on_destroy) app->on_destroy(app);
-    obeliskTerminatePlatform(app);
+    obeliskTerminatePlatform(app->window);
 }
 
 void obeliskRun(ObeliskApp* app) {

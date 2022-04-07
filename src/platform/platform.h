@@ -6,7 +6,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-int obeliskInitPlatform(ObeliskApp* app, const char* title, uint32_t w, uint32_t h);
-void obeliskTerminatePlatform(ObeliskApp* app);
+GLFWwindow* obeliskInitPlatform(const char* title, uint32_t w, uint32_t h, void* userdata);
+void obeliskTerminatePlatform(GLFWwindow* window);
 
 #endif // !OBELISK_PLATFORM_H

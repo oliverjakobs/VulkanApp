@@ -13,8 +13,26 @@ struct ObeliskEvent {
 };
 
 void obeliskDispatchEvent(ObeliskApp* app, uint32_t type, uint32_t uParam, int32_t lParam, int32_t rParam) {
-    ObeliskEvent e = { .type = type, .uParam = uParam, .lParam = lParam, .rParam = rParam };
-    if (app->on_event) app->on_event(app, &e);
+    OBELISK_ASSERT(app, "Can not dispatch event. App pointer missing.");
+
+    /* handle internally */
+    switch (type)
+    {
+    case OBELISK_EVENT_WINDOW_ICONIFY:
+        app->inconified = uParam;
+        break;
+    }
+
+    /* dispatch */
+    if (app->on_event) {
+        ObeliskEvent e = {
+            .type = type,
+            .uParam = uParam,
+            .lParam = lParam,
+            .rParam = rParam
+        };
+        app->on_event(app, &e);
+    }
 }
 
 int obeliskCheckEventType(const ObeliskEvent* e, uint32_t type) { return e->type == type; }
