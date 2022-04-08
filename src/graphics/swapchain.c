@@ -1,14 +1,17 @@
 #include "swapchain.h"
 
+#include "../core/memory.h"
+
 static int obeliskChooseSurfaceFormat(VkSurfaceFormatKHR* format) {
     VkPhysicalDevice device = obeliskGetPhysicalDevice();
     VkSurfaceKHR surface = obeliskGetSurface();
 
     uint32_t count;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, NULL);
+    if (!count) return OBELISK_FAIL;
 
-    VkSurfaceFormatKHR* formats;
-    if (!count || !(formats = malloc(sizeof(VkSurfaceFormatKHR) * count))) return OBELISK_FAIL;
+    VkSurfaceFormatKHR* formats = obeliskAllocate(sizeof(VkSurfaceFormatKHR) * count);
+    if (!formats) return OBELISK_FAIL;
 
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, formats);
 
@@ -22,7 +25,7 @@ static int obeliskChooseSurfaceFormat(VkSurfaceFormatKHR* format) {
         }
     }
 
-    free(formats);
+    obeliskFree(formats);
     return OBELISK_OK;
 }
 
@@ -32,9 +35,10 @@ static int obeliskChoosePresentMode(VkPresentModeKHR* mode) {
 
     uint32_t count;
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, NULL);
+    if (!count) return OBELISK_FAIL;
 
-    VkPresentModeKHR* modes;
-    if (!count || !(modes = malloc(sizeof(VkPresentModeKHR) * count))) return OBELISK_FAIL;
+    VkPresentModeKHR* modes = obeliskAllocate(sizeof(VkPresentModeKHR) * count);
+    if (!modes) return OBELISK_FAIL;
 
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, modes);
 
@@ -48,7 +52,7 @@ static int obeliskChoosePresentMode(VkPresentModeKHR* mode) {
         }
     }
 
-    free(modes);
+    obeliskFree(modes);
     return OBELISK_OK;
 }
 
@@ -83,7 +87,7 @@ int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
     VkDevice device = obeliskGetDevice();
 
     /* create images */
-    swapchain->images = malloc(swapchain->imageCount * sizeof(VkImage));
+    swapchain->images = obeliskAllocate(swapchain->imageCount * sizeof(VkImage));
     if (!swapchain->images) return OBELISK_FAIL;
 
     if (vkGetSwapchainImagesKHR(device, swapchain->handle, &swapchain->imageCount, swapchain->images) != VK_SUCCESS) {
@@ -92,7 +96,7 @@ int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
     }
 
     /* create image views */
-    swapchain->imageViews = malloc(swapchain->imageCount * sizeof(VkImageView));
+    swapchain->imageViews = obeliskAllocate(swapchain->imageCount * sizeof(VkImageView));
     if (!swapchain->imageViews) return OBELISK_FAIL;
 
     for (size_t i = 0; i < swapchain->imageCount; ++i) {
@@ -119,13 +123,13 @@ int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
     }
 
     /* create depth images and depth image views */
-    swapchain->depthImages = malloc(swapchain->imageCount * sizeof(VkImage));
+    swapchain->depthImages = obeliskAllocate(swapchain->imageCount * sizeof(VkImage));
     if (!swapchain->depthImages) return OBELISK_FAIL;
 
-    swapchain->depthImageViews = malloc(swapchain->imageCount * sizeof(VkImageView));
+    swapchain->depthImageViews = obeliskAllocate(swapchain->imageCount * sizeof(VkImageView));
     if (!swapchain->depthImageViews) return OBELISK_FAIL;
 
-    swapchain->depthImageMemories = malloc(swapchain->imageCount * sizeof(VkDeviceMemory));
+    swapchain->depthImageMemories = obeliskAllocate(swapchain->imageCount * sizeof(VkDeviceMemory));
     if (!swapchain->depthImageMemories) return OBELISK_FAIL;
 
     for (size_t i = 0; i < swapchain->imageCount; ++i) {
@@ -265,7 +269,7 @@ int obeliskSwapchainCreateFramebuffers(ObeliskSwapchain* swapchain) {
 
     VkDevice device = obeliskGetDevice();
 
-    swapchain->framebuffers = malloc(swapchain->imageCount * sizeof(VkFramebuffer));
+    swapchain->framebuffers = obeliskAllocate(swapchain->imageCount * sizeof(VkFramebuffer));
     if (!swapchain->framebuffers) return OBELISK_FAIL;
 
     for (size_t i = 0; i < swapchain->imageCount; ++i) {
@@ -395,20 +399,20 @@ void obeliskDestroySwapchain(ObeliskSwapchain* swapchain) {
         for (size_t i = 0; i < swapchain->imageCount; ++i) {
             vkDestroyFramebuffer(device, swapchain->framebuffers[i], NULL);
         }
-        free(swapchain->framebuffers);
+        obeliskFree(swapchain->framebuffers);
     }
 
     /* destroy render pass */
     vkDestroyRenderPass(device, swapchain->renderPass, NULL);
 
     /* destroy images */
-    if (swapchain->images) free(swapchain->images);
+    if (swapchain->images) obeliskFree(swapchain->images);
 
     if (swapchain->imageViews) {
         for (size_t i = 0; i < swapchain->imageCount; ++i) {
             vkDestroyImageView(device, swapchain->imageViews[i], NULL);
         }
-        free(swapchain->imageViews);
+        obeliskFree(swapchain->imageViews);
     }
 
     /* destroy depth images */
@@ -418,9 +422,9 @@ void obeliskDestroySwapchain(ObeliskSwapchain* swapchain) {
             vkDestroyImage(device, swapchain->depthImages[i], NULL);
             vkFreeMemory(device, swapchain->depthImageMemories[i], NULL);
         }
-        free(swapchain->depthImages);
-        free(swapchain->depthImageViews);
-        free(swapchain->depthImageMemories);
+        obeliskFree(swapchain->depthImages);
+        obeliskFree(swapchain->depthImageViews);
+        obeliskFree(swapchain->depthImageMemories);
     }
 
     /* destroy handle */

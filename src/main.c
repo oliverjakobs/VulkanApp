@@ -211,5 +211,8 @@ int main() {
 
     obeliskDestroy(&app);
 
+    size_t bytes = obeliskMemoryGetBytes();
+    if (bytes != 0) OBELISK_WARN("%llu bytes not freed", bytes);
+
     return 0;
 }

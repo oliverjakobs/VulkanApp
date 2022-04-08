@@ -1,6 +1,7 @@
 #include "context.h"
 
 #include "../utils.h"
+#include "../core/memory.h"
 
 #include <string.h>
 
@@ -87,12 +88,11 @@ static char** obeliskGetRequiredExtensions(int debug, uint32_t* count) {
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
     if (!glfwExtensionCount) return NULL;
 
-    char** extensions = malloc(sizeof(char*) * ((size_t)glfwExtensionCount + 1));
-    if (!extensions) return NULL;
+    if (debug) glfwExtensionCount++;
 
-    memcpy(extensions, glfwExtensions, sizeof(char*) * glfwExtensionCount);
+    char** extensions = obeliskMemDup(glfwExtensions, sizeof(char*) * ((size_t)glfwExtensionCount));
 
-    if (debug) extensions[glfwExtensionCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+    if (debug) extensions[glfwExtensionCount - 1] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
 
     *count = glfwExtensionCount;
     return extensions;
@@ -103,7 +103,7 @@ static int obeliskCheckValidationLayerSupport() {
     vkEnumerateInstanceLayerProperties(&layerCount, NULL);
     if (!layerCount) return 0;
 
-    VkLayerProperties* availableLayers = malloc(sizeof(VkLayerProperties) * layerCount);
+    VkLayerProperties* availableLayers = obeliskAllocate(sizeof(VkLayerProperties) * layerCount);
     if (!availableLayers) return 0;
 
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers);
@@ -123,7 +123,7 @@ static int obeliskCheckValidationLayerSupport() {
         if (!layerFound) break;
     }
 
-    free(availableLayers);
+    obeliskFree(availableLayers);
     return layerFound;
 }
 
@@ -164,7 +164,7 @@ static int obeliskCreateInstance(ObeliskContext* context, const char* app, const
     context->instance = VK_NULL_HANDLE;
     VkResult result = vkCreateInstance(&createInfo, NULL, &context->instance);
 
-    free(extensions);
+    obeliskFree(extensions);
 
     if (result != VK_SUCCESS) {
         return OBELISK_FAIL;
@@ -178,7 +178,7 @@ static uint32_t obeliskFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR s
     vkGetPhysicalDeviceQueueFamilyProperties(device, &propertyCount, NULL);
     if (!propertyCount) return 0;
 
-    VkQueueFamilyProperties* properties = malloc(sizeof(VkQueueFamilyProperties) * propertyCount);
+    VkQueueFamilyProperties* properties = obeliskAllocate(sizeof(VkQueueFamilyProperties) * propertyCount);
     if (!properties) return 0;
 
     vkGetPhysicalDeviceQueueFamilyProperties(device, &propertyCount, properties);
@@ -200,7 +200,7 @@ static uint32_t obeliskFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR s
         if (familiesSet & OBELISK_QUEUE_FLAG_ALL) break;
     }
 
-    free(properties);
+    obeliskFree(properties);
     return familiesSet;
 }
 
@@ -215,7 +215,7 @@ static int obaliskCheckDeviceExtensionSupport(VkPhysicalDevice device) {
     vkEnumerateDeviceExtensionProperties(device, NULL, &extensionCount, NULL);
     if (!extensionCount) return 0;
 
-    VkExtensionProperties* availableExtensions = malloc(sizeof(VkExtensionProperties) * extensionCount);
+    VkExtensionProperties* availableExtensions = obeliskAllocate(sizeof(VkExtensionProperties) * extensionCount);
     if (!availableExtensions) return 0;
 
     vkEnumerateDeviceExtensionProperties(device, NULL, &extensionCount, availableExtensions);
@@ -224,13 +224,13 @@ static int obaliskCheckDeviceExtensionSupport(VkPhysicalDevice device) {
         const char* name = deviceExtensions[i];
         for (size_t available = 0; available < extensionCount; ++available) {
             if (strcmp(name, availableExtensions[available].extensionName) == 0) {
-                free(availableExtensions);
+                obeliskFree(availableExtensions);
                 return 1;
             }
         }
     }
 
-    free(availableExtensions);
+    obeliskFree(availableExtensions);
     return 0;
 }
 
@@ -254,7 +254,7 @@ static int obeliskPickPhysicalDevice(ObeliskContext* context) {
     vkEnumeratePhysicalDevices(context->instance, &device_count, NULL);
     if (!device_count) return OBELISK_FAIL;
 
-    VkPhysicalDevice* devices = malloc(sizeof(VkPhysicalDevice) * device_count);
+    VkPhysicalDevice* devices = obeliskAllocate(sizeof(VkPhysicalDevice) * device_count);
     if (!devices) return OBELISK_FAIL;
 
     vkEnumeratePhysicalDevices(context->instance, &device_count, devices);
@@ -268,7 +268,7 @@ static int obeliskPickPhysicalDevice(ObeliskContext* context) {
         }
     }
 
-    free(devices);
+    obeliskFree(devices);
     return context->physicalDevice != VK_NULL_HANDLE;
 }
 
