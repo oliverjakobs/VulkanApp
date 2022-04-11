@@ -1,5 +1,6 @@
 #include "array.h"
 
+#include <string.h>
 
 void* _obeliskArrayResize(void* arr, size_t stride, size_t cap) {
     size_t hdrSize = OBELISK_ARRAY_HDR_SIZE * sizeof(size_t);
@@ -27,10 +28,14 @@ void* _obeliskArrayReserve(void* arr, size_t stride, size_t newCap) {
 
 void* _obeliskInsertN(void* arr, size_t stride, size_t i, size_t n) {
     _obeliskArrayLen(arr) += n;
-    return memmove((char*)arr + ((i + n) * stride), (char*)arr + (i * stride), (_obeliskArrayLen(arr) - (i + n)) * stride);
+    void* dst = (char*)arr + ((i + n) * stride);
+    const void* src = (char*)arr + (i * stride);
+    return memmove(dst, src, (_obeliskArrayLen(arr) - (i + n)) * stride);
 }
 
 void* _obeliskRemoveN(void* arr, size_t stride, size_t i, size_t n) {
     _obeliskArrayLen(arr) -= n;
-    return memmove((char*)arr + (i * stride), (char*)arr + ((i + n) * stride), (_obeliskArrayLen(arr) - i) * stride);
+    void* dst = (char*)arr + (i * stride);
+    const void* src = (char*)arr + ((i + n) * stride);
+    return memmove(dst, src, (_obeliskArrayLen(arr) - i) * stride);
 }
