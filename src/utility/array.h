@@ -14,36 +14,29 @@
 #define obeliskArrayCap(a)  ((a) ? _obeliskArrayCap(a) : 0)
 #define obeliskArrayLen(a)  ((a) ? _obeliskArrayLen(a) : 0)
 
+#define obeliskArrayMakeSpace(a,n)  ((a) = _obeliskArrayReserve((a),  sizeof(*(a)), obeliskArrayLen(a) + (n)))
+#define obeliskArrayReserve(a,n)    ((a) = _obeliskArrayReserve((a),  sizeof(*(a)), n))
+#define obeliskArrayPack(a)         ((a) = _obeliskArrayResize((a),  sizeof(*(a)), obeliskArrayLen(a)))
 
-#define obeliskArrayMakeSpace(a,n)  ((!(a) || _obeliskArrayLen(a) + (n) > _obeliskArrayCap(a)) ? (stbds_arrgrow(a,n,0),0) : 0)
-#define stbds_arrgrow(a,b,c)   ((a) = _obeliskArrayGrow((a), sizeof(*(a)), (b), (c)))
-
-
-#define stbds_arrreserve(a,n)  (stbds_arrgrow(a,0,n))
-#define stbds_arrfree(a)       (((a) ? free(_obeliskArrayHdr(a)) : 0), (a) = NULL)
+#define obeliskArrayFree(a)         (((a) ? free(_obeliskArrayHdr(a)) : 0), (a) = NULL)
 
 #define obeliskArrayPush(a,v)   (obeliskArrayMakeSpace(a,1), (a)[_obeliskArrayLen(a)++] = (v))
-#define obeliskArrayPushN(a,n)  (obeliskArrayMakeSpace(a,n), (n) ? (_obeliskArrayLen(a) += (n), &(a)[_obeliskArrayLen(a)-(n)]) : (a))
-#define obeliskArrayPop(a)      (_obeliskArrayLen(a)--, (a)[_obeliskArrayLen(a)])
+#define obeliskArrayPushN(a,n)  (obeliskArrayMakeSpace(a,n), (n) ? (_obeliskArrayLen(a)+=(n), &(a)[_obeliskArrayLen(a)-(n)]) : (a))
+#define obeliskArrayPop(a)      ((a)[--_obeliskArrayLen(a)])
 
+#define obeliskArrayRemoveN(a,i,n)  (_obeliskRemoveN((a), sizeof(*(a)), (i), (n)))
+#define obeliskArrayRemove(a,i)     (obeliskArrayRemoveN(a,i,1))
 
-#define obeliskArrayRestSize(a,i,n) (sizeof(*(a)) * (_obeliskArrayLen(a)-(n)-(i)))
+#define obeliskArrayInsertN(a,i,n)  (obeliskArrayMakeSpace(a, n), _obeliskInsertN((a), sizeof(*(a)), (i), (n)))
+#define obeliskArrayInsert(a,i,v)   (obeliskArrayInsertN(a,i,1), (a)[i]=(v))
 
-#define stbds_arrdeln(a,i,n)   (memmove(&(a)[i], &(a)[(i)+(n)], obeliskArrayRestSize(a,i,n)), _obeliskArrayLen(a) -= (n))
-#define stbds_arrdel(a,i)      (stbds_arrdeln(a,i,1))
-
-#define stbds_arrinsn(a,i,n)   (((void)(obeliskArrayPushN(a, n))), memmove(&(a)[(i)+(n)], &(a)[i], obeliskArrayRestSize(a,i,n)))
-#define stbds_arrins(a,i,v)    (stbds_arrinsn(a,i,1), (a)[i]=(v))
-
-
-
-
-// #define stbds_arrlast(a)       ((a)[_obeliskArrayLen(a) - 1])
+// #define obeliskArrayLast(a)       ((a)[_obeliskArrayLen(a) - 1])
 #define obeliskArrayLast(b)    ((b) + (obeliskArrayLen(b) - 1))
-
-void* _obeliskArrayGrow(void* arr, size_t stride, size_t increment, size_t minCap);
 
 void* _obeliskArrayResize(void* arr, size_t stride, size_t newCap);
 void* _obeliskArrayReserve(void* arr, size_t stride, size_t newCap);
+
+void* _obeliskInsertN(void* arr, size_t stride, size_t i, size_t n);
+void* _obeliskRemoveN(void* arr, size_t stride, size_t i, size_t n);
 
 #endif // !OBELISK_ARRAY_H

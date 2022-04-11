@@ -209,23 +209,26 @@ int main() {
     } element;
 
     element* arr = NULL;
-    stbds_arrreserve(arr, 5);
+
+    obeliskArrayReserve(arr, 5);
     for (int i = 0; i < 10; ++i) {
         element e = { .val = i };
         obeliskArrayPush(arr, e);
     }
 
     element e = { .val = 42 };
-    stbds_arrins(arr, 5, e);
+    obeliskArrayInsert(arr, 5, e);
 
-    stbds_arrdel(arr, 3);
+    obeliskArrayRemove(arr, 3);
 
     for (int i = 0; i < obeliskArrayLen(arr); ++i) {
         OBELISK_INFO("%i: %i", i, arr[i].val);
     }
 
-    obeliskArrayPop(arr);
+    OBELISK_INFO("Pop: %i", obeliskArrayPop(arr).val);
     OBELISK_INFO("Last: %i", obeliskArrayLast(arr)->val);
+
+    obeliskArrayFree(arr);
 
     return 0;
 
