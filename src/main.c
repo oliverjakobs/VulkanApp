@@ -1,4 +1,5 @@
 #include "core/Application.h"
+#include "core/memory.h"
 
 #include "graphics/Swapchain.h"
 #include "graphics/Pipeline.h"
@@ -198,7 +199,36 @@ void OnUpdate(ObeliskApp* app, VkCommandBuffer cmdBuffer, float deltatime) {
     obeliskEndRenderPass(&app->renderer, cmdBuffer);
 }
 
+#include "utility/array.h"
+
 int main() {
+
+    /* array test */
+    typedef struct {
+        int val;
+    } element;
+
+    element* arr = NULL;
+    stbds_arrreserve(arr, 5);
+    for (int i = 0; i < 10; ++i) {
+        element e = { .val = i };
+        obeliskArrayPush(arr, e);
+    }
+
+    element e = { .val = 42 };
+    stbds_arrins(arr, 5, e);
+
+    stbds_arrdel(arr, 3);
+
+    for (int i = 0; i < obeliskArrayLen(arr); ++i) {
+        OBELISK_INFO("%i: %i", i, arr[i].val);
+    }
+
+    obeliskArrayPop(arr);
+    OBELISK_INFO("Last: %i", obeliskArrayLast(arr)->val);
+
+    return 0;
+
     ObeliskApp app = {
         .on_load = OnLoad,
         .on_destroy = OnDestroy,
@@ -216,3 +246,56 @@ int main() {
 
     return 0;
 }
+
+/*
+  Dynamic Arrays
+
+    Functions (actually macros)
+
+
+      arrreserve:
+        size_t arrsetcap(T* a, int n);
+          Sets the length of allocated storage to at least n. It will not
+          change the length of the array.
+      arrfree:
+        void arrfree(T*);
+          Frees the array.
+      arrcap:
+        size_t arrcap(T* a);
+          Returns the number of total elements the array can contain without
+          needing to be reallocated.
+      arrlen:
+        ptrdiff_t arrlen(T*);
+          Returns the number of elements in the array.
+      arrpop:
+        T arrpop(T* a)
+          Removes the final element of the array and returns it.
+      arrpush:
+        T arrpush(T* a, T b);
+          Appends the item b to the end of array a. Returns b.
+
+
+      arrins:
+        T arrins(T* a, int p, T b);
+          Inserts the item b into the middle of array a, into a[p],
+          moving the rest of the array over. Returns b.
+      arrinsn:
+        void arrinsn(T* a, int p, int n);
+          Inserts n uninitialized items into array a starting at a[p],
+          moving the rest of the array over.
+      arraddnptr:
+        T* arraddnptr(T* a, int n)
+          Appends n uninitialized items onto array at the end.
+          Returns a pointer to the first uninitialized item added.
+      arraddnindex:
+        size_t arraddnindex(T* a, int n)
+          Appends n uninitialized items onto array at the end.
+          Returns the index of the first uninitialized item added.
+      arrdel:
+        void arrdel(T* a, int p);
+          Deletes the element at a[p], moving the rest of the array over.
+      arrdeln:
+        void arrdeln(T* a, int p, int n);
+          Deletes n elements starting at a[p], moving the rest of the array over.
+
+*/
