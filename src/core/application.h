@@ -2,11 +2,11 @@
 #define OBELISK_APPLICATION_H
 
 #include "../common.h"
-#include "../platform/input.h"
 
-#include "utils.h"
-#include "Event.h"
+#include "event.h"
+#include "input.h"
 
+#include "../utility/time.h"
 #include "../graphics/Renderer.h"
 
 /* --------------------------| minimal app |----------------------------- */
@@ -26,8 +26,6 @@ struct ObeliskApp {
     ObeliskEventCB  on_event;
     ObeliskUpdateCB on_update;
 
-    int debug;
-    int vsync;
     int inconified;
 
     ObeliskTimer timer;
@@ -43,11 +41,5 @@ uint32_t obeliskGetFps(const ObeliskApp* app);
 
 /* --------------------------| settings |-------------------------------- */
 void obeliskSetWindowTitle(ObeliskApp* app, const char* title);
-
-void obeliskEnableDebug(ObeliskApp* app, int b);
-void obeliskEnableVsync(ObeliskApp* app, int b);
-
-void obeliskToggleDebug(ObeliskApp* app);
-void obeliskToggleVsync(ObeliskApp* app);
 
 #endif // !OBELISK_APPLICATION_H

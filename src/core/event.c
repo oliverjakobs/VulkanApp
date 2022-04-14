@@ -1,6 +1,7 @@
 #include "event.h"
 
 #include "application.h"
+#include "input.h"
 
 #define OBELISK_LOWORD(dw) ((uint16_t)(dw))
 #define OBELISK_HIWORD(dw) ((uint16_t)(((uint32_t)(dw)) >> 16))
@@ -20,6 +21,15 @@ void obeliskDispatchEvent(ObeliskApp* app, uint32_t type, uint32_t uParam, int32
     {
     case OBELISK_EVENT_WINDOW_ICONIFY:
         app->inconified = uParam;
+        break;
+    case OBELISK_EVENT_KEY:
+        if (!obeliskProcessKey((ObeliskKey)uParam, (uint8_t)lParam)) return;
+        break;
+    case OBELISK_EVENT_MOUSE_BUTTON:
+        if (!obeliskProcessMouseButton((ObeliskMouseButton)OBELISK_HIWORD(uParam), (uint8_t)uParam)) return;
+        break;
+    case OBELISK_EVENT_MOUSE_MOVED:
+        if (!obeliskProcessMouseMovement(lParam, rParam)) return;
         break;
     }
 

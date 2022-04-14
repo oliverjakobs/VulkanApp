@@ -12,10 +12,6 @@ int obeliskLoad(ObeliskApp* app, const char* title, uint32_t w, uint32_t h) {
         return OBELISK_FAIL;
     }
 
-    /* apply settings */
-    obeliskEnableDebug(app, app->debug);
-    obeliskEnableVsync(app, app->vsync);
-
     app->inconified = 0;
 
     obeliskResetTimer(&app->timer);
@@ -34,8 +30,8 @@ void obeliskRun(ObeliskApp* app) {
 
     while (!glfwWindowShouldClose(app->window)) {
         obeliskStartTimer(&app->timer, glfwGetTime());
-        obeliskUpdateInput(app->window);
         glfwPollEvents();
+        obeliskUpdateInput();
 
         if (app->inconified) continue;
 
@@ -59,9 +55,3 @@ uint32_t obeliskGetFps(const ObeliskApp* app) { return app->timer.fps; }
 
 /* --------------------------| settings |-------------------------------- */
 void obeliskSetWindowTitle(ObeliskApp* app, const char* title) { glfwSetWindowTitle(app->window, title); }
-
-void obeliskEnableDebug(ObeliskApp* app, int b) { app->debug = b; }
-void obeliskEnableVsync(ObeliskApp* app, int b) { app->vsync = b; }
-
-void obeliskToggleDebug(ObeliskApp* app) { obeliskEnableDebug(app, !app->debug); }
-void obeliskToggleVsync(ObeliskApp* app) { obeliskEnableVsync(app, !app->vsync); }

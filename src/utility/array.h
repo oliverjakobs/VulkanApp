@@ -25,11 +25,11 @@
 #define obeliskArrayFree(a)         (((a) ? free(_obeliskArrayHdr(a)) : 0), (a) = NULL)
 
 /* appends the item v to the end of the array a */
-#define obeliskArrayPush(a,v)   (obeliskArrayMakeSpace(a,1), (a)[_obeliskArrayLen(a)++] = (v))
+#define obeliskArrayPush(a,v)  (obeliskArrayMakeSpace(a,1), (a)[_obeliskArrayLen(a)++] = (v))
 /* appends n uninitialized items at the end of the array, returns a pointer to the first uninitialized item added */
-#define obeliskArrayPushN(a,n)  (obeliskArrayMakeSpace(a,n), (n) ? (_obeliskArrayLen(a)+=(n), &(a)[_obeliskArrayLen(a)-(n)]) : (a))
+#define obeliskArrayPushN(a,n) (obeliskArrayMakeSpace(a,n), (n) ? (_obeliskArrayLen(a)+=(n), &(a)[_obeliskArrayLen(a)-(n)]) : (a))
 /* removes the last element of the array and returns it */
-#define obeliskArrayPop(a)      ((a)[--_obeliskArrayLen(a)])
+#define obeliskArrayPop(a)     ((a)[--_obeliskArrayLen(a)])
 
 /* deletes n elements starting at index i, moving the rest of the array over */
 #define obeliskArrayRemoveN(a,i,n)  (_obeliskRemoveN((a), sizeof(*(a)), (i), (n)))
