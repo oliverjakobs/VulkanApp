@@ -131,6 +131,8 @@ int OnLoad(ObeliskApp* app, uint32_t width, uint32_t height) {
         return OBELISK_FAIL;
     }
 
+    obeliskPrintInfo();
+
     return OBELISK_OK;
 }
 
@@ -185,7 +187,7 @@ void OnUpdate(ObeliskApp* app, VkCommandBuffer cmdBuffer, float deltatime) {
     obeliskBeginRenderPass(&app->renderer, cmdBuffer);
 
     vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
-    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, &app->renderer.descriptorSets[app->renderer.frame], 0, NULL);
+    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, 1, &app->renderer.descriptorSets[app->renderer.frameIndex], 0, NULL);
 
     VkBuffer vertexBuffers[] = { vertexBuffer.handle };
     VkDeviceSize offsets[] = { 0 };

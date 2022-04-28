@@ -27,7 +27,7 @@ int obeliskCreateRenderer(ObeliskRenderer* renderer, uint32_t width, uint32_t he
         return OBELISK_FAIL;
     }
 
-    renderer->frame = 0;
+    renderer->frameIndex = 0;
     renderer->imageIndex = 0;
 
     return OBELISK_OK;
@@ -138,13 +138,13 @@ int obeliskCreateDescriptorSets(ObeliskRenderer* renderer) {
 
 VkCommandBuffer obeliskBeginFrame(ObeliskRenderer* renderer) {
     /* acquire swap chain image */
-    if (!obeliskAcquireSwapchainImage(&renderer->swapchain, renderer->frame, &renderer->imageIndex)) {
+    if (!obeliskAcquireSwapchainImage(&renderer->swapchain, renderer->frameIndex, &renderer->imageIndex)) {
         OBELISK_ERROR("failed to acquire swap chain image!");
         return VK_NULL_HANDLE;
     }
 
     /* start frame */
-    VkCommandBuffer cmdBuffer = renderer->commandBuffers[renderer->frame];
+    VkCommandBuffer cmdBuffer = renderer->commandBuffers[renderer->frameIndex];
 
     vkResetCommandBuffer(cmdBuffer, /*VkCommandBufferResetFlagBits*/ 0);
 
@@ -161,24 +161,24 @@ VkCommandBuffer obeliskBeginFrame(ObeliskRenderer* renderer) {
 }
 
 void obeliskEndFrame(ObeliskRenderer* renderer) {
-    if (vkEndCommandBuffer(renderer->commandBuffers[renderer->frame]) != VK_SUCCESS) {
+    if (vkEndCommandBuffer(renderer->commandBuffers[renderer->frameIndex]) != VK_SUCCESS) {
         OBELISK_WARN("failed to record command buffer!");
     }
 
     /* submit frame */
-    if (!obeliskSubmitFrame(&renderer->swapchain, renderer->commandBuffers[renderer->frame], renderer->frame)) {
+    if (!obeliskSubmitFrame(&renderer->swapchain, renderer->commandBuffers[renderer->frameIndex], renderer->frameIndex)) {
         OBELISK_ERROR("failed to submit draw command buffer!");
         return;
     }
 
     /* present frame */
-    if (!obeliskPresentFrame(&renderer->swapchain, renderer->imageIndex, renderer->frame)) {
+    if (!obeliskPresentFrame(&renderer->swapchain, renderer->imageIndex, renderer->frameIndex)) {
         OBELISK_ERROR("failed to present swap chain image!");
         return;
     }
 
     /* next frame */
-    renderer->frame = (renderer->frame + 1) % MAX_FRAMES_IN_FLIGHT;
+    renderer->frameIndex = (renderer->frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void obeliskBeginRenderPass(ObeliskRenderer* renderer, VkCommandBuffer cmdBuffer) {
@@ -222,7 +222,7 @@ void obeliskEndRenderPass(ObeliskRenderer* renderer, VkCommandBuffer cmdBuffer) 
 }
 
 void obeliskWriteUniform(ObeliskRenderer* renderer, UniformBufferObject* ubo) {
-    ObeliskBuffer* uniformBuffer = &renderer->uniformBuffers[renderer->frame];
+    ObeliskBuffer* uniformBuffer = &renderer->uniformBuffers[renderer->frameIndex];
     obeliskWriteBuffer(uniformBuffer, ubo, uniformBuffer->size);
 }
 

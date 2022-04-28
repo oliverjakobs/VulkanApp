@@ -8,9 +8,13 @@
 #define OBELISK_FAIL    0
 #define OBELISK_OK      1
 
-#ifndef _DEBUG
-#define OBELISK_DISABLE_LOGGING
-#define OBELISK_DISABLE_ASSERT
+#ifdef _DEBUG
+
+#define OBELISK_DEBUG
+
+#define OBELISK_ENABLE_LOGGING
+#define OBELISK_ENABLE_ASSERT
+
 #endif
 
 /* obelisk version numbers */
@@ -25,7 +29,7 @@ typedef struct ObeliskEvent ObeliskEvent;
 typedef struct ObeliskApp ObeliskApp;
 
 /* --------------------------| logging |--------------------------------- */
-#ifndef OBELISK_DISABLE_LOGGING
+#ifdef OBELISK_ENABLE_LOGGING
 
 #define OBELISK_TRACE(s, ...)   obeliskPrintf(stdout, OBELISK_LOG_LVL_TRACE, s, __VA_ARGS__)
 #define OBELISK_INFO(s, ...)    obeliskPrintf(stdout, OBELISK_LOG_LVL_INFO, s, __VA_ARGS__)
@@ -56,7 +60,7 @@ void obeliskPrintf(FILE* const stream, ObeliskLogLevel level, const char* fmt, .
 /* --------------------------| assert |---------------------------------- */
 void obeliskLogAssertFailure(const char* expr, const char* msg, const char* file, uint32_t line);
 
-#ifndef OBELISK_DISABLE_ASSERT
+#ifdef OBELISK_ENABLE_ASSERT
 
 #if _MSC_VER
 #include <intrin.h>

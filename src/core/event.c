@@ -33,7 +33,7 @@ void obeliskDispatchEvent(ObeliskApp* app, uint32_t type, uint32_t uParam, int32
         break;
     }
 
-    /* dispatch */
+    /* dispatch to user space */
     if (app->on_event) {
         ObeliskEvent e = {
             .type = type,

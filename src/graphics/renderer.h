@@ -13,7 +13,7 @@ typedef struct {
 
 typedef struct {
     ObeliskSwapchain swapchain;
-    uint32_t frame;
+    uint32_t frameIndex;
     uint32_t imageIndex;
 
     VkDescriptorPool descriptorPool;
