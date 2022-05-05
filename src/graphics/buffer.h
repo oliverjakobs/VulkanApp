@@ -1,7 +1,7 @@
 #ifndef OBELISK_BUFFER_H
 #define OBELISK_BUFFER_H
 
-#include "context.h"
+#include "core/core.h"
 
 typedef struct {
     VkBuffer handle;

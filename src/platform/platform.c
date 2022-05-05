@@ -47,6 +47,10 @@ void obeliskTerminatePlatform(GLFWwindow* window) {
     glfwTerminate();
 }
 
+VkResult obeliskCreateWindowSurface(GLFWwindow* window, VkInstance instance, VkSurfaceKHR* surface) {
+    return glfwCreateWindowSurface(instance, window, NULL, surface);
+}
+
 /* --------------------------| glfw events |----------------------------- */
 void obeliskGLFWWindowSizeCallback(GLFWwindow* window, int width, int height) {
     obeliskDispatchEvent(glfwGetWindowUserPointer(window), OBELISK_EVENT_WINDOW_SIZE, 0, width, height);

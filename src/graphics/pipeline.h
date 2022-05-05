@@ -1,7 +1,7 @@
 #ifndef OBELISK_PIPELINE_H
 #define OBELISK_PIPELINE_H
 
-#include "context.h"
+#include "core/core.h"
 
 typedef struct {
     VkFormat format;

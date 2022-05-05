@@ -1,11 +1,9 @@
 #include "core/Application.h"
-#include "core/memory.h"
+#include "utility/memory.h"
 
 #include "graphics/Swapchain.h"
 #include "graphics/Pipeline.h"
 #include "graphics/Buffer.h"
-
-#include "Utils.h"
 
 #include "cglm/cglm.h"
 
@@ -131,7 +129,7 @@ int OnLoad(ObeliskApp* app, uint32_t width, uint32_t height) {
         return OBELISK_FAIL;
     }
 
-    obeliskPrintInfo();
+    obeliskPrintDeviceInfo();
 
     return OBELISK_OK;
 }

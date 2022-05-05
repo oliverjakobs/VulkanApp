@@ -1,6 +1,6 @@
 #include "pipeline.h"
 
-#include "../utils.h"
+#include "../utility/file.h"
 
 static int obeliskCreateShaderModuleSrc(VkShaderModule* module, const uint32_t* code, size_t size) {
     VkShaderModuleCreateInfo info = { 

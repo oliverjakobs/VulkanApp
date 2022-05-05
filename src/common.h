@@ -83,4 +83,7 @@ void obeliskLogAssertFailure(const char* expr, const char* msg, const char* file
 
 #endif
 
+/* --------------------------| basic utility |--------------------------- */
+#define OBELISK_ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
+
 #endif // !COMMON_H

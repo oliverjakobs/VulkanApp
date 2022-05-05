@@ -1,7 +1,7 @@
 #ifndef OBELISK_SWAPCHAIN_H
 #define OBELISK_SWAPCHAIN_H
 
-#include "context.h"
+#include "core/core.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
 

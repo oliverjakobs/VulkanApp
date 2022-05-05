@@ -21,7 +21,7 @@ static int obeliskCreateBuffer(ObeliskBuffer* buffer, VkDeviceSize size, VkBuffe
     VkMemoryAllocateInfo allocInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .allocationSize = memoryReq.size,
-        .memoryTypeIndex = obeliskFindMemoryTypeIndex(memoryReq.memoryTypeBits, properties)
+        .memoryTypeIndex = obeliskFindPhysicalDeviceMemoryTypeIndex(memoryReq.memoryTypeBits, properties)
     };
 
     if (vkAllocateMemory(obeliskGetDevice(), &allocInfo, NULL, &buffer->memory) != VK_SUCCESS) {

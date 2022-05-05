@@ -1,4 +1,4 @@
-#include "Utils.h"
+#include "file.h"
 
 char* obeliskReadFile(const char* path, size_t* sizeptr) {
     FILE* file = fopen(path, "rb");

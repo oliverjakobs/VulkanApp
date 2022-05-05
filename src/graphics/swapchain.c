@@ -1,6 +1,6 @@
 #include "swapchain.h"
 
-#include "../core/memory.h"
+#include "../utility/memory.h"
 
 static int obeliskChooseSurfaceFormat(VkSurfaceFormatKHR* format) {
     VkPhysicalDevice device = obeliskGetPhysicalDevice();
@@ -155,13 +155,13 @@ int obeliskSwapchainCreateImages(ObeliskSwapchain* swapchain) {
             return OBELISK_FAIL;
         }
 
-        VkMemoryRequirements memRequirements;
-        vkGetImageMemoryRequirements(device, swapchain->depthImages[i], &memRequirements);
+        VkMemoryRequirements memoryReq;
+        vkGetImageMemoryRequirements(device, swapchain->depthImages[i], &memoryReq);
 
         VkMemoryAllocateInfo allocInfo = {
             .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            .allocationSize = memRequirements.size,
-            .memoryTypeIndex = obeliskFindMemoryTypeIndex(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+            .allocationSize = memoryReq.size,
+            .memoryTypeIndex = obeliskFindPhysicalDeviceMemoryTypeIndex(memoryReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
         };
 
         if (vkAllocateMemory(device, &allocInfo, NULL, &swapchain->depthImageMemories[i]) != VK_SUCCESS) {
@@ -355,9 +355,21 @@ int obeliskCreateSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapch
     swapchain->extent = extent;
     swapchain->imageCount = imageCount;
     swapchain->imageFormat = surfaceFormat.format;
-    VkFormat candidates[] = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
-    uint32_t candidateCount = sizeof(candidates) / sizeof(VkFormat);
-    swapchain->depthFormat = obeliskGetPhysicalDeviceFormat(candidates, candidateCount, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+    VkFormat candidates[] = {
+        VK_FORMAT_D32_SFLOAT,
+        VK_FORMAT_D32_SFLOAT_S8_UINT,
+        VK_FORMAT_D24_UNORM_S8_UINT
+    };
+    uint32_t candidateCount = OBELISK_ARRAY_LEN(candidates);
+    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+    VkFormatFeatureFlags features = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    swapchain->depthFormat = obeliskGetPhysicalDeviceFormat(candidates, candidateCount, tiling, features);
+
+    if (swapchain->depthFormat == VK_FORMAT_UNDEFINED) {
+        OBELISK_ERROR("Failed to get depth format.");
+        return OBELISK_FAIL;
+    }
 
     if (!obeliskSwapchainCreateImages(swapchain))
         return OBELISK_FAIL;

@@ -3,6 +3,8 @@
 
 #include "../common.h"
 
+#include <string.h>
+
 void* obeliskAllocate(size_t size);
 void* obeliskReallocate(void* block, size_t size);
 
