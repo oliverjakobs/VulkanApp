@@ -129,7 +129,7 @@ int OnLoad(ObeliskApp* app, uint32_t width, uint32_t height) {
         return OBELISK_FAIL;
     }
 
-    obeliskPrintDeviceInfo();
+    obeliskPrintDeviceInfo(obeliskGetContext());
 
     return OBELISK_OK;
 }

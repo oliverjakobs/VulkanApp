@@ -78,28 +78,28 @@ static uint32_t obeliskFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR s
     return familiesSet;
 }
 
-int obeliskPickPhysicalDevice(ObeliskDevice* device, VkInstance instance, VkSurfaceKHR surface) {
+int obeliskPickPhysicalDevice(ObeliskContext* context) {
     uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
+    vkEnumeratePhysicalDevices(context->instance, &deviceCount, NULL);
     if (!deviceCount) return OBELISK_FAIL;
 
     VkPhysicalDevice* devices = obeliskAllocate(sizeof(VkPhysicalDevice) * deviceCount);
     if (!devices) return OBELISK_FAIL;
 
-    vkEnumeratePhysicalDevices(instance, &deviceCount, devices);
+    vkEnumeratePhysicalDevices(context->instance, &deviceCount, devices);
 
-    device->physical = VK_NULL_HANDLE;
+    context->physicalDevice = VK_NULL_HANDLE;
     for (uint32_t i = 0; i < deviceCount; ++i) {
-        uint32_t familiesSet = obeliskFindQueueFamilies(devices[i], surface, device->queueFamilyIndices);
-        if (familiesSet & OBELISK_QUEUE_FLAG_ALL && obeliskIsDeviceSuitable(devices[i], surface)) {
-            device->physical = devices[i];
-            device->queueFamiliesSet = familiesSet;
+        uint32_t familiesSet = obeliskFindQueueFamilies(devices[i], context->surface, context->queueFamilyIndices);
+        if (familiesSet & OBELISK_QUEUE_FLAG_ALL && obeliskIsDeviceSuitable(devices[i], context->surface)) {
+            context->physicalDevice = devices[i];
+            context->queueFamiliesSet = familiesSet;
             break;
         }
     }
 
     obeliskFree(devices);
-    return device->physical != VK_NULL_HANDLE;
+    return context->physicalDevice != VK_NULL_HANDLE;
 }
 
 static int obeliskArrayCheckUnique(uint32_t arr[], uint32_t size) {
@@ -108,18 +108,18 @@ static int obeliskArrayCheckUnique(uint32_t arr[], uint32_t size) {
     return 1;
 }
 
-int obeliskCreateLogicalDevice(ObeliskDevice* device) {
+int obeliskCreateLogicalDevice(ObeliskContext* context) {
     uint32_t queueCreateInfoCount = 0;
     VkDeviceQueueCreateInfo queueCreateInfos[OBELISK_QUEUE_COUNT] = { 0 };
 
     float queuePriority = 1.0f;
     for (uint32_t i = 0; i < OBELISK_QUEUE_COUNT; ++i) {
-        if (!obeliskArrayCheckUnique(device->queueFamilyIndices + i, OBELISK_QUEUE_COUNT - i))
+        if (!obeliskArrayCheckUnique(context->queueFamilyIndices + i, OBELISK_QUEUE_COUNT - i))
             continue;
 
         queueCreateInfos[queueCreateInfoCount++] = (VkDeviceQueueCreateInfo){
             .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-            .queueFamilyIndex = device->queueFamilyIndices[i],
+            .queueFamilyIndex = context->queueFamilyIndices[i],
             .queueCount = 1,
             .pQueuePriorities = &queuePriority,
         };
@@ -136,13 +136,69 @@ int obeliskCreateLogicalDevice(ObeliskDevice* device) {
         .enabledExtensionCount = deviceExtensionCount
     };
 
-    if (vkCreateDevice(device->physical, &createInfo, NULL, &device->handle) != VK_SUCCESS)
+    if (vkCreateDevice(context->physicalDevice, &createInfo, context->allocator, &context->device) != VK_SUCCESS)
         return OBELISK_FAIL;
 
     /* get queues */
     for (size_t i = 0; i < OBELISK_QUEUE_COUNT; ++i) {
-        vkGetDeviceQueue(device->handle, device->queueFamilyIndices[i], 0, &device->queues[i]);
+        vkGetDeviceQueue(context->device, context->queueFamilyIndices[i], 0, &context->queues[i]);
     }
 
     return OBELISK_OK;
+}
+
+VkResult obeliskGetPhysicalDeviceSurfaceCapabilities(VkSurfaceCapabilitiesKHR* capabilities) {
+    return vkGetPhysicalDeviceSurfaceCapabilitiesKHR(obeliskGetPhysicalDevice(), obeliskGetSurface(), capabilities);
+}
+
+VkFormat obeliskGetPhysicalDeviceFormat(
+        const VkFormat* candidates, 
+        uint32_t count, 
+        VkImageTiling tiling, 
+        VkFormatFeatureFlags features) {
+    for (uint32_t i = 0; i < count; ++i) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(obeliskGetPhysicalDevice(), candidates[i], &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+            return candidates[i];
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+            return candidates[i];
+    }
+    return VK_FORMAT_UNDEFINED;
+}
+
+uint32_t obeliskFindPhysicalDeviceMemoryTypeIndex(uint32_t filter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memoryProps;
+    vkGetPhysicalDeviceMemoryProperties(obeliskGetPhysicalDevice(), &memoryProps);
+
+    for (uint32_t i = 0; i < memoryProps.memoryTypeCount; i++) {
+        if ((filter & (1 << i)) && (memoryProps.memoryTypes[i].propertyFlags & properties) == properties)
+            return i;
+    }
+
+    OBELISK_ERROR("failed to find suitable memory type!");
+    return 0;
+}
+
+void obeliskPrintDeviceInfo() {
+    VkPhysicalDeviceProperties properties;
+    vkGetPhysicalDeviceProperties(obeliskGetPhysicalDevice(), &properties);
+
+    OBELISK_INFO("Physical device: %s", properties.deviceName);
+    OBELISK_INFO("QueueFamilies:");
+    OBELISK_INFO("Graphics | Present");
+    OBELISK_INFO("       %d |       %d",
+        obeliskGetQueueFamilyIndices()[OBELISK_QUEUE_GRAPHICS],
+        obeliskGetQueueFamilyIndices()[OBELISK_QUEUE_PRESENT]);
+
+    OBELISK_INFO("Driver Version: %d.%d.%d",
+        VK_VERSION_MAJOR(properties.driverVersion),
+        VK_VERSION_MINOR(properties.driverVersion),
+        VK_VERSION_PATCH(properties.driverVersion));
+
+    OBELISK_INFO("Vulkan API Version: %d.%d.%d",
+        VK_VERSION_MAJOR(properties.apiVersion),
+        VK_VERSION_MINOR(properties.apiVersion),
+        VK_VERSION_PATCH(properties.apiVersion));
 }

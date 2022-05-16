@@ -329,16 +329,9 @@ int obeliskCreateSwapchain(ObeliskSwapchain* swapchain, VkSwapchainKHR oldSwapch
         .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
     };
 
-    uint32_t queueFamilyIndices[] = { obeliskGetQueueGraphicsFamilyIndex(), obeliskGetQueuePresentFamilyIndex() };
-    if (queueFamilyIndices[0] != queueFamilyIndices[1]) {
-        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        createInfo.pQueueFamilyIndices = queueFamilyIndices;
-        createInfo.queueFamilyIndexCount = 2;
-    } else {
-        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.pQueueFamilyIndices = NULL; // Optional
-        createInfo.queueFamilyIndexCount = 0; // Optional
-    }
+    createInfo.imageSharingMode = obeliskGetImageSharingMode();
+    createInfo.pQueueFamilyIndices = obeliskGetQueueFamilyIndices();
+    createInfo.queueFamilyIndexCount = OBELISK_QUEUE_COUNT;
 
     createInfo.preTransform = capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
