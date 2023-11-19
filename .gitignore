@@ -1,6 +1,8 @@
 #Directories
 .vs/
+.vscode/
 build/
+bin/
 
 #files
 *.user
