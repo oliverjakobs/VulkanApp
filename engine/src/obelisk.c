@@ -1,4 +1,4 @@
-#include "obelsik.h"
+#include "obelisk.h"
 
 KAPI b8 obeliskLoad(ObeliskApp* app, const char* title, i32 x, i32 y, u32 w, u32 h)
 {

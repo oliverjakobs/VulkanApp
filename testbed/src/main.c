@@ -1,4 +1,4 @@
-#include <obelsik.h>
+#include <obelisk.h>
 
 #include <platform/platform.h>
 
