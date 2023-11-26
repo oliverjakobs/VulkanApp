@@ -1,50 +1,69 @@
 #include "common.h"
 
-#include "platform/platform.h"
-
-// TODO: temporary
 #include <stdio.h>
 #include <string.h>
-#include <stdarg.h>
 
-b8 initialize_logging() {
-    // TODO: create log file.
-    return TRUE;
-}
+/* --------------------------| logging |--------------------------------- */
+#define MINIMAL_LOG_BLACK       "\x1b[30m"
+#define MINIMAL_LOG_RED         "\x1b[31m"
+#define MINIMAL_LOG_GREEN       "\x1b[32m"
+#define MINIMAL_LOG_YELLOW      "\x1b[33m"
+#define MINIMAL_LOG_BLUE        "\x1b[34m"
+#define MINIMAL_LOG_MAGENTA     "\x1b[35m"
+#define MINIMAL_LOG_CYAN        "\x1b[36m"
+#define MINIMAL_LOG_WHITE       "\x1b[37m"
 
-void shutdown_logging() {
-    // TODO: cleanup logging/write queued entries.
-}
+#define MINIMAL_LOG_BG_BLACK    "\x1b[40m"
+#define MINIMAL_LOG_BG_RED      "\x1b[41m"
+#define MINIMAL_LOG_BG_GREEN    "\x1b[42m"
+#define MINIMAL_LOG_BG_YELLOW   "\x1b[43m"
+#define MINIMAL_LOG_BG_BLUE     "\x1b[44m"
+#define MINIMAL_LOG_BG_MAGENTA  "\x1b[45m"
+#define MINIMAL_LOG_BG_CYAN     "\x1b[46m"
+#define MINIMAL_LOG_BG_WHITE    "\x1b[47m"
 
-void log_output(log_level level, const char* message, ...) {
-    const char* level_strings[6] = {"[FATAL]: ", "[ERROR]: ", "[WARN]:  ", "[INFO]:  ", "[DEBUG]: ", "[TRACE]: "};
-    b8 is_error = level < 2;
+#define MINIMAL_LOG_RESET       "\x1b[0m" /* no color */
 
-    // Technically imposes a 32k character limit on a single log entry, but...
-    // DON'T DO THAT!
-    char out_message[32000];
-    memset(out_message, 0, sizeof(out_message));
-
-    // Format original message.
-    // NOTE: Oddly enough, MS's headers override the GCC/Clang va_list type with a "typedef char* va_list" in some
-    // cases, and as a result throws a strange error here. The workaround for now is to just use __builtin_va_list,
-    // which is the type GCC/Clang's va_start expects.
-    __builtin_va_list arg_ptr;
-    va_start(arg_ptr, message);
-    vsnprintf(out_message, 32000, message, arg_ptr);
-    va_end(arg_ptr);
-
-    char out_message2[32000];
-    sprintf(out_message2, "%s%s\n", level_strings[level], out_message);
-
-    // Platform-specific output.
-    if (is_error) {
-        platform_console_write_error(out_message2, level);
-    } else {
-        platform_console_write(out_message2, level);
+static const char* minimalLoggerGetLevelStr(MinimalLogLevel level)
+{
+    switch (level)
+    {
+    case MINIMAL_LOG_TRACE:     return MINIMAL_LOG_WHITE "[TRACE]" MINIMAL_LOG_RESET " ";
+    case MINIMAL_LOG_INFO:      return MINIMAL_LOG_GREEN "[INFO]" MINIMAL_LOG_RESET " ";
+    case MINIMAL_LOG_WARN:      return MINIMAL_LOG_YELLOW "[WARN]" MINIMAL_LOG_RESET " ";
+    case MINIMAL_LOG_ERROR:     return MINIMAL_LOG_RED "[ERROR]" MINIMAL_LOG_RESET " ";
+    case MINIMAL_LOG_CRITICAL:  return MINIMAL_LOG_WHITE MINIMAL_LOG_BG_RED "[CRITICAL]" MINIMAL_LOG_RESET " ";
+    default: return "";
     }
 }
 
-void report_assertion_failure(const char* expression, const char* message, const char* file, i32 line) {
-    log_output(LOG_LEVEL_FATAL, "Assertion Failure: %s, message: '%s', in file: %s, line: %d\n", expression, message, file, line);
+void minimalLoggerPrint(MinimalLogLevel level, const char* fmt, ...)
+{
+    va_list arg;
+    va_start(arg, fmt);
+    minimalLoggerPrintV(level, fmt, arg);
+    va_end(arg);
+}
+
+void minimalLoggerPrintV(MinimalLogLevel level, const char* fmt, va_list args)
+{
+    fprintf(stderr, "%s", minimalLoggerGetLevelStr(level));
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+}
+
+
+void* minimalMemCopy(void* dst, const void* src, u64 size)
+{
+    return memcpy(dst, src, size);
+}
+
+void* minimalMemZero(void* block, u64 size)
+{
+    return memset(block, 0, size);
+}
+
+void* minimalMemSet(void* block, i32 value, u64 size)
+{
+    return memset(block, value, size);
 }

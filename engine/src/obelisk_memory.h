@@ -26,12 +26,9 @@ typedef enum
     OBELISK_MEMTAG_COUNT
 } ObeliskMemTag;
 
-b8 obeliskMemoryInit();
-b8 obeliskMemoryTerminate();
+u8 obeliskMemoryInit();
+u8 obeliskMemoryTerminate();
 
-KAPI void* obeliskAlloc(u64 size, ObeliskMemTag tag);
-KAPI void  obeliskFree(void* block, u64 size, ObeliskMemTag tag);
+MINIMAL_API void* obeliskAlloc(u64 size, ObeliskMemTag tag);
+MINIMAL_API void  obeliskFree(void* block, u64 size, ObeliskMemTag tag);
 
-KAPI void* obeliskMemCopy(void* dst, const void* src, u64 size);
-KAPI void* obeliskMemZero(void* block, u64 size);
-KAPI void* obeliskMemSet(void* block, i32 value, u64 size);
