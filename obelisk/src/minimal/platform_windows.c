@@ -97,7 +97,7 @@ MinimalWindow* minimalCreateWindow(const char* title, i32 x, i32 y, u32 w, u32 h
     w += rect.right - rect.left;
     h += rect.bottom - rect.top;
 
-    window->handle = CreateWindowExA(style_ex, MINIMAL_WNDCLASSNAME, NULL, style, x, y, w, h, 0, 0, window->instance, 0);
+    window->handle = CreateWindowExA(style_ex, MINIMAL_WNDCLASSNAME, title, style, x, y, w, h, 0, 0, window->instance, 0);
     if (!window->handle)
     {
         MINIMAL_ERROR("[Platform] Failed to create window");
@@ -124,10 +124,10 @@ void minimalDestroyWindow(MinimalWindow* window)
 void minimalPollWindowEvents(MinimalWindow* window)
 {
     MSG msg;
-    while (PeekMessageW(&msg, window->handle, 0, 0, PM_REMOVE))
+    while (PeekMessageA(&msg, window->handle, 0, 0, PM_REMOVE))
     {
         TranslateMessage(&msg);
-        DispatchMessageW(&msg);
+        DispatchMessageA(&msg);
     }
 }
 
@@ -174,7 +174,7 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
 {
     MinimalApp* context = minimalGetCurrentContext();
 
-    if (!context) return DefWindowProcW(hwnd, msg, wParam, lParam);
+    if (!context) return DefWindowProcA(hwnd, msg, wParam, lParam);
 
     switch (msg)
     {
@@ -184,7 +184,6 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
-    case WM_QUIT:
     case WM_CLOSE:
         minimalClose(context);
         return 0;
@@ -264,7 +263,7 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         return 0;
     }
     }
-    return DefWindowProcW(hwnd, msg, wParam, lParam);
+    return DefWindowProcA(hwnd, msg, wParam, lParam);
 }
 
 #endif // MINIMAL_PLATFORM_WINDOWS

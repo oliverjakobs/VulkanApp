@@ -13,8 +13,8 @@ REM echo "Files:" %cFilenames%
 SET assembly=testbed
 SET compilerFlags=-g 
 REM -Wall -Werror
-SET includeFlags=-Isrc -I../engine/src/
-SET linkerFlags=-L../bin/ -lengine.lib
+SET includeFlags=-Isrc -I../obelisk/src/
+SET linkerFlags=-L../bin/ -lobelisk.lib
 SET defines=-D_DEBUG -DMINIMAL_IMPORT
 
 ECHO "Building %assembly%%..."

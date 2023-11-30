@@ -5,7 +5,6 @@
 #include "platform.h"
 #include "event.h"
 #include "input.h"
-#include "ignis/ignis.h"
 
 /* minimal version numbers */
 #define MINIMAL_VERSION_MAJOR       1

@@ -1,4 +1,4 @@
-REM Build script for engine
+REM Build script for obelisk
 @ECHO OFF
 SetLocal EnableDelayedExpansion
 
@@ -10,7 +10,7 @@ FOR /R %%f in (*.c) do (
 
 REM echo "Files:" %cFilenames%
 
-SET assembly=engine
+SET assembly=obelisk
 SET compilerFlags=-g -shared -Wvarargs -Wall -Werror
 REM -Wall -Werror
 SET includeFlags=-Isrc -I%VULKAN_SDK%/Include
