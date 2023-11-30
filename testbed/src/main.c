@@ -1,4 +1,4 @@
-#include <minimal.h>
+#include <minimal/minimal.h>
 
 u8 onLoad(MinimalApp* app, u32 w, u32 h)
 {

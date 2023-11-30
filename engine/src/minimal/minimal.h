@@ -5,6 +5,7 @@
 #include "platform.h"
 #include "event.h"
 #include "input.h"
+#include "ignis/ignis.h"
 
 /* minimal version numbers */
 #define MINIMAL_VERSION_MAJOR       1
@@ -30,12 +31,6 @@ struct MinimalApp
 
     MinimalEventCB on_event;
     MinimalTickCB  on_tick;
-
-    u32 fps;
-
-    // settings
-    u8 debug : 1;
-    u8 vsync : 1;
 };
 
 MINIMAL_API u8   minimalLoad(MinimalApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h);
@@ -45,10 +40,8 @@ MINIMAL_API void minimalDestroy(MinimalApp* app);
 MINIMAL_API void minimalRun(MinimalApp* app);
 MINIMAL_API void minimalClose(MinimalApp* app);
 
-/* --------------------------| settings |-------------------------------- */
-MINIMAL_API void minimalSetTitle(MinimalApp* app, const char* title);
-
-MINIMAL_API void minimalEnableDebug(MinimalApp* app, u8 b);
-MINIMAL_API void minimalToggleDebug(MinimalApp* app);
+/* --------------------------| context |--------------------------------- */
+void minimalSetCurrentContext(MinimalApp* context);
+MinimalApp* minimalGetCurrentContext();
 
 #endif // !MINIMAL_H

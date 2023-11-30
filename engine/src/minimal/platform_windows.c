@@ -3,9 +3,7 @@
 #ifdef MINIMAL_PLATFORM_WINDOWS
 
 #include "common.h"
-#include "event.h"
-#include "input.h"
-#include "obelisk_memory.h"
+#include "minimal.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
     #define WIN32_LEAN_AND_MEAN
@@ -25,7 +23,6 @@
 //clock
 static u64 _minimal_timer_frequency = 0;
 static u64 _minimal_timer_offset = 0;
-
 
 static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -79,8 +76,6 @@ struct MinimalWindow
     HWND        handle;
 
     u8 should_close;
-
-    void* event_handler;
 };
 
 MinimalWindow* minimalCreateWindow(const char* title, i32 x, i32 y, u32 w, u32 h)
@@ -123,41 +118,26 @@ void minimalDestroyWindow(MinimalWindow* window)
         MINIMAL_ERROR("[Platform] Failed to destroy window");
     }
 
-    obeliskFree(window, sizeof(MinimalWindow), OBELISK_MEMTAG_UNTRACED);
+    free(window);
 }
 
-void minimalSetWindowEventHandler(MinimalWindow* window, void* handler)
-{
-    window->event_handler = handler;
-}
-
-void* minimalGetWindowEventHandler(MinimalWindow* window)
-{
-    return window->event_handler;
-}
-
-static MinimalWindow* _current_context;
-
-void minimalMakeContextCurrent(MinimalWindow* context) { _current_context = context; }
-MinimalWindow* minimalGetCurrentContext()              { return _current_context; }
-
-void minimalPollWindowEvents(MinimalWindow* context)
+void minimalPollWindowEvents(MinimalWindow* window)
 {
     MSG msg;
-    while (PeekMessageW(&msg, context->handle, 0, 0, PM_REMOVE))
+    while (PeekMessageW(&msg, window->handle, 0, 0, PM_REMOVE))
     {
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
 }
 
-void minimalSetWindowTitle(MinimalWindow* context, const char* title)
+void minimalSetWindowTitle(MinimalWindow* window, const char* title)
 {
-    SetWindowTextA(context->handle, title);
+    SetWindowTextA(window->handle, title);
 }
 
-u8   minimalShouldClose(const MinimalWindow* context) { return context->should_close; }
-void minimalCloseWindow(MinimalWindow* context)       { context->should_close = 1; }
+u8   minimalShouldClose(const MinimalWindow* window) { return window->should_close; }
+void minimalCloseWindow(MinimalWindow* window)       { window->should_close = 1; }
 
 
 f64 minimalGetTime()
@@ -192,9 +172,9 @@ static u16 minimalGetMouseButton(UINT msg, WPARAM wParam)
 
 static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    if (!_current_context) return DefWindowProcW(hwnd, msg, wParam, lParam);
+    MinimalApp* context = minimalGetCurrentContext();
 
-    MinimalApp* event_handler = minimalGetWindowEventHandler(_current_context);
+    if (!context) return DefWindowProcW(hwnd, msg, wParam, lParam);
 
     switch (msg)
     {
@@ -206,7 +186,7 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         return 0;
     case WM_QUIT:
     case WM_CLOSE:
-        minimalCloseWindow(_current_context);
+        minimalClose(context);
         return 0;
         
     case WM_SIZE:
@@ -221,7 +201,7 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         u32 mods = minimalGetKeyMods();
 
         if (codepoint > 31)
-            minimalDispatchEvent(event_handler, MINIMAL_EVENT_CHAR, codepoint, 0, mods);
+            minimalDispatchEvent(context, MINIMAL_EVENT_CHAR, codepoint, 0, mods);
 
         return 0;
     }
@@ -235,7 +215,7 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         u32 mods = minimalGetKeyMods();
 
         if (minimalProcessKey(keycode, action))
-            minimalDispatchEvent(event_handler, MINIMAL_EVENT_KEY, keycode, action, mods);
+            minimalDispatchEvent(context, MINIMAL_EVENT_KEY, keycode, action, mods);
 
         return 0;
     }
@@ -258,7 +238,7 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         i32 y = MINIMAL_GET_Y_LPARAM(lParam);
 
         if (minimalProcessMouseButton(button, action))
-            minimalDispatchEvent(event_handler, MINIMAL_EVENT_MOUSE_BUTTON, (button << 16) + action, x, y);
+            minimalDispatchEvent(context, MINIMAL_EVENT_MOUSE_BUTTON, (button << 16) + action, x, y);
 
         return msg == WM_XBUTTONDOWN || msg == WM_XBUTTONUP;
     }
@@ -268,19 +248,19 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         i32 y = MINIMAL_GET_Y_LPARAM(lParam);
 
         if (minimalProcessMouseButton((f32)x, (f32)y))
-            minimalDispatchEvent(event_handler, MINIMAL_EVENT_MOUSE_MOVED, 0, x, y);
+            minimalDispatchEvent(context, MINIMAL_EVENT_MOUSE_MOVED, 0, x, y);
         return 0;
     }
     case WM_MOUSEWHEEL:
     {
         i32 scroll = MINIMAL_GET_SCROLL(wParam);
-        minimalDispatchEvent(event_handler, MINIMAL_EVENT_MOUSE_SCROLLED, 0, 0, scroll);
+        minimalDispatchEvent(context, MINIMAL_EVENT_MOUSE_SCROLLED, 0, 0, scroll);
         return 0;
     }
     case WM_MOUSEHWHEEL:
     {
         i32 scroll = MINIMAL_GET_SCROLL(wParam);
-        minimalDispatchEvent(event_handler, MINIMAL_EVENT_MOUSE_SCROLLED, 0, scroll, 0);
+        minimalDispatchEvent(context, MINIMAL_EVENT_MOUSE_SCROLLED, 0, scroll, 0);
         return 0;
     }
     }

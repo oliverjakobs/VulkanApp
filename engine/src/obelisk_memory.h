@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.h"
+#include "minimal/common.h"
 
 typedef enum
 {

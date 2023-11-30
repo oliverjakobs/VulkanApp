@@ -16,13 +16,8 @@ const char* minimalGetVersionString()
 }
 
 /* --------------------------| minimal app |----------------------------- */
-
 u8 minimalLoad(MinimalApp* app, const char* title, i32 x, i32 y, u32 w, u32 h)
 {
-    app->fps = 0;
-    app->debug = 0;
-    app->vsync = 1;
-
     /* minimal initialization */
     if (!minimalPlatformInit())
     {
@@ -37,9 +32,8 @@ u8 minimalLoad(MinimalApp* app, const char* title, i32 x, i32 y, u32 w, u32 h)
         MINIMAL_ERROR("[App] Failed to create Minimal window");
         return MINIMAL_FAIL;
     }
-
-    minimalSetWindowEventHandler(app->window, app);
-    minimalMakeContextCurrent(app->window);
+    
+    minimalSetCurrentContext(app);
 
     return (app->on_load) ? app->on_load(app, w, h) : MINIMAL_OK;
 }
@@ -47,8 +41,8 @@ u8 minimalLoad(MinimalApp* app, const char* title, i32 x, i32 y, u32 w, u32 h)
 void minimalDestroy(MinimalApp* app)
 {
     if (app->on_destroy) app->on_destroy(app);
-    minimalDestroyWindow(app->window);
 
+    minimalDestroyWindow(app->window);
     minimalPlatformTerminate();
 }
 
@@ -57,7 +51,8 @@ void minimalRun(MinimalApp* app)
     f64 seconds = 0.0;
     f64 deltatime = 0.0;
     f64 lastframe = 0.0;
-    u32 frames = 0;
+    // u32 frames = 0;
+    // u32 fps = 0;
 
     while (!minimalShouldClose(app->window))
     {
@@ -71,21 +66,21 @@ void minimalRun(MinimalApp* app)
 
         minimalPollWindowEvents(app->window);
 
-        frames++;
+        //frames++;
         if ((minimalGetTime() - seconds) > 1.0)
         {
             seconds += 1.0;
-            app->fps = frames;
-            frames = 0;
+            // fps = frames;
+            // frames = 0;
         }
     }
 }
 
 void minimalClose(MinimalApp* app) { minimalCloseWindow(app->window); }
 
-/* --------------------------| settings |-------------------------------- */
-void minimalSetTitle(MinimalApp* app, const char* title) { minimalSetWindowTitle(app->window, title); }
 
-void minimalEnableDebug(MinimalApp* app, u8 b)  { app->debug = b; }
+/* --------------------------| context |--------------------------------- */
+static MinimalApp* _current_context;
 
-void minimalToggleDebug(MinimalApp* app) { minimalEnableDebug(app, !app->debug); }
+void minimalSetCurrentContext(MinimalApp* context) { _current_context = context; }
+MinimalApp* minimalGetCurrentContext()             { return _current_context; }
