@@ -16,4 +16,5 @@ void ignisDestroyContext();
 uint8_t ignisBeginFrame();
 uint8_t ignisEndFrame();
 
+
 #endif /* !IGNIS_H */

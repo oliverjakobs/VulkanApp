@@ -32,4 +32,12 @@ typedef struct
     IgnisDevice device;
 } IgnisContext;
 
+
+#ifdef IGNIS_DEBUG
+
+VkResult ignisCreateDebugUtilsMessenger(VkInstance instance, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* messenger);
+void ignisDestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* allocator);
+
+#endif
+
 #endif /* IGNIS_TYPES_H */
