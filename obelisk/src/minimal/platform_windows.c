@@ -8,9 +8,8 @@
 #ifndef WIN32_LEAN_AND_MEAN
     #define WIN32_LEAN_AND_MEAN
 #endif
-
 #include <windows.h>
-#include <windowsx.h>  // param input extraction
+
 #include <stdlib.h>
 
 #define MINIMAL_WNDCLASSNAME "MINIMALWNDCLASS"
@@ -148,7 +147,6 @@ f64 minimalGetTime()
     return (f64)(value - _minimal_timer_offset) / _minimal_timer_frequency;
 }
 
-
 static u32 minimalGetKeyMods()
 {
     u32 mods = 0;
@@ -265,5 +263,23 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
     }
     return DefWindowProcA(hwnd, msg, wParam, lParam);
 }
+
+#ifdef MINIMAL_VULKAN
+
+#include <vulkan/vulkan_win32.h>
+
+VkResult minimalCreateWindowSurface(VkInstance instance, MinimalWindow* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface)
+{
+    VkWin32SurfaceCreateInfoKHR create_info = {
+        .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+        .hinstance = window->instance,
+        .hwnd = window->handle,
+        .flags = 0
+    };
+
+    return vkCreateWin32SurfaceKHR(instance, &create_info, allocator, surface);
+}
+
+#endif
 
 #endif // MINIMAL_PLATFORM_WINDOWS

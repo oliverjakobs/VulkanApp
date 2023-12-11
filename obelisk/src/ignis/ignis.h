@@ -1,14 +1,19 @@
 #ifndef IGNIS_H
 #define IGNIS_H
 
-#include "minimal/common.h"
+#include <stdint.h>
 
-typedef struct IgnisContext IgnisContext;
+#define IGNIS_FAIL    0
+#define IGNIS_OK      1
 
-u8 ignisCreateContext(IgnisContext* context, const char* name);
-void ignisDestroyContext(IgnisContext* context);
+#ifdef _DEBUG
+    #define IGNIS_DEBUG
+#endif
 
-u8 ignisBeginFrame(IgnisContext* context);
-u8 ignisEndFrame(IgnisContext* context);
+uint8_t ignisCreateContext(const char* name);
+void ignisDestroyContext();
+
+uint8_t ignisBeginFrame();
+uint8_t ignisEndFrame();
 
 #endif /* !IGNIS_H */

@@ -18,9 +18,12 @@ void minimalCloseWindow(MinimalWindow* window);
 
 double minimalGetTime();
 
-i8 minimalGetKeyState(const MinimalWindow* window, u32 keycode);
-i8 minimalGetMouseButtonState(const MinimalWindow* window, u32 button);
+#ifdef MINIMAL_VULKAN
 
-void minimalGetCursorPos(const MinimalWindow* window, f32* x, f32* y);
+#include <vulkan/vulkan.h>
+
+VkResult minimalCreateWindowSurface(VkInstance instance, MinimalWindow* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface);
+
+#endif
 
 #endif // !MINIMAL_PLATFORM_H

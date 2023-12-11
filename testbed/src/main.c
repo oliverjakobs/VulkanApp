@@ -1,4 +1,4 @@
-#include <minimal/minimal.h>
+#include <obelisk.h>
 
 u8 onLoad(MinimalApp* app, u32 w, u32 h)
 {
@@ -34,10 +34,10 @@ int main(void)
         .on_tick =    onTick
     };
 
-    if (minimalLoad(&app, "Obelisk Test", 100, 100, 1280, 720))
-        minimalRun(&app);
+    if (obeliskLoad(&app, "Obelisk Test", 100, 100, 1280, 720))
+        obeliskRun(&app);
 
-    minimalDestroy(&app);
+    obeliskDestroy(&app);
 
     return 0;
 }
