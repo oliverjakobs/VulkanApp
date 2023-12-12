@@ -17,4 +17,7 @@ uint8_t ignisBeginFrame();
 uint8_t ignisEndFrame();
 
 
+void* ignisAlloc(size_t size);
+void  ignisFree(void* block, size_t size);
+
 #endif /* !IGNIS_H */

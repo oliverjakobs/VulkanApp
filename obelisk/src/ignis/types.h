@@ -10,12 +10,27 @@
         MINIMAL_ASSERT(expr == VK_SUCCESS, ""); \
     }
 
-#define VK_EXT_PFN(instance, name) (PFN_##name)vkGetInstanceProcAddr((instance), #name)
+typedef enum
+{
+    IGNIS_QUEUE_GRAPHICS,
+    IGNIS_QUEUE_TRANSFER,
+    IGNIS_QUEUE_COMPUTE,
+    IGNIS_QUEUE_PRESENT,
+    IGNIS_MAX_QUEUE_INDEX
+} IgnisQueueFamilyIndex;
+
+#define IGNIS_QUEUE_FLAG_GRAPHICS   0x0001
+#define IGNIS_QUEUE_FLAG_TRANSFER   0x0002
+#define IGNIS_QUEUE_FLAG_COMPUTE    0x0004
+#define IGNIS_QUEUE_FLAG_PRESENT    0x0008
 
 typedef struct
 {
     VkPhysicalDevice physical;
     VkDevice handle;
+
+    uint32_t queue_families_set;
+    uint32_t queue_family_indices[IGNIS_MAX_QUEUE_INDEX];
 } IgnisDevice;
 
 typedef struct

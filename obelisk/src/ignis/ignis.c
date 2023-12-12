@@ -1,9 +1,10 @@
 #include "ignis.h"
 #include "types.h"
 
+#include "device.h"
+
 #include <string.h>
 
-#include "obelisk_memory.h"
 #include "minimal/minimal.h"
 
 
@@ -13,26 +14,26 @@ static const char* const validation_layers[] = {
 
 static const uint32_t validation_layer_count = sizeof(validation_layers) / sizeof(validation_layers[0]);
 
-static int ignisCheckValidationLayerSupport()
+static uint8_t ignisCheckValidationLayerSupport()
 {
     uint32_t count;
     vkEnumerateInstanceLayerProperties(&count, NULL);
-    if (!count || validation_layer_count > count) return 0;
+    if (!count || validation_layer_count > count) return IGNIS_FAIL;
 
-    VkLayerProperties* layers = obeliskAlloc(sizeof(VkLayerProperties) * count, OBELISK_MEMTAG_UNTRACED);
-    if (!layers) return 0;
+    VkLayerProperties* properties = ignisAlloc(sizeof(VkLayerProperties) * count);
+    if (!properties) return IGNIS_FAIL;
 
-    vkEnumerateInstanceLayerProperties(&count, layers);
+    vkEnumerateInstanceLayerProperties(&count, properties);
 
-    int found = 0;
+    uint8_t found = IGNIS_FAIL;
     for (size_t i = 0; i < validation_layer_count; ++i)
     {
-        found = 0;
-        for (size_t available = 0; available < count; ++available)
+        found = IGNIS_FAIL;
+        for (size_t j = 0; j < count; ++j)
         {
-            if (strcmp(validation_layers[i], layers[available].layerName) == 0)
+            if (strcmp(validation_layers[i], properties[j].layerName) == 0)
             {
-                found = 1;
+                found = IGNIS_OK;
                 break;
             }
         }
@@ -40,7 +41,7 @@ static int ignisCheckValidationLayerSupport()
         if (!found) break;
     }
 
-    obeliskFree(layers, sizeof(VkLayerProperties) * count, OBELISK_MEMTAG_UNTRACED);
+    ignisFree(properties, sizeof(VkLayerProperties) * count);
     return found;
 }
 
@@ -105,15 +106,23 @@ uint8_t ignisCreateContext(const char* name)
         return IGNIS_FAIL;
     }
 
-        // Debugger
+    // Debugger
 #ifdef IGNIS_DEBUG
     VK_CHECK(ignisCreateDebugUtilsMessenger(context.instance, context.allocator, &context.debug_messenger));
 #endif
 
+    // Surface
     result = minimalCreateWindowSurface(context.instance, minimalGetCurrentContext()->window, context.allocator, &context.surface);
     if (result != VK_SUCCESS)
     {
         MINIMAL_ERROR("Failed to create window surface with result: %u", result);
+        return IGNIS_FAIL;
+    }
+
+    // Device creation
+    if (!ignisCreateDevice(&context))
+    {
+        MINIMAL_ERROR("Failed to create device!");
         return IGNIS_FAIL;
     }
 
@@ -122,6 +131,8 @@ uint8_t ignisCreateContext(const char* name)
 
 void ignisDestroyContext()
 {
+    ignisDestroyDevice(&context);
+
     vkDestroySurfaceKHR(context.instance, context.surface, context.allocator);
 
 #ifdef IGNIS_DEBUG
@@ -141,3 +152,5 @@ uint8_t ignisEndFrame()
     return IGNIS_OK;
 }
 
+void* ignisAlloc(size_t size) { return malloc(size); }
+void  ignisFree(void* block, size_t size)  { free(block); }

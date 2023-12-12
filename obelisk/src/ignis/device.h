@@ -8,4 +8,6 @@ void ignisDestroyDevice(IgnisContext* context);
 
 void ignisQueryDeviceSwapchainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
 
+void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device);
+
 #endif /* !IGNIS_DEVICE_H */
