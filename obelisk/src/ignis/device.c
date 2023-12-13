@@ -66,6 +66,11 @@ static uint8_t ignisPickPhysicalDevice(IgnisContext* context, IgnisDevice* devic
     return device->physical != VK_NULL_HANDLE;
 }
 
+static uint8_t ignisArrayCheckUnique(uint32_t arr[], uint32_t size) {
+    for (uint32_t i = 1; i < size; ++i)
+        if (arr[0] == arr[i]) return IGNIS_FAIL;
+    return IGNIS_OK;
+}
 
 uint8_t ignisCreateDevice(IgnisContext* context)
 {
@@ -74,12 +79,49 @@ uint8_t ignisCreateDevice(IgnisContext* context)
         return IGNIS_FAIL;
     }
 
+    // create logical device
+    uint32_t queue_count = 0;
+    VkDeviceQueueCreateInfo queue_create_infos[IGNIS_MAX_QUEUE_INDEX] = { 0 };
+
+    float queue_priority = 1.0f;
+    for (uint32_t i = 0; i < IGNIS_MAX_QUEUE_INDEX; ++i)
+    {
+        if (!ignisArrayCheckUnique(context->device.queue_family_indices + i, IGNIS_MAX_QUEUE_INDEX - i))
+            continue;
+
+        queue_create_infos[queue_count++] = (VkDeviceQueueCreateInfo){
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .queueFamilyIndex = context->device.queue_family_indices[i],
+            .queueCount = 1,
+            .pQueuePriorities = &queue_priority,
+        };
+    }
+
+    VkPhysicalDeviceFeatures device_features = { 0 };
+
+    VkDeviceCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pQueueCreateInfos = queue_create_infos,
+        .queueCreateInfoCount = queue_count,
+        .pEnabledFeatures = &device_features,
+        .ppEnabledExtensionNames = device_extensions,
+        .enabledExtensionCount = device_extension_count
+    };
+
+    VkResult result = vkCreateDevice(context->device.physical, &create_info, context->allocator, &context->device.handle);
+    if (result != VK_SUCCESS)
+        return IGNIS_FAIL;
+
+    /* get queues */
+    for (size_t i = 0; i < IGNIS_MAX_QUEUE_INDEX; ++i)
+        vkGetDeviceQueue(context->device.handle, context->device.queue_family_indices[i], 0, &context->device.queues[i]);
+
     return IGNIS_OK;
 }
 
 void ignisDestroyDevice(IgnisContext* context)
 {
-
+    vkDestroyDevice(context->device.handle, context->allocator);
 }
 
 void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device)

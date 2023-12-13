@@ -31,6 +31,8 @@ typedef struct
 
     uint32_t queue_families_set;
     uint32_t queue_family_indices[IGNIS_MAX_QUEUE_INDEX];
+
+    VkQueue queues[IGNIS_MAX_QUEUE_INDEX];
 } IgnisDevice;
 
 typedef struct
