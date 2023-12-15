@@ -1,14 +1,30 @@
-#ifndef IGNIS_TYPES_H
-#define IGNIS_TYPES_H
+#ifndef IGNIS_CORE_H
+#define IGNIS_CORE_H
 
-#include "ignis.h"
+#include <stdint.h>
+#include <string.h>
 
 #include <vulkan/vulkan.h>
+
+
+#ifdef _DEBUG
+    #define IGNIS_DEBUG
+#endif
+
+#define IGNIS_FAIL    0
+#define IGNIS_OK      1
 
 #define VK_CHECK(expr)                          \
     {                                           \
         MINIMAL_ASSERT(expr == VK_SUCCESS, ""); \
     }
+
+typedef VkResult (*ignisCreateSurfaceFn)(VkInstance, const void*, const VkAllocationCallbacks*, VkSurfaceKHR*);
+typedef struct
+{
+    ignisCreateSurfaceFn create_surface;
+    const void* context;
+} IgnisPlatform;
 
 typedef enum
 {
@@ -26,17 +42,6 @@ typedef enum
 
 typedef struct
 {
-    VkPhysicalDevice physical;
-    VkDevice handle;
-
-    uint32_t queue_families_set;
-    uint32_t queue_family_indices[IGNIS_MAX_QUEUE_INDEX];
-
-    VkQueue queues[IGNIS_MAX_QUEUE_INDEX];
-} IgnisDevice;
-
-typedef struct
-{
     VkInstance instance;
     VkAllocationCallbacks* allocator;
 
@@ -46,9 +51,22 @@ typedef struct
     VkDebugUtilsMessengerEXT debug_messenger;
 #endif
 
-    IgnisDevice device;
+    VkPhysicalDevice physical_device;
+    VkDevice device;
+
+    uint32_t queue_families_set;
+    uint32_t queue_family_indices[IGNIS_MAX_QUEUE_INDEX];
+
+    VkQueue queues[IGNIS_MAX_QUEUE_INDEX];
 } IgnisContext;
 
+uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisPlatform* platform);
+void ignisDestroyContext(IgnisContext* context);
+
+uint8_t ignisPickPhysicalDevice(IgnisContext* context);
+uint8_t ignisCreateLogicalDevice(IgnisContext* context);
+
+void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device);
 
 #ifdef IGNIS_DEBUG
 
@@ -57,4 +75,9 @@ void ignisDestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerE
 
 #endif
 
-#endif /* IGNIS_TYPES_H */
+
+void* ignisAlloc(size_t size);
+void  ignisFree(void* block, size_t size);
+
+
+#endif /* IGNIS_CORE_H */

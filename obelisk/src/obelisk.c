@@ -1,5 +1,7 @@
 #include "obelisk.h"
 
+#include "ignis/ignis.h"
+
 u8 obeliskLoad(MinimalApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
 {
     MinimalLoadCB on_load = app->on_load;
@@ -11,7 +13,7 @@ u8 obeliskLoad(MinimalApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
         return MINIMAL_FAIL;
     }
 
-    if (!ignisCreateContext("obelisk"))
+    if (!ignisInit())
     {
         MINIMAL_CRITICAL("Failed to create ignis context.");
         return MINIMAL_FAIL;
@@ -23,7 +25,7 @@ u8 obeliskLoad(MinimalApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
 
 void obeliskDestroy(MinimalApp* app)
 {
-    ignisDestroyContext();
+    ignisTerminate();
 
     minimalDestroy(app);
 }

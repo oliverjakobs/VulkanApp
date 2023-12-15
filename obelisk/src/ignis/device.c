@@ -1,4 +1,4 @@
-#include "device.h"
+#include "ignis_core.h"
 
 #include <string.h>
 
@@ -18,13 +18,11 @@ static const uint32_t queue_families = IGNIS_QUEUE_FLAG_GRAPHICS
 
 
 static uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t* indices);
-
 static uint8_t ignisQuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
-
 static uint8_t ignisCheckDeviceExtensionSupport(VkPhysicalDevice device);
 
 
-static uint8_t ignisPickPhysicalDevice(IgnisContext* context, IgnisDevice* device)
+static uint8_t ignisPickPhysicalDevice(IgnisContext* context)
 {
     uint32_t count = 0;
     vkEnumeratePhysicalDevices(context->instance, &count, NULL);
@@ -36,7 +34,7 @@ static uint8_t ignisPickPhysicalDevice(IgnisContext* context, IgnisDevice* devic
 
     vkEnumeratePhysicalDevices(context->instance, &count, devices);
 
-    device->physical = VK_NULL_HANDLE;
+    context->physical_device = VK_NULL_HANDLE;
     for (uint32_t i = 0; i < count; ++i)
     {
         // queue families
@@ -54,44 +52,39 @@ static uint8_t ignisPickPhysicalDevice(IgnisContext* context, IgnisDevice* devic
             continue;
 
         // suitable device found
-        device->physical = devices[i];
-        device->queue_families_set = families_set;
-        memcpy(device->queue_family_indices, family_indices, sizeof(uint32_t) * IGNIS_MAX_QUEUE_INDEX);
+        context->physical_device = devices[i];
+        context->queue_families_set = families_set;
+        memcpy(context->queue_family_indices, family_indices, sizeof(uint32_t) * IGNIS_MAX_QUEUE_INDEX);
 
         ignisPrintPhysicalDeviceInfo(devices[i]);
         break;
     }
 
     ignisFree(devices, sizeof(VkPhysicalDevice) * count);
-    return device->physical != VK_NULL_HANDLE;
+    return context->physical_device != VK_NULL_HANDLE;
 }
 
-static uint8_t ignisArrayCheckUnique(uint32_t arr[], uint32_t size) {
+static uint8_t ignisArrayCheckUnique(uint32_t arr[], uint32_t size)
+{
     for (uint32_t i = 1; i < size; ++i)
         if (arr[0] == arr[i]) return IGNIS_FAIL;
     return IGNIS_OK;
 }
 
-uint8_t ignisCreateDevice(IgnisContext* context)
+uint8_t ignisCreateLogicalDevice(IgnisContext* context)
 {
-    if (!ignisPickPhysicalDevice(context, &context->device))
-    {
-        return IGNIS_FAIL;
-    }
-
-    // create logical device
     uint32_t queue_count = 0;
     VkDeviceQueueCreateInfo queue_create_infos[IGNIS_MAX_QUEUE_INDEX] = { 0 };
 
     float queue_priority = 1.0f;
     for (uint32_t i = 0; i < IGNIS_MAX_QUEUE_INDEX; ++i)
     {
-        if (!ignisArrayCheckUnique(context->device.queue_family_indices + i, IGNIS_MAX_QUEUE_INDEX - i))
+        if (!ignisArrayCheckUnique(context->queue_family_indices + i, IGNIS_MAX_QUEUE_INDEX - i))
             continue;
 
         queue_create_infos[queue_count++] = (VkDeviceQueueCreateInfo){
             .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-            .queueFamilyIndex = context->device.queue_family_indices[i],
+            .queueFamilyIndex = context->queue_family_indices[i],
             .queueCount = 1,
             .pQueuePriorities = &queue_priority,
         };
@@ -108,20 +101,20 @@ uint8_t ignisCreateDevice(IgnisContext* context)
         .enabledExtensionCount = device_extension_count
     };
 
-    VkResult result = vkCreateDevice(context->device.physical, &create_info, context->allocator, &context->device.handle);
+    VkResult result = vkCreateDevice(context->physical_device, &create_info, context->allocator, &context->device);
     if (result != VK_SUCCESS)
         return IGNIS_FAIL;
 
     /* get queues */
     for (size_t i = 0; i < IGNIS_MAX_QUEUE_INDEX; ++i)
-        vkGetDeviceQueue(context->device.handle, context->device.queue_family_indices[i], 0, &context->device.queues[i]);
+        vkGetDeviceQueue(context->device, context->queue_family_indices[i], 0, &context->queues[i]);
 
     return IGNIS_OK;
 }
 
 void ignisDestroyDevice(IgnisContext* context)
 {
-    vkDestroyDevice(context->device.handle, context->allocator);
+    vkDestroyDevice(context->device, context->allocator);
 }
 
 void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device)

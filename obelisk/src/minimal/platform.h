@@ -22,7 +22,7 @@ double minimalGetTime();
 
 #include <vulkan/vulkan.h>
 
-VkResult minimalCreateWindowSurface(VkInstance instance, MinimalWindow* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface);
+VkResult minimalCreateWindowSurface(VkInstance instance, const MinimalWindow* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface);
 
 #endif
 

@@ -268,7 +268,7 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
 
 #include <vulkan/vulkan_win32.h>
 
-VkResult minimalCreateWindowSurface(VkInstance instance, MinimalWindow* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface)
+VkResult minimalCreateWindowSurface(VkInstance instance, const MinimalWindow* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface)
 {
     VkWin32SurfaceCreateInfoKHR create_info = {
         .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,

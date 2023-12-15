@@ -60,20 +60,18 @@ MINIMAL_STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
     #error "Unknown platform!"
 #endif
 
-#ifdef MINIMAL_EXPORT
-// Exports
-#ifdef _MSC_VER
-#define MINIMAL_API __declspec(dllexport)
-#else
-#define MINIMAL_API __attribute__((visibility("default")))
-#endif
-#else
-// Imports
-#ifdef _MSC_VER
-#define MINIMAL_API __declspec(dllimport)
-#else
-#define MINIMAL_API
-#endif
+#ifdef MINIMAL_EXPORT // Exports
+    #ifdef _MSC_VER
+        #define MINIMAL_API __declspec(dllexport)
+    #else
+        #define MINIMAL_API __attribute__((visibility("default")))
+    #endif
+#else // Imports
+    #ifdef _MSC_VER
+        #define MINIMAL_API __declspec(dllimport)
+    #else
+        #define MINIMAL_API
+    #endif
 #endif
 
 #define MINIMAL_FAIL    0

@@ -1,4 +1,4 @@
-#include "types.h"
+#include "ignis_core.h"
 
 #ifdef IGNIS_DEBUG
 
