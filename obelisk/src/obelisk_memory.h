@@ -32,3 +32,7 @@ u8 obeliskMemoryTerminate();
 MINIMAL_API void* obeliskAlloc(u64 size, ObeliskMemTag tag);
 MINIMAL_API void  obeliskFree(void* block, u64 size, ObeliskMemTag tag);
 
+void* obeliskMemCopy(void* dst, const void* src, u64 size);
+void* obeliskMemZero(void* block, u64 size);
+void* obeliskMemSet(void* block, i32 value, u64 size);
+

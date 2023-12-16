@@ -12,7 +12,7 @@ static struct MemStats
 
 u8 obeliskMemoryInit()
 {
-    minimalMemZero(&stats, sizeof(stats));
+    obeliskMemZero(&stats, sizeof(stats));
     return MINIMAL_OK;
 }
 
@@ -30,7 +30,7 @@ void* obeliskAlloc(u64 size, ObeliskMemTag tag)
     stats.tagged_allocations[tag] += size;
 
     void* block = malloc(size);
-    return minimalMemZero(block, size);
+    return obeliskMemZero(block, size);
 }
 
 void  obeliskFree(void* block, u64 size, ObeliskMemTag tag)
@@ -42,4 +42,19 @@ void  obeliskFree(void* block, u64 size, ObeliskMemTag tag)
     stats.tagged_allocations[tag] -= size;
 
     free(block);
+}
+
+void* obeliskMemCopy(void* dst, const void* src, u64 size)
+{
+    return memcpy(dst, src, size);
+}
+
+void* obeliskMemZero(void* block, u64 size)
+{
+    return memset(block, 0, size);
+}
+
+void* obeliskMemSet(void* block, i32 value, u64 size)
+{
+    return memset(block, value, size);
 }

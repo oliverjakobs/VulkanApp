@@ -17,9 +17,8 @@ static MinimalInputState state = { 0 };
 
 void minimalUpdateInput()
 {
-    minimalMemCopy(&state.prev_keys, &state.keys, MINIMAL_KEY_LAST + 1);
-
-    minimalMemCopy(&state.prev_buttons, &state.buttons, MINIMAL_MOUSE_BUTTON_LAST + 1);
+    MINIMAL_MEMCPY(&state.prev_keys, &state.keys, MINIMAL_KEY_LAST + 1);
+    MINIMAL_MEMCPY(&state.prev_buttons, &state.buttons, MINIMAL_MOUSE_BUTTON_LAST + 1);
 }
 
 u8 minimalProcessKey(MinimalKeycode keycode, u8 action)

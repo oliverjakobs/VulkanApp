@@ -3,7 +3,7 @@
 
 #include "ignis_core.h"
 
-uint8_t ignisInit();
+uint8_t ignisInit(const IgnisPlatform* platform);
 void ignisTerminate();
 
 

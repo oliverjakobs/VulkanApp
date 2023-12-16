@@ -14,10 +14,6 @@
 #define IGNIS_FAIL    0
 #define IGNIS_OK      1
 
-#define VK_CHECK(expr)                          \
-    {                                           \
-        MINIMAL_ASSERT(expr == VK_SUCCESS, ""); \
-    }
 
 typedef VkResult (*ignisCreateSurfaceFn)(VkInstance, const void*, const VkAllocationCallbacks*, VkSurfaceKHR*);
 typedef struct
@@ -70,8 +66,10 @@ void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device);
 
 #ifdef IGNIS_DEBUG
 
-VkResult ignisCreateDebugUtilsMessenger(VkInstance instance, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* messenger);
-void ignisDestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* allocator);
+void ignisFillDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT* info);
+
+VkResult ignisCreateDebugMessenger(IgnisContext* context);
+void ignisDestroyDebugMessenger(IgnisContext* context);
 
 #endif
 

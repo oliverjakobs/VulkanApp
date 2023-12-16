@@ -3,25 +3,27 @@
 
 #include <minimal/minimal.h>
 
-#ifdef OBELISK_EXPORT
-// Exports
-#ifdef _MSC_VER
-#define OBELISK_API __declspec(dllexport)
-#else
-#define OBELISK_API __attribute__((visibility("default")))
-#endif
-#else
-// Imports
-#ifdef _MSC_VER
-#define OBELISK_API __declspec(dllimport)
-#else
-#define OBELISK_API
-#endif
-#endif
+typedef struct ObeliskApp ObeliskApp;
 
-OBELISK_API u8 obeliskLoad(MinimalApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h);
-OBELISK_API void obeliskDestroy(MinimalApp* app);
+typedef u8   (*ObeliskLoadCB)    (ObeliskApp* app, u32 w, u32 h);
+typedef void (*ObeliskDestroyCB) (ObeliskApp* app);
 
-OBELISK_API void obeliskRun(MinimalApp* app);
+typedef u8   (*ObeliskEventCB)   (ObeliskApp* app, const MinimalEvent* e);
+typedef void (*ObeliskTickCB)    (ObeliskApp* app, f32 deltatime);
+
+struct ObeliskApp
+{
+    MinimalWindow* window;
+    ObeliskLoadCB    on_load;
+    ObeliskDestroyCB on_destroy;
+
+    ObeliskEventCB on_event;
+    ObeliskTickCB  on_tick;
+};
+
+MINIMAL_API u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h);
+MINIMAL_API void obeliskDestroy(ObeliskApp* app);
+
+MINIMAL_API void obeliskRun(ObeliskApp* app);
 
 #endif /* !OBELISK_H */

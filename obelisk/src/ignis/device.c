@@ -171,8 +171,6 @@ void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device)
     }
 }
 
-
-
 uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t* indices)
 {
     uint32_t count = 0;
@@ -266,7 +264,6 @@ uint8_t ignisCheckDeviceExtensionSupport(VkPhysicalDevice device)
                 break;
             }
         }
-
         if (!found) break;
     }
 

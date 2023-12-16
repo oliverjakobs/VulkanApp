@@ -2,35 +2,55 @@
 
 #include "ignis/ignis.h"
 
-u8 obeliskLoad(MinimalApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
+u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
 {
-    MinimalLoadCB on_load = app->on_load;
-    app->on_load = NULL;
-
-    if (!minimalLoad(app, title, x, y, w, h))
+    /* minimal initialization */
+    if (!minimalPlatformInit())
     {
-        MINIMAL_CRITICAL("Failed to load minimal.");
+        MINIMAL_ERROR("[App] Failed to initialize Minimal");
         return MINIMAL_FAIL;
     }
 
-    if (!ignisInit())
+    /* creating the window */
+    app->window = minimalCreateWindow(title, x, y, w, h);
+    if (!app->window)
+    {
+        MINIMAL_ERROR("[App] Failed to create Minimal window");
+        return MINIMAL_FAIL;
+    }
+    
+    minimalSetCurrentContext(app->window);
+    minimalSetEventHandler(app, (MinimalEventCB)app->on_event);
+    
+    IgnisPlatform platform = {
+        .create_surface = (ignisCreateSurfaceFn)minimalCreateWindowSurface,
+        .context = app->window
+    };
+
+    if (!ignisInit(&platform))
     {
         MINIMAL_CRITICAL("Failed to create ignis context.");
         return MINIMAL_FAIL;
     }
     MINIMAL_INFO("Ignis context created successfully.");
 
-    return (on_load) ? on_load(app, w, h) : MINIMAL_OK;
+    return (app->on_load) ? app->on_load(app, w, h) : MINIMAL_OK;
 }
 
-void obeliskDestroy(MinimalApp* app)
+void obeliskDestroy(ObeliskApp* app)
 {
     ignisTerminate();
 
-    minimalDestroy(app);
+    minimalDestroyWindow(app->window);
+    minimalPlatformTerminate();
 }
 
-void obeliskRun(MinimalApp* app)
+static void obeliskOnTick(ObeliskApp* app, const MinimalFrameData* framedata)
 {
-    minimalRun(app);
+    app->on_tick(app, framedata->deltatime);
+}
+
+void obeliskRun(ObeliskApp* app)
+{
+    minimalRun(app->window, (MinimalTickCB)obeliskOnTick, app);
 }

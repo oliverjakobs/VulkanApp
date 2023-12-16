@@ -5,14 +5,9 @@
 
 static IgnisContext context;
 
-uint8_t ignisInit()
+uint8_t ignisInit(const IgnisPlatform* platform)
 {
-    IgnisPlatform platform = {
-        .create_surface = (ignisCreateSurfaceFn)minimalCreateWindowSurface,
-        .context = minimalGetCurrentContext()->window
-    };
-
-    if (!ignisCreateContext(&context, "IgnisApp", &platform))
+    if (!ignisCreateContext(&context, "IgnisApp", platform))
     {
         MINIMAL_CRITICAL("failed to create context");
         return IGNIS_FAIL;

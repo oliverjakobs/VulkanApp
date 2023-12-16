@@ -3,6 +3,7 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 
 // Unsigned int types.
 typedef unsigned char u8;
@@ -82,7 +83,6 @@ MINIMAL_STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define MINIMAL_DISABLE_ASSERT
 #endif
 
-typedef struct MinimalApp MinimalApp;
 typedef struct MinimalWindow MinimalWindow;
 typedef struct MinimalEvent MinimalEvent;
 
@@ -125,10 +125,9 @@ MINIMAL_API void minimalLoggerPrintV(MinimalLogLevel level, const char* fmt, va_
 #define MINIMAL_ASSERT(expr, msg)
 #endif
 
-/* --------------------------| memroy |---------------------------------- */
-MINIMAL_API void* minimalMemCopy(void* dst, const void* src, u64 size);
-MINIMAL_API void* minimalMemZero(void* block, u64 size);
-MINIMAL_API void* minimalMemSet(void* block, i32 value, u64 size);
-
+/* --------------------------| memory |---------------------------------- */
+#define MINIMAL_ALLOC(size)             malloc(size)
+#define MINIMAL_FREE(block, size)       free(block)
+#define MINIMAL_MEMCPY(dst, src, size)  memcpy(dst, src, size);
 
 #endif // !MINIMAL_COMMON_H

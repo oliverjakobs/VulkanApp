@@ -1,33 +1,33 @@
 #include <obelisk.h>
 
-u8 onLoad(MinimalApp* app, u32 w, u32 h)
+u8 onLoad(ObeliskApp* app, u32 w, u32 h)
 {
     MINIMAL_INFO("[Minimal] Version: %s", minimalGetVersionString());
     
     return MINIMAL_OK;
 }
 
-void onDestroy(MinimalApp* app)
+void onDestroy(ObeliskApp* app)
 {
 
 }
 
-u8 onEvent(MinimalApp* app, const MinimalEvent* e)
+u8 onEvent(ObeliskApp* app, const MinimalEvent* e)
 {
     if (minimalEventKeyPressed(e) == MINIMAL_KEY_ESCAPE)
-        minimalClose(app);
+        minimalClose(app->window);
 
     return MINIMAL_OK;
 }
 
-void onTick(MinimalApp* app, f32 deltatime)
+void onTick(ObeliskApp* app, f32 deltatime)
 {
 
 }
 
 int main(void)
 {
-    MinimalApp app = {
+    ObeliskApp app = {
         .on_load =    onLoad,
         .on_destroy = onDestroy,
         .on_event =   onEvent,

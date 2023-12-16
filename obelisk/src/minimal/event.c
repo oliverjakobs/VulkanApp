@@ -20,16 +20,28 @@ struct MinimalEvent
     };
 };
 
-void minimalDispatchEvent(MinimalApp* app, u32 type, u32 uParam, i32 lParam, i32 rParam)
+static struct
 {
-    MinimalEvent e = { .type = type, .uParam = uParam, .lParam = lParam, .rParam = rParam };
-    if (app && app->on_event) app->on_event(app, &e);
+    void* context;
+    MinimalEventCB callback;
+} event_handler;
+
+void minimalSetEventHandler(void* context, MinimalEventCB callback)
+{
+    event_handler.context = context;
+    event_handler.callback = callback;
 }
 
-void minimalDispatchExternalEvent(MinimalApp* app, u32 type, const void* data)
+void minimalDispatchEvent(u32 type, u32 uParam, i32 lParam, i32 rParam)
+{
+    MinimalEvent e = { .type = type, .uParam = uParam, .lParam = lParam, .rParam = rParam };
+    if (event_handler.callback) event_handler.callback(event_handler.context, &e);
+}
+
+void minimalDispatchExternalEvent(u32 type, const void* data)
 {
     MinimalEvent e = { .type = type, .external = data };
-    if (app && app->on_event) app->on_event(app, &e);
+    if (event_handler.callback) event_handler.callback(event_handler.context, &e);
 }
 
 u8 minimalEventIsType(const MinimalEvent* e, u32 type)  { return e->type == type; }

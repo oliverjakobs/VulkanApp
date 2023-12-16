@@ -22,8 +22,12 @@
 
 #define MINIMAL_EVENT_LAST              MINIMAL_EVENT_MOUSE_SCROLLED
 
-void minimalDispatchEvent(MinimalApp* app, u32 type, u32 uParam, i32 lParam, i32 rParam);
-void minimalDispatchExternalEvent(MinimalApp* app, u32 type, const void* data);
+/* Dispatch */
+typedef u8 (*MinimalEventCB)(void* context, const MinimalEvent* e);
+void minimalSetEventHandler(void* context, MinimalEventCB callback);
+
+void minimalDispatchEvent(u32 type, u32 uParam, i32 lParam, i32 rParam);
+void minimalDispatchExternalEvent(u32 type, const void* data);
 
 /* Utility */
 MINIMAL_API u8 minimalEventIsType(const MinimalEvent* e, u32 type);

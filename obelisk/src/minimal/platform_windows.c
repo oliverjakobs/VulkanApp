@@ -79,7 +79,7 @@ struct MinimalWindow
 
 MinimalWindow* minimalCreateWindow(const char* title, i32 x, i32 y, u32 w, u32 h)
 {
-    MinimalWindow* window = malloc(sizeof(MinimalWindow));
+    MinimalWindow* window = MINIMAL_ALLOC(sizeof(MinimalWindow));
     if (!window) return NULL;
 
     // Create window
@@ -117,7 +117,7 @@ void minimalDestroyWindow(MinimalWindow* window)
         MINIMAL_ERROR("[Platform] Failed to destroy window");
     }
 
-    free(window);
+    MINIMAL_FREE(window, sizeof(MinimalWindow));
 }
 
 void minimalPollWindowEvents(MinimalWindow* window)
@@ -136,7 +136,7 @@ void minimalSetWindowTitle(MinimalWindow* window, const char* title)
 }
 
 u8   minimalShouldClose(const MinimalWindow* window) { return window->should_close; }
-void minimalCloseWindow(MinimalWindow* window)       { window->should_close = 1; }
+void minimalClose(MinimalWindow* window)             { window->should_close = 1; }
 
 
 f64 minimalGetTime()
@@ -170,7 +170,7 @@ static u16 minimalGetMouseButton(UINT msg, WPARAM wParam)
 
 static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    MinimalApp* context = minimalGetCurrentContext();
+    MinimalWindow* context = minimalGetCurrentContext();
 
     if (!context) return DefWindowProcA(hwnd, msg, wParam, lParam);
 
@@ -198,7 +198,7 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         u32 mods = minimalGetKeyMods();
 
         if (codepoint > 31)
-            minimalDispatchEvent(context, MINIMAL_EVENT_CHAR, codepoint, 0, mods);
+            minimalDispatchEvent(MINIMAL_EVENT_CHAR, codepoint, 0, mods);
 
         return 0;
     }
@@ -212,7 +212,7 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         u32 mods = minimalGetKeyMods();
 
         if (minimalProcessKey(keycode, action))
-            minimalDispatchEvent(context, MINIMAL_EVENT_KEY, keycode, action, mods);
+            minimalDispatchEvent(MINIMAL_EVENT_KEY, keycode, action, mods);
 
         return 0;
     }
@@ -235,7 +235,7 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         i32 y = MINIMAL_GET_Y_LPARAM(lParam);
 
         if (minimalProcessMouseButton(button, action))
-            minimalDispatchEvent(context, MINIMAL_EVENT_MOUSE_BUTTON, (button << 16) + action, x, y);
+            minimalDispatchEvent(MINIMAL_EVENT_MOUSE_BUTTON, (button << 16) + action, x, y);
 
         return msg == WM_XBUTTONDOWN || msg == WM_XBUTTONUP;
     }
@@ -245,19 +245,19 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         i32 y = MINIMAL_GET_Y_LPARAM(lParam);
 
         if (minimalProcessMouseButton((f32)x, (f32)y))
-            minimalDispatchEvent(context, MINIMAL_EVENT_MOUSE_MOVED, 0, x, y);
+            minimalDispatchEvent(MINIMAL_EVENT_MOUSE_MOVED, 0, x, y);
         return 0;
     }
     case WM_MOUSEWHEEL:
     {
         i32 scroll = MINIMAL_GET_SCROLL(wParam);
-        minimalDispatchEvent(context, MINIMAL_EVENT_MOUSE_SCROLLED, 0, 0, scroll);
+        minimalDispatchEvent(MINIMAL_EVENT_MOUSE_SCROLLED, 0, 0, scroll);
         return 0;
     }
     case WM_MOUSEHWHEEL:
     {
         i32 scroll = MINIMAL_GET_SCROLL(wParam);
-        minimalDispatchEvent(context, MINIMAL_EVENT_MOUSE_SCROLLED, 0, scroll, 0);
+        minimalDispatchEvent(MINIMAL_EVENT_MOUSE_SCROLLED, 0, scroll, 0);
         return 0;
     }
     }

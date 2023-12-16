@@ -1,6 +1,6 @@
 #include "ignis_core.h"
 
-#include "minimal/minimal.h"
+#include "minimal/common.h"
 
 static const char* const validation_layers[] = {
     "VK_LAYER_KHRONOS_validation"
@@ -93,7 +93,7 @@ uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisP
 
     // Debugger
 #ifdef IGNIS_DEBUG
-    result = ignisCreateDebugUtilsMessenger(context->instance, context->allocator, &context->debug_messenger);
+    result = ignisCreateDebugMessenger(context);
     if (result != VK_SUCCESS)
     {
         MINIMAL_ERROR("Failed to create debug messenger with result: %u", result);
@@ -131,7 +131,7 @@ void ignisDestroyContext(IgnisContext* context)
     vkDestroySurfaceKHR(context->instance, context->surface, context->allocator);
 
 #ifdef IGNIS_DEBUG
-    ignisDestroyDebugUtilsMessenger(context->instance, context->debug_messenger, context->allocator);
+    ignisDestroyDebugMessenger(context);
 #endif
 
     vkDestroyInstance(context->instance, context->allocator);

@@ -14,33 +14,21 @@
 MINIMAL_API void minimalGetVersion(int* major, int* minor, int* rev);
 MINIMAL_API const char* minimalGetVersionString();
 
-/* --------------------------| minimal app |----------------------------- */
-typedef u8   (*MinimalLoadCB)    (MinimalApp* app, u32 w, u32 h);
-typedef void (*MinimalDestroyCB) (MinimalApp* app);
-
-typedef u8   (*MinimalEventCB)   (MinimalApp* app, const MinimalEvent* e);
-typedef void (*MinimalTickCB)    (MinimalApp* app, f32 deltatime);
-
-struct MinimalApp
-{
-    MinimalWindow* window;
-
-    MinimalLoadCB    on_load;
-    MinimalDestroyCB on_destroy;
-
-    MinimalEventCB on_event;
-    MinimalTickCB  on_tick;
-};
-
-MINIMAL_API u8   minimalLoad(MinimalApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h);
-MINIMAL_API void minimalDestroy(MinimalApp* app);
 
 /* --------------------------| game loop |------------------------------- */
-MINIMAL_API void minimalRun(MinimalApp* app);
-MINIMAL_API void minimalClose(MinimalApp* app);
+typedef struct
+{
+    f32 deltatime;
+    u32 fps;
+} MinimalFrameData;
+
+typedef void (*MinimalTickCB)(void* context, const MinimalFrameData*);
+MINIMAL_API void minimalRun(MinimalWindow* window, MinimalTickCB on_tick, void* context);
+
+MINIMAL_API void minimalClose(MinimalWindow* window);
 
 /* --------------------------| context |--------------------------------- */
-void minimalSetCurrentContext(MinimalApp* context);
-MinimalApp* minimalGetCurrentContext();
+void minimalSetCurrentContext(MinimalWindow* context);
+MinimalWindow* minimalGetCurrentContext();
 
 #endif // !MINIMAL_H
