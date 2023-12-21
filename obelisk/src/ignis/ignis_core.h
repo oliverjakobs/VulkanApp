@@ -14,14 +14,12 @@
 #define IGNIS_FAIL    0
 #define IGNIS_OK      1
 
+void* ignisAlloc(size_t size);
+void  ignisFree(void* block, size_t size);
 
-typedef VkResult (*ignisCreateSurfaceFn)(VkInstance, const void*, const VkAllocationCallbacks*, VkSurfaceKHR*);
-typedef struct
-{
-    ignisCreateSurfaceFn create_surface;
-    const void* context;
-} IgnisPlatform;
+typedef struct IgnisContext IgnisContext;
 
+/* --------------------------| queue families |-------------------------- */
 typedef enum
 {
     IGNIS_QUEUE_GRAPHICS,
@@ -36,7 +34,24 @@ typedef enum
 #define IGNIS_QUEUE_FLAG_COMPUTE    0x0004
 #define IGNIS_QUEUE_FLAG_PRESENT    0x0008
 
+/* --------------------------| swapchain |------------------------------- */
 typedef struct
+{
+    VkSwapchainKHR handle;
+
+    VkFormat imageFormat;
+    VkExtent2D extent;
+
+    uint32_t imageCount;
+    VkImage* images;
+    VkImageView* imageViews;
+} IgnisSwapchain;
+
+int ignisCreateSwapchain(IgnisContext* context, IgnisSwapchain* swapchain, VkSwapchainKHR old, uint32_t w, uint32_t h);
+void ignisDestroySwapchain(IgnisContext* context, IgnisSwapchain* swapchain);
+
+/* --------------------------| context |--------------------------------- */
+struct IgnisContext
 {
     VkInstance instance;
     VkAllocationCallbacks* allocator;
@@ -54,28 +69,28 @@ typedef struct
     uint32_t queue_family_indices[IGNIS_MAX_QUEUE_INDEX];
 
     VkQueue queues[IGNIS_MAX_QUEUE_INDEX];
-} IgnisContext;
 
-uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisPlatform* platform);
+    IgnisSwapchain swapchain;
+};
+
+uint8_t ignisCreateContext(IgnisContext* context, const char* name, const char* const *extensions, uint32_t count, const void* debug);
 void ignisDestroyContext(IgnisContext* context);
 
+/* --------------------------| device |---------------------------------- */
 uint8_t ignisPickPhysicalDevice(IgnisContext* context);
 uint8_t ignisCreateLogicalDevice(IgnisContext* context);
 
 void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device);
 
+/* --------------------------| debug |----------------------------------- */
 #ifdef IGNIS_DEBUG
 
-void ignisFillDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT* info);
+void ignisPopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT* info);
 
-VkResult ignisCreateDebugMessenger(IgnisContext* context);
-void ignisDestroyDebugMessenger(IgnisContext* context);
+VkResult ignisCreateDebugMessenger(VkInstance instance, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* messenger);
+void ignisDestroyDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* allocator);
 
 #endif
-
-
-void* ignisAlloc(size_t size);
-void  ignisFree(void* block, size_t size);
 
 
 #endif /* IGNIS_CORE_H */

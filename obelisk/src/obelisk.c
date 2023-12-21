@@ -27,7 +27,7 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
         .context = app->window
     };
 
-    if (!ignisInit(&platform))
+    if (!ignisInit("ObeliskApp", &platform))
     {
         MINIMAL_CRITICAL("Failed to create ignis context.");
         return MINIMAL_FAIL;

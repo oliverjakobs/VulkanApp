@@ -55,8 +55,6 @@ static uint8_t ignisPickPhysicalDevice(IgnisContext* context)
         context->physical_device = devices[i];
         context->queue_families_set = families_set;
         memcpy(context->queue_family_indices, family_indices, sizeof(uint32_t) * IGNIS_MAX_QUEUE_INDEX);
-
-        ignisPrintPhysicalDeviceInfo(devices[i]);
         break;
     }
 
