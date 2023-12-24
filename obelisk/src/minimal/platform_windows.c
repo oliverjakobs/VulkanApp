@@ -280,6 +280,17 @@ VkResult minimalCreateWindowSurface(VkInstance instance, const MinimalWindow* wi
     return vkCreateWin32SurfaceKHR(instance, &create_info, allocator, surface);
 }
 
+static const char* const extensions[] = {
+    VK_KHR_SURFACE_EXTENSION_NAME,
+    "VK_KHR_win32_surface",
+};
+
+const char* const *minimalQueryRequiredExtensions(u32* count)
+{
+    *count = sizeof(extensions) / sizeof(extensions[0]);
+    return extensions;
+}
+
 #endif
 
 #endif // MINIMAL_PLATFORM_WINDOWS

@@ -1,8 +1,16 @@
 #include "ignis_core.h"
 
-#include <stdlib.h>
-
 #include "minimal/common.h"
+
+
+#ifdef IGNIS_DEBUG
+
+static void ignisPopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT* info);
+
+static VkResult ignisCreateDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* messenger);
+static void ignisDestroyDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT messenger);
+
+#endif
 
 static const char* const validation_layers[] = {
     "VK_LAYER_KHRONOS_validation"
@@ -41,7 +49,7 @@ static uint8_t ignisCheckValidationLayerSupport()
     return found;
 }
 
-uint8_t ignisCreateContext(IgnisContext* context, const char* name, const char* const *extensions, uint32_t count, const void* debug)
+uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisPlatform* platform)
 {
 #ifdef IGNIS_DEBUG
     if (!ignisCheckValidationLayerSupport())
@@ -50,6 +58,18 @@ uint8_t ignisCreateContext(IgnisContext* context, const char* name, const char* 
         return IGNIS_FAIL;
     }
 #endif
+
+    // TODO: make platform agnostic
+    const char* const extensions[] = {
+        VK_KHR_SURFACE_EXTENSION_NAME,
+        "VK_KHR_win32_surface",
+#ifdef IGNIS_DEBUG
+        VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+#endif
+    };
+
+    const uint32_t extension_count = sizeof(extensions) / sizeof(extensions[0]);
+    // const char* const extensions = platform->queryExtensions(&extension_count);
 
     VkApplicationInfo app_info = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -63,7 +83,7 @@ uint8_t ignisCreateContext(IgnisContext* context, const char* name, const char* 
     VkInstanceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo = &app_info,
-        .enabledExtensionCount = count,
+        .enabledExtensionCount = extension_count,
         .ppEnabledExtensionNames = extensions,
         .enabledLayerCount = 0,
         .ppEnabledLayerNames = 0
@@ -73,17 +93,66 @@ uint8_t ignisCreateContext(IgnisContext* context, const char* name, const char* 
     create_info.enabledLayerCount = validation_layer_count;
     create_info.ppEnabledLayerNames = validation_layers;
 
-    create_info.pNext = debug;
+    VkDebugUtilsMessengerCreateInfoEXT debug_create_info = { 0 };
+    ignisPopulateDebugMessengerCreateInfo(&debug_create_info);
+    create_info.pNext = &debug_create_info;
 #endif
 
-    VkResult result = vkCreateInstance(&create_info, context->allocator, &context->instance);
+    VkResult result = vkCreateInstance(&create_info, ignisGetAllocator(), &context->instance);
     if (result != VK_SUCCESS)
     {
         MINIMAL_ERROR("vkCreateInstance failed with result: %u", result);
         return IGNIS_FAIL;
     }
 
+    // Debugger
+#ifdef IGNIS_DEBUG
+    result = ignisCreateDebugMessenger(context->instance, &context->debug_messenger);
+    if (result != VK_SUCCESS)
+    {
+        MINIMAL_ERROR("Failed to create debug messenger with result: %u", result);
+        return IGNIS_FAIL;
+    }
+#endif
+
+    // Surface
+    result = platform->createSurface(context->instance, platform->context, ignisGetAllocator(), &context->surface);
+    if (result != VK_SUCCESS)
+    {
+        MINIMAL_ERROR("Failed to create window surface with result: %u", result);
+        return IGNIS_FAIL;
+    }
+
+    if (!ignisCreateDevice(context->instance, context->surface, &context->device))
+    {
+        MINIMAL_CRITICAL("failed to create device");
+        return IGNIS_FAIL;
+    }
+    
+    ignisPrintDeviceInfo(&context->device);
+
+    if (!ignisCreateSwapchain(&context->device, context->surface, VK_NULL_HANDLE, 1280, 720, &context->swapchain))
+    {
+        MINIMAL_CRITICAL("failed to create swapchain");
+        return IGNIS_FAIL;
+    }
+
     return IGNIS_OK;
+}
+
+void ignisDestroyContext(IgnisContext* context)
+{
+    ignisDestroySwapchain(&context->device, &context->swapchain);
+
+    vkDestroyDevice(context->device.handle, ignisGetAllocator());
+
+    vkDestroySurfaceKHR(context->instance, context->surface, ignisGetAllocator());
+
+#ifdef IGNIS_DEBUG
+    ignisDestroyDebugMessenger(context->instance, context->debug_messenger);
+#endif
+
+    vkDestroyInstance(context->instance, ignisGetAllocator());
 }
 
 
@@ -127,27 +196,23 @@ void ignisPopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT* i
     info->pfnUserCallback = ignisDebugUtilsMessengerCallback;
 }
 
-VkResult ignisCreateDebugMessenger(VkInstance instance, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* messenger)
+VkResult ignisCreateDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* messenger)
 {
     VkDebugUtilsMessengerCreateInfoEXT create_info = { 0 };
     ignisPopulateDebugMessengerCreateInfo(&create_info);
 
     PFN_vkCreateDebugUtilsMessengerEXT func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func) return func(instance, &create_info, allocator, messenger);
+    if (func) return func(instance, &create_info, ignisGetAllocator(), messenger);
 
     return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
-void ignisDestroyDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* allocator)
+void ignisDestroyDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT messenger)
 {
     PFN_vkDestroyDebugUtilsMessengerEXT func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func) func(instance, messenger, allocator);
+    if (func) func(instance, messenger, ignisGetAllocator());
 }
 
 #endif
 
-
-
-
-void* ignisAlloc(size_t size) { return malloc(size); }
-void  ignisFree(void* block, size_t size)  { free(block); }
+const VkAllocationCallbacks* ignisGetAllocator() { return NULL; }

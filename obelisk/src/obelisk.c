@@ -23,7 +23,8 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
     minimalSetEventHandler(app, (MinimalEventCB)app->on_event);
     
     IgnisPlatform platform = {
-        .create_surface = (ignisCreateSurfaceFn)minimalCreateWindowSurface,
+        .createSurface = (ignisCreateSurfaceFn)minimalCreateWindowSurface,
+        .queryExtensions = (ignisQueryExtensionFn)minimalQueryRequiredExtensions,
         .context = app->window
     };
 

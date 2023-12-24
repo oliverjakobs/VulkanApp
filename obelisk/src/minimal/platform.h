@@ -24,6 +24,8 @@ double minimalGetTime();
 
 VkResult minimalCreateWindowSurface(VkInstance instance, const MinimalWindow* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface);
 
+const char* const *minimalQueryRequiredExtensions(u32* count);
+
 #endif
 
 #endif // !MINIMAL_PLATFORM_H
