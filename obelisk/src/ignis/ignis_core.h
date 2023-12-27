@@ -33,12 +33,18 @@ typedef struct
     uint32_t queueFamilyIndices[IGNIS_QUEUE_MAX_ENUM];
 
     VkQueue queues[IGNIS_QUEUE_MAX_ENUM];
+
+    VkCommandPool commandPool;
 } IgnisDevice;
 
 uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice* device);
+void ignisDestroyDevice(IgnisDevice* device);
 
 VkFormat ignisQueryDeviceDepthFormat(VkPhysicalDevice device);
 int32_t ignisFindMemoryTypeIndex(VkPhysicalDevice device, uint32_t filter, VkMemoryPropertyFlags properties);
+
+VkResult ignisAllocCmdBuffers();
+void ignisFreeCmdBuffers();
 
 void ignisPrintDeviceInfo(const IgnisDevice* device);
 
@@ -71,7 +77,8 @@ typedef struct
     struct { float r,g,b,a; } clearColor;
 } IgnisRenderPass;
 
-
+uint8_t ignisCreateRenderPass(VkDevice device, VkFormat imageFormat, VkFormat depthFormat, IgnisRenderPass* renderPass);
+void ignisDestroyRenderPass(VkDevice device, IgnisRenderPass* renderPass);
 
 /* --------------------------| pipeline |-------------------------------- */
 

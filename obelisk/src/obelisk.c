@@ -41,6 +41,7 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
 void obeliskDestroy(ObeliskApp* app)
 {
     ignisTerminate();
+    MINIMAL_INFO("Ignis context terminated.");
 
     minimalDestroyWindow(app->window);
     minimalPlatformTerminate();

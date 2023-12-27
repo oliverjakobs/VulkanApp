@@ -49,6 +49,8 @@ static uint8_t ignisCheckValidationLayerSupport()
     return found;
 }
 
+
+
 uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisPlatform* platform)
 {
 #ifdef IGNIS_DEBUG
@@ -143,8 +145,7 @@ uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisP
 void ignisDestroyContext(IgnisContext* context)
 {
     ignisDestroySwapchain(&context->device, &context->swapchain);
-
-    vkDestroyDevice(context->device.handle, ignisGetAllocator());
+    ignisDestroyDevice(&context->device);
 
     vkDestroySurfaceKHR(context->instance, context->surface, ignisGetAllocator());
 

@@ -34,17 +34,17 @@ static uint8_t ignisPickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface
     device->physical = VK_NULL_HANDLE;
     for (uint32_t i = 0; i < count; ++i)
     {
-        // queue families
+        // skip device if required queue families are not supported
         uint32_t family_indices[IGNIS_QUEUE_MAX_ENUM];
         uint32_t families_set = ignisFindQueueFamilies(devices[i], surface, family_indices);
         if (!(families_set & REQ_QUEUE_FAMILIES))
             continue;
 
-        // swapchain support
+        // skip device if required swapchain is not support
         if (!ignisQuerySwapChainSupport(devices[i], surface))
             continue;
 
-        // device extensions
+        // skip device if required extensions are not supported
         if (!ignisCheckDeviceExtensionSupport(devices[i]))
             continue;
 
@@ -110,7 +110,27 @@ uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice
     for (size_t i = 0; i < IGNIS_QUEUE_MAX_ENUM; ++i)
         vkGetDeviceQueue(device->handle, device->queueFamilyIndices[i], 0, &device->queues[i]);
 
+    /* create command pool */
+    VkCommandPoolCreateInfo info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .queueFamilyIndex = device->queueFamilyIndices[IGNIS_QUEUE_GRAPHICS]
+    };
+
+    if (vkCreateCommandPool(device->handle, &info, ignisGetAllocator(), &device->commandPool) != VK_SUCCESS)
+    {
+        MINIMAL_ERROR("failed to create device command pool!");
+        return IGNIS_FAIL;
+    }
+
     return IGNIS_OK;
+}
+
+void ignisDestroyDevice(IgnisDevice* device)
+{
+    vkDestroyCommandPool(device->handle, device->commandPool, ignisGetAllocator());
+
+    vkDestroyDevice(device->handle, ignisGetAllocator());
 }
 
 uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t* indices)
