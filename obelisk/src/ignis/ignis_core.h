@@ -41,14 +41,16 @@ uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice
 void ignisDestroyDevice(IgnisDevice* device);
 
 VkFormat ignisQueryDeviceDepthFormat(VkPhysicalDevice device);
-int32_t ignisFindMemoryTypeIndex(VkPhysicalDevice device, uint32_t filter, VkMemoryPropertyFlags properties);
+uint32_t ignisFindMemoryTypeIndex(VkPhysicalDevice device, uint32_t filter, VkMemoryPropertyFlags properties);
 
-VkResult ignisAllocCmdBuffers();
-void ignisFreeCmdBuffers();
+VkResult ignisAllocCmdBuffers(const IgnisDevice* device, VkCommandBufferLevel level, uint32_t count, VkCommandBuffer* buffers);
+void ignisFreeCmdBuffers(const IgnisDevice* device, uint32_t count, const VkCommandBuffer* buffers);
 
 void ignisPrintDeviceInfo(const IgnisDevice* device);
 
 /* --------------------------| swapchain |------------------------------- */
+#define IGNIS_MAX_FRAMES_IN_FLIGHT 2
+
 typedef struct
 {
     VkSwapchainKHR handle;
@@ -64,25 +66,22 @@ typedef struct
     VkImage*        depthImages;
     VkImageView*    depthImageViews;
     VkDeviceMemory* depthImageMemories;
+
+    VkRenderPass renderPass;
+
+    VkFramebuffer* framebuffers;
+
+    /* Sync objects */
+    VkSemaphore imageAvailable[IGNIS_MAX_FRAMES_IN_FLIGHT];
+    VkSemaphore renderFinished[IGNIS_MAX_FRAMES_IN_FLIGHT];
+    VkFence fences[IGNIS_MAX_FRAMES_IN_FLIGHT];
 } IgnisSwapchain;
 
 uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, VkSwapchainKHR old, uint32_t w, uint32_t h, IgnisSwapchain* swapchain);
-void ignisDestroySwapchain(const IgnisDevice* device, IgnisSwapchain* swapchain);
+void ignisDestroySwapchain(VkDevice device, IgnisSwapchain* swapchain);
 
-/* --------------------------| render pass |----------------------------- */
-typedef struct
-{
-    VkRenderPass handle;
-
-    struct { float r,g,b,a; } clearColor;
-} IgnisRenderPass;
-
-uint8_t ignisCreateRenderPass(VkDevice device, VkFormat imageFormat, VkFormat depthFormat, IgnisRenderPass* renderPass);
-void ignisDestroyRenderPass(VkDevice device, IgnisRenderPass* renderPass);
-
-/* --------------------------| pipeline |-------------------------------- */
-
-uint8_t ignisCreatePipeline(const char* frag, const char* vert);
+uint8_t ignisCreateSwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain);
+void ignisDestroySwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain);
 
 /* --------------------------| platform |-------------------------------- */
 typedef VkResult (*ignisCreateSurfaceFn)(VkInstance, const void*, const VkAllocationCallbacks*, VkSurfaceKHR*);
@@ -106,8 +105,10 @@ struct IgnisContext
 
     IgnisDevice device;
     IgnisSwapchain swapchain;
+
+    VkCommandBuffer* cmdBuffers;
     
-    IgnisRenderPass renderPass;
+    struct { float r,g,b,a; } clearColor;
 };
 
 uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisPlatform* platform);

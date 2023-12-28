@@ -24,10 +24,10 @@ void ignisTerminate()
 
 void ignisSetClearColor(float r, float g, float b, float a)
 {
-    context.renderPass.clearColor.r = r;
-    context.renderPass.clearColor.g = g;
-    context.renderPass.clearColor.b = b;
-    context.renderPass.clearColor.a = a;
+    context.clearColor.r = r;
+    context.clearColor.g = g;
+    context.clearColor.b = b;
+    context.clearColor.a = a;
 }
 
 

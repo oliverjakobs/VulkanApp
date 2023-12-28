@@ -156,8 +156,8 @@ static uint8_t ignisCreateSwapchainDepthImages(VkDevice device, VkPhysicalDevice
         VkMemoryRequirements memoryReq;
         vkGetImageMemoryRequirements(device, swapchain->depthImages[i], &memoryReq);
 
-        int32_t memoryTypeIndex = ignisFindMemoryTypeIndex(physical, memoryReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        if (memoryTypeIndex < 0)
+        uint32_t memoryTypeIndex = ignisFindMemoryTypeIndex(physical, memoryReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (memoryTypeIndex == 0xffffffff)
         {
             MINIMAL_ERROR("failed to find suitable memory type!");
             return IGNIS_FAIL;
@@ -196,6 +196,105 @@ static uint8_t ignisCreateSwapchainDepthImages(VkDevice device, VkPhysicalDevice
         if (vkCreateImageView(device, &viewInfo, ignisGetAllocator(), &swapchain->depthImageViews[i]) != VK_SUCCESS)
         {
             MINIMAL_ERROR("failed to create depth image view!");
+            return IGNIS_FAIL;
+        }
+    }
+
+    return IGNIS_OK;
+}
+
+static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, IgnisSwapchain* swapchain)
+{
+    VkAttachmentDescription attachments[] = {
+        {
+            // colorAttachment
+            .format = swapchain->imageFormat,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        },
+        {
+            // depthAttachment
+            .format = swapchain->depthFormat,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        }
+    };
+
+    VkAttachmentReference attachmentRefs[] = {
+        { .attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
+        { .attachment = 1, .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL }
+    };
+
+    VkSubpassDescription subpass = {
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .pColorAttachments = attachmentRefs,
+        .colorAttachmentCount = 1,
+        .pDepthStencilAttachment = &attachmentRefs[1]
+    };
+
+    VkSubpassDependency dependency = {
+        .dstSubpass = 0,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .srcAccessMask = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    };
+
+    VkRenderPassCreateInfo renderPassInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .pAttachments = attachments,
+        .attachmentCount = sizeof(attachments) / sizeof(VkAttachmentDescription),
+        .pSubpasses = &subpass,
+        .subpassCount = 1,
+        .pDependencies = &dependency,
+        .dependencyCount = 1
+    };
+
+    if (vkCreateRenderPass(device, &renderPassInfo, ignisGetAllocator(), &swapchain->renderPass) != VK_SUCCESS)
+    {
+        MINIMAL_ERROR("failed to create render pass!");
+        return IGNIS_FAIL;
+    }
+
+    return IGNIS_OK;
+}
+
+static uint8_t ignisCreateSwapchainFramebuffers(VkDevice device, IgnisSwapchain* swapchain)
+{
+    swapchain->framebuffers = ignisAlloc(swapchain->imageCount * sizeof(VkFramebuffer));
+    if (!swapchain->framebuffers) return IGNIS_FAIL;
+
+    for (size_t i = 0; i < swapchain->imageCount; ++i)
+    {
+        VkImageView attachments[] = {
+            swapchain->imageViews[i],
+            swapchain->depthImageViews[i]
+        };
+
+        VkFramebufferCreateInfo info = {
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = swapchain->renderPass,
+            .pAttachments = attachments,
+            .attachmentCount = sizeof(attachments) / sizeof(VkImageView),
+            .width = swapchain->extent.width,
+            .height = swapchain->extent.height,
+            .layers = 1
+        };
+
+        if (vkCreateFramebuffer(device, &info, NULL, &swapchain->framebuffers[i]) != VK_SUCCESS)
+        {
+            MINIMAL_ERROR("failed to create framebuffer");
             return IGNIS_FAIL;
         }
     }
@@ -269,22 +368,38 @@ uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, Vk
 
     if (!ignisCreateSwapchainDepthImages(device->handle, device->physical, swapchain))
         return IGNIS_FAIL;
+    
+    if (!ignisCreateSwapchainRenderPass(device->handle, swapchain))
+        return IGNIS_FAIL;
+
+    if (!ignisCreateSwapchainFramebuffers(device->handle, swapchain))
+        return IGNIS_FAIL;
 
     return IGNIS_OK;
 }
 
-void ignisDestroySwapchain(const IgnisDevice* device, IgnisSwapchain* swapchain)
+void ignisDestroySwapchain(VkDevice device, IgnisSwapchain* swapchain)
 {
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
+
+    vkDestroyRenderPass(device, swapchain->renderPass, allocator);
+
+    if (swapchain->framebuffers)
+    {
+        for (size_t i = 0; i < swapchain->imageCount; ++i)
+            vkDestroyFramebuffer(device, swapchain->framebuffers[i], allocator);
+        
+        ignisFree(swapchain->framebuffers, swapchain->imageCount * sizeof(VkFramebuffer));
+    }
 
     /* destroy depth images */
     if (swapchain->depthImages)
     {
         for (size_t i = 0; i < swapchain->imageCount; ++i)
         {
-            vkDestroyImageView(device->handle, swapchain->depthImageViews[i], allocator);
-            vkDestroyImage(device->handle, swapchain->depthImages[i], allocator);
-            vkFreeMemory(device->handle, swapchain->depthImageMemories[i], allocator);
+            vkDestroyImageView(device, swapchain->depthImageViews[i], allocator);
+            vkDestroyImage(device, swapchain->depthImages[i], allocator);
+            vkFreeMemory(device, swapchain->depthImageMemories[i], allocator);
         }
         ignisFree(swapchain->depthImages, swapchain->imageCount * sizeof(VkImage));
         ignisFree(swapchain->depthImageViews, swapchain->imageCount * sizeof(VkImageView));
@@ -295,12 +410,51 @@ void ignisDestroySwapchain(const IgnisDevice* device, IgnisSwapchain* swapchain)
     if (swapchain->imageViews)
     {
         for (size_t i = 0; i < swapchain->imageCount; ++i)
-            vkDestroyImageView(device->handle, swapchain->imageViews[i], allocator);
+            vkDestroyImageView(device, swapchain->imageViews[i], allocator);
 
         ignisFree(swapchain->imageViews, swapchain->imageCount * sizeof(VkImageView));
     }
     if (swapchain->images) ignisFree(swapchain->images, swapchain->imageCount * sizeof(VkImage));
 
     /* destroy handle */
-    vkDestroySwapchainKHR(device->handle, swapchain->handle, allocator);
+    vkDestroySwapchainKHR(device, swapchain->handle, allocator);
+}
+
+
+uint8_t ignisCreateSwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain)
+{
+    VkSemaphoreCreateInfo semaphoreInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+    };
+
+    VkFenceCreateInfo fenceInfo = {
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .flags = VK_FENCE_CREATE_SIGNALED_BIT
+    };
+
+    const VkAllocationCallbacks* allocator = ignisGetAllocator();
+    for (size_t i = 0; i < IGNIS_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        if (vkCreateSemaphore(device, &semaphoreInfo, allocator, &swapchain->imageAvailable[i]) != VK_SUCCESS)
+            return IGNIS_FAIL;
+
+        if (vkCreateSemaphore(device, &semaphoreInfo, allocator, &swapchain->renderFinished[i]) != VK_SUCCESS)
+            return IGNIS_FAIL;
+
+        if (vkCreateFence(device, &fenceInfo, allocator, &swapchain->fences[i]) != VK_SUCCESS)
+            return IGNIS_FAIL;
+    }
+
+    return IGNIS_OK;
+}
+
+void ignisDestroySwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain)
+{
+    const VkAllocationCallbacks* allocator = ignisGetAllocator();
+    for (size_t i = 0; i < IGNIS_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        vkDestroySemaphore(device, swapchain->imageAvailable[i], allocator);
+        vkDestroySemaphore(device, swapchain->renderFinished[i], allocator);
+        vkDestroyFence(device, swapchain->fences[i], allocator);
+    }
 }

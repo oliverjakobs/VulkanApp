@@ -139,12 +139,19 @@ uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisP
         return IGNIS_FAIL;
     }
 
+    if (!ignisCreateSwapchainSyncObjects(context->device.handle, &context->swapchain))
+    {
+        MINIMAL_CRITICAL("failed to create swapchain sync objects");
+        return IGNIS_FAIL;
+    }
+
     return IGNIS_OK;
 }
 
 void ignisDestroyContext(IgnisContext* context)
 {
-    ignisDestroySwapchain(&context->device, &context->swapchain);
+    ignisDestroySwapchainSyncObjects(context->device.handle, &context->swapchain);
+    ignisDestroySwapchain(context->device.handle, &context->swapchain);
     ignisDestroyDevice(&context->device);
 
     vkDestroySurfaceKHR(context->instance, context->surface, ignisGetAllocator());

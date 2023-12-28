@@ -132,7 +132,6 @@ void ignisDestroyDevice(IgnisDevice* device)
 
     vkDestroyDevice(device->handle, ignisGetAllocator());
 }
-
 uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t* indices)
 {
     uint32_t count = 0;
@@ -256,7 +255,7 @@ VkFormat ignisQueryDeviceDepthFormat(VkPhysicalDevice device)
     return VK_FORMAT_UNDEFINED;
 }
 
-int32_t ignisFindMemoryTypeIndex(VkPhysicalDevice device, uint32_t filter, VkMemoryPropertyFlags properties)
+uint32_t ignisFindMemoryTypeIndex(VkPhysicalDevice device, uint32_t filter, VkMemoryPropertyFlags properties)
 {
     VkPhysicalDeviceMemoryProperties memoryProps;
     vkGetPhysicalDeviceMemoryProperties(device, &memoryProps);
@@ -264,11 +263,29 @@ int32_t ignisFindMemoryTypeIndex(VkPhysicalDevice device, uint32_t filter, VkMem
     for (uint32_t i = 0; i < memoryProps.memoryTypeCount; i++)
     {
         if ((filter & (1 << i)) && (memoryProps.memoryTypes[i].propertyFlags & properties) == properties)
-            return (int32_t)i;
+            return i;
     }
 
-    return -1;
+    return 0xffffffff;
 }
+
+VkResult ignisAllocCmdBuffers(const IgnisDevice* device, VkCommandBufferLevel level, uint32_t count, VkCommandBuffer* buffers)
+{
+    VkCommandBufferAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level = level,
+        .commandPool = device->commandPool,
+        .commandBufferCount = count
+    };
+
+    return vkAllocateCommandBuffers(device->handle, &allocInfo, buffers);
+}
+
+void ignisFreeCmdBuffers(const IgnisDevice* device, uint32_t count, const VkCommandBuffer* buffers)
+{
+    vkFreeCommandBuffers(device->handle, device->commandPool, count, buffers);
+}
+
 
 
 void ignisPrintDeviceInfo(const IgnisDevice* device)
