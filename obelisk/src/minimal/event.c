@@ -52,12 +52,12 @@ const void* minimalExternalEvent(const MinimalEvent* e)
     return minimalEventIsExternal(e) ? e->external : NULL;
 }
 
-u8 minimalEventWindowSize(const MinimalEvent* e, f32* w, f32* h)
+u8 minimalEventWindowSize(const MinimalEvent* e, u32* w, u32* h)
 {
     if (!minimalEventIsType(e, MINIMAL_EVENT_WINDOW_SIZE)) return 0;
 
-    if (w) *w = (f32)e->lParam;
-    if (h) *h = (f32)e->rParam;
+    if (w) *w = (u32)e->lParam;
+    if (h) *h = (u32)e->rParam;
 
     return 1;
 }

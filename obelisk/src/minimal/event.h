@@ -35,7 +35,7 @@ MINIMAL_API u8 minimalEventIsExternal(const MinimalEvent* e);
 
 MINIMAL_API const void* minimalExternalEvent(const MinimalEvent* e);
 
-MINIMAL_API u8 minimalEventWindowSize(const MinimalEvent* e, f32* w, f32* h);
+MINIMAL_API u8 minimalEventWindowSize(const MinimalEvent* e, u32* w, u32* h);
 
 MINIMAL_API u8 minimalEventMouseButton(const MinimalEvent* e, MinimalMouseButton button, f32* x, f32* y);
 MINIMAL_API u8 minimalEventMouseButtonPressed(const MinimalEvent* e, MinimalMouseButton button, f32* x, f32* y);

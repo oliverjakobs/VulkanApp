@@ -2,6 +2,8 @@
 
 #include "ignis/ignis.h"
 
+static u8 obeliskOnEvent(ObeliskApp* app, const MinimalEvent* e);
+
 u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
 {
     /* minimal initialization */
@@ -20,7 +22,7 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
     }
     
     minimalSetCurrentContext(app->window);
-    minimalSetEventHandler(app, (MinimalEventCB)app->on_event);
+    minimalSetEventHandler(app, (MinimalEventCB)obeliskOnEvent);
     
     IgnisPlatform platform = {
         .createSurface = (ignisCreateSurfaceFn)minimalCreateWindowSurface,
@@ -35,6 +37,8 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
     }
     MINIMAL_INFO("Ignis context created successfully.");
 
+    ignisSetClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+
     return (app->on_load) ? app->on_load(app, w, h) : MINIMAL_OK;
 }
 
@@ -47,9 +51,25 @@ void obeliskDestroy(ObeliskApp* app)
     minimalPlatformTerminate();
 }
 
+u8 obeliskOnEvent(ObeliskApp* app, const MinimalEvent* e)
+{
+    u32 width, height;
+    if (minimalEventWindowSize(e, &width, &height))
+    {
+        ignisResize(width, height);
+    }
+
+    return app->on_event(app, e);
+}
+
 static void obeliskOnTick(ObeliskApp* app, const MinimalFrameData* framedata)
 {
-    app->on_tick(app, framedata->deltatime);
+    if (ignisBeginFrame())
+    {
+        app->on_tick(app, framedata->deltatime);
+
+        ignisEndFrame();
+    }
 }
 
 void obeliskRun(ObeliskApp* app)

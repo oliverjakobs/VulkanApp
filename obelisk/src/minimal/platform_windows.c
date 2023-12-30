@@ -188,7 +188,18 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         
     case WM_SIZE:
     {
-        break;
+        /*
+        RECT rect;
+        GetClientRect(context->handle, &rect);
+        i32 width = rect.right - rect.left;
+        i32 height = rect.bottom - rect.top;
+        */
+
+        i32 width  = LOWORD(lParam);
+        i32 height = HIWORD(lParam);
+
+        minimalDispatchEvent(MINIMAL_EVENT_WINDOW_SIZE, 0, width, height);
+        return 0;
     }
     case WM_CHAR:
     case WM_SYSCHAR:

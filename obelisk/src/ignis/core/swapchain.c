@@ -17,7 +17,7 @@ static uint8_t ignisChooseSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR su
     *format = formats[0];
     for (uint32_t i = 0; i < count; ++i)
     {
-        if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM  && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
         {
             *format = formats[i];
             break;
@@ -157,7 +157,7 @@ static uint8_t ignisCreateSwapchainDepthImages(VkDevice device, VkPhysicalDevice
         vkGetImageMemoryRequirements(device, swapchain->depthImages[i], &memoryReq);
 
         uint32_t memoryTypeIndex = ignisFindMemoryTypeIndex(physical, memoryReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        if (memoryTypeIndex == 0xffffffff)
+        if (memoryTypeIndex == UINT32_MAX)
         {
             MINIMAL_ERROR("failed to find suitable memory type!");
             return IGNIS_FAIL;
@@ -243,12 +243,12 @@ static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, IgnisSwapchain* s
     };
 
     VkSubpassDependency dependency = {
-        .dstSubpass = 0,
-        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
         .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
         .srcAccessMask = 0,
-        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
     };
 
     VkRenderPassCreateInfo renderPassInfo = {
@@ -420,7 +420,6 @@ void ignisDestroySwapchain(VkDevice device, IgnisSwapchain* swapchain)
     vkDestroySwapchainKHR(device, swapchain->handle, allocator);
 }
 
-
 uint8_t ignisCreateSwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain)
 {
     VkSemaphoreCreateInfo semaphoreInfo = {
@@ -441,7 +440,7 @@ uint8_t ignisCreateSwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapcha
         if (vkCreateSemaphore(device, &semaphoreInfo, allocator, &swapchain->renderFinished[i]) != VK_SUCCESS)
             return IGNIS_FAIL;
 
-        if (vkCreateFence(device, &fenceInfo, allocator, &swapchain->fences[i]) != VK_SUCCESS)
+        if (vkCreateFence(device, &fenceInfo, allocator, &swapchain->inFlightFences[i]) != VK_SUCCESS)
             return IGNIS_FAIL;
     }
 
@@ -455,6 +454,79 @@ void ignisDestroySwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain
     {
         vkDestroySemaphore(device, swapchain->imageAvailable[i], allocator);
         vkDestroySemaphore(device, swapchain->renderFinished[i], allocator);
-        vkDestroyFence(device, swapchain->fences[i], allocator);
+        vkDestroyFence(device, swapchain->inFlightFences[i], allocator);
     }
+}
+
+uint8_t ignisRecreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, uint32_t width, uint32_t height, IgnisSwapchain* swapchain)
+{
+    vkDeviceWaitIdle(device->handle);
+
+    VkSwapchainKHR oldSwapchain = swapchain->handle;
+    swapchain->handle = VK_NULL_HANDLE;
+
+    ignisDestroySwapchain(device->handle, swapchain);
+
+    uint8_t result = ignisCreateSwapchain(device, surface, oldSwapchain, width, height, swapchain);
+    
+    vkDestroySwapchainKHR(device->handle, oldSwapchain, ignisGetAllocator());
+
+    return result;
+}
+
+uint8_t ignisAcquireSwapchainImage(VkDevice device, IgnisSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex)
+{
+    vkWaitForFences(device, 1, &swapchain->inFlightFences[frame], VK_TRUE, UINT64_MAX);
+
+    VkSemaphore semaphore = swapchain->imageAvailable[frame];
+    VkResult result = vkAcquireNextImageKHR(device, swapchain->handle, UINT64_MAX, semaphore, VK_NULL_HANDLE, imageIndex);
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+        return IGNIS_FAIL;
+
+    vkResetFences(device, 1, &swapchain->inFlightFences[frame]);
+
+    return IGNIS_OK;
+}
+
+uint8_t ignisSubmitFrame(VkQueue graphics, IgnisSwapchain* swapchain, VkCommandBuffer commandBuffer, uint32_t frame)
+{
+    VkSemaphore waitSemaphores[] = { swapchain->imageAvailable[frame] };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    
+    VkSemaphore signalSemaphores[] = { swapchain->renderFinished[frame] };
+
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pWaitSemaphores = waitSemaphores,
+        .pWaitDstStageMask = waitStages,
+        .waitSemaphoreCount = 1,
+        .pCommandBuffers = &commandBuffer,
+        .commandBufferCount = 1,
+        .pSignalSemaphores = signalSemaphores,
+        .signalSemaphoreCount = 1
+    };
+
+    if (vkQueueSubmit(graphics, 1, &submitInfo, swapchain->inFlightFences[frame]) != VK_SUCCESS)
+        return IGNIS_FAIL;
+
+    return IGNIS_OK;
+}
+
+uint8_t ignisPresentFrame(VkQueue present, IgnisSwapchain* swapchain, uint32_t imageIndex, uint32_t frame)
+{
+    VkSemaphore waitSemaphores[] = { swapchain->renderFinished[frame] };
+
+    VkPresentInfoKHR presentInfo = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .pWaitSemaphores = waitSemaphores,
+        .waitSemaphoreCount = 1,
+        .pSwapchains = &swapchain->handle,
+        .swapchainCount = 1,
+        .pImageIndices = &imageIndex
+    };
+
+    if (vkQueuePresentKHR(present, &presentInfo) != VK_SUCCESS)
+        return IGNIS_FAIL;
+
+    return IGNIS_OK;
 }
