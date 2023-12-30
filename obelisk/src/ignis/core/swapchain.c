@@ -420,6 +420,22 @@ void ignisDestroySwapchain(VkDevice device, IgnisSwapchain* swapchain)
     vkDestroySwapchainKHR(device, swapchain->handle, allocator);
 }
 
+uint8_t ignisRecreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, uint32_t width, uint32_t height, IgnisSwapchain* swapchain)
+{
+    vkDeviceWaitIdle(device->handle);
+
+    VkSwapchainKHR oldSwapchain = swapchain->handle;
+    swapchain->handle = VK_NULL_HANDLE;
+
+    ignisDestroySwapchain(device->handle, swapchain);
+
+    uint8_t result = ignisCreateSwapchain(device, surface, oldSwapchain, width, height, swapchain);
+    
+    vkDestroySwapchainKHR(device->handle, oldSwapchain, ignisGetAllocator());
+
+    return result;
+}
+
 uint8_t ignisCreateSwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain)
 {
     VkSemaphoreCreateInfo semaphoreInfo = {
@@ -458,23 +474,7 @@ void ignisDestroySwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain
     }
 }
 
-uint8_t ignisRecreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, uint32_t width, uint32_t height, IgnisSwapchain* swapchain)
-{
-    vkDeviceWaitIdle(device->handle);
-
-    VkSwapchainKHR oldSwapchain = swapchain->handle;
-    swapchain->handle = VK_NULL_HANDLE;
-
-    ignisDestroySwapchain(device->handle, swapchain);
-
-    uint8_t result = ignisCreateSwapchain(device, surface, oldSwapchain, width, height, swapchain);
-    
-    vkDestroySwapchainKHR(device->handle, oldSwapchain, ignisGetAllocator());
-
-    return result;
-}
-
-uint8_t ignisAcquireSwapchainImage(VkDevice device, IgnisSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex)
+uint8_t ignisAcquireNextImage(VkDevice device, IgnisSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex)
 {
     vkWaitForFences(device, 1, &swapchain->inFlightFences[frame], VK_TRUE, UINT64_MAX);
 
@@ -488,8 +488,31 @@ uint8_t ignisAcquireSwapchainImage(VkDevice device, IgnisSwapchain* swapchain, u
     return IGNIS_OK;
 }
 
-uint8_t ignisSubmitFrame(VkQueue graphics, IgnisSwapchain* swapchain, VkCommandBuffer commandBuffer, uint32_t frame)
+VkCommandBuffer ignisBeginCommandBuffer(IgnisSwapchain* swapchain, uint32_t frame)
 {
+    // Begin recording commands.
+    VkCommandBuffer commandBuffer = swapchain->commandBuffers[frame];
+    vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = 0
+    };
+
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
+    {
+        MINIMAL_WARN("failed to begin recording command buffer!");
+        return VK_NULL_HANDLE;
+    }
+
+    return commandBuffer;
+}
+
+uint8_t ingisSubmitFrame(VkQueue graphics, VkCommandBuffer buffer, uint32_t frame, IgnisSwapchain* swapchain)
+{
+    if (vkEndCommandBuffer(buffer) != VK_SUCCESS)
+        MINIMAL_WARN("failed to record command buffer!");
+
     VkSemaphore waitSemaphores[] = { swapchain->imageAvailable[frame] };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     
@@ -500,7 +523,7 @@ uint8_t ignisSubmitFrame(VkQueue graphics, IgnisSwapchain* swapchain, VkCommandB
         .pWaitSemaphores = waitSemaphores,
         .pWaitDstStageMask = waitStages,
         .waitSemaphoreCount = 1,
-        .pCommandBuffers = &commandBuffer,
+        .pCommandBuffers = &buffer,
         .commandBufferCount = 1,
         .pSignalSemaphores = signalSemaphores,
         .signalSemaphoreCount = 1
@@ -512,7 +535,7 @@ uint8_t ignisSubmitFrame(VkQueue graphics, IgnisSwapchain* swapchain, VkCommandB
     return IGNIS_OK;
 }
 
-uint8_t ignisPresentFrame(VkQueue present, IgnisSwapchain* swapchain, uint32_t imageIndex, uint32_t frame)
+uint8_t ignisPresentFrame(VkQueue present, uint32_t imageIndex, uint32_t frame, IgnisSwapchain* swapchain)
 {
     VkSemaphore waitSemaphores[] = { swapchain->renderFinished[frame] };
 
@@ -527,6 +550,6 @@ uint8_t ignisPresentFrame(VkQueue present, IgnisSwapchain* swapchain, uint32_t i
 
     if (vkQueuePresentKHR(present, &presentInfo) != VK_SUCCESS)
         return IGNIS_FAIL;
-
+        
     return IGNIS_OK;
 }

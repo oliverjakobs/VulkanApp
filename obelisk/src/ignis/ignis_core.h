@@ -68,8 +68,9 @@ typedef struct
     VkDeviceMemory* depthImageMemories;
 
     VkRenderPass renderPass;
-
     VkFramebuffer* framebuffers;
+
+    VkCommandBuffer commandBuffers[IGNIS_MAX_FRAMES_IN_FLIGHT];
 
     /* Sync objects */
     VkSemaphore imageAvailable[IGNIS_MAX_FRAMES_IN_FLIGHT];
@@ -85,10 +86,14 @@ uint8_t ignisRecreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, 
 uint8_t ignisCreateSwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain);
 void ignisDestroySwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain);
 
-uint8_t ignisAcquireSwapchainImage(VkDevice device, IgnisSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex);
+uint8_t ignisAcquireNextImage(VkDevice device, IgnisSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex);
 
-uint8_t ignisSubmitFrame(VkQueue graphics, IgnisSwapchain* swapchain, VkCommandBuffer commandBuffer, uint32_t frame);
-uint8_t ignisPresentFrame(VkQueue present, IgnisSwapchain* swapchain, uint32_t imageIndex, uint32_t frame);
+VkCommandBuffer ignisBeginCommandBuffer(IgnisSwapchain* swapchain, uint32_t frame);
+
+uint8_t ingisSubmitFrame(VkQueue graphics, VkCommandBuffer buffer, uint32_t frame, IgnisSwapchain* swapchain);
+uint8_t ignisPresentFrame(VkQueue present, uint32_t imageIndex, uint32_t frame, IgnisSwapchain* swapchain);
+
+
 
 /* --------------------------| platform |-------------------------------- */
 typedef VkResult (*ignisCreateSurfaceFn)(VkInstance, const void*, const VkAllocationCallbacks*, VkSurfaceKHR*);
@@ -113,11 +118,12 @@ struct IgnisContext
     IgnisDevice device;
     IgnisSwapchain swapchain;
 
-    // render data
     uint32_t currentFrame;
     uint32_t imageIndex;
+    VkCommandBuffer commandBuffer;
 
-    VkCommandBuffer commandBuffers[IGNIS_MAX_FRAMES_IN_FLIGHT];
+    uint16_t swapchainGeneration;
+    uint16_t swapchainLastGeneration;
 
     // state
     VkViewport viewport;

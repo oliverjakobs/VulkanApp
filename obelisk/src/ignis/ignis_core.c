@@ -125,46 +125,17 @@ uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisP
         return IGNIS_FAIL;
     }
 
-    if (!ignisCreateDevice(context->instance, context->surface, &context->device))
-    {
-        MINIMAL_CRITICAL("failed to create device");
-        return IGNIS_FAIL;
-    }
-    
-    ignisPrintDeviceInfo(&context->device);
-
-    if (!ignisCreateSwapchain(&context->device, context->surface, VK_NULL_HANDLE, 1280, 720, &context->swapchain))
-    {
-        MINIMAL_CRITICAL("failed to create swapchain");
-        return IGNIS_FAIL;
-    }
-
-    if (ignisAllocCommandBuffers(&context->device, VK_COMMAND_BUFFER_LEVEL_PRIMARY, IGNIS_MAX_FRAMES_IN_FLIGHT, context->commandBuffers) != VK_SUCCESS)
-    {
-        MINIMAL_ERROR("Failed to allocate command buffers");
-        return IGNIS_FAIL;
-    }
-
-    if (!ignisCreateSwapchainSyncObjects(context->device.handle, &context->swapchain))
-    {
-        MINIMAL_CRITICAL("failed to create swapchain sync objects");
-        return IGNIS_FAIL;
-    }
-
     context->currentFrame = 0;
     context->imageIndex = 0;
+    context->commandBuffer = VK_NULL_HANDLE;
+
+    context->swapchainGeneration = 0;
+    context->swapchainLastGeneration = 0;
     return IGNIS_OK;
 }
 
 void ignisDestroyContext(IgnisContext* context)
 {
-    ignisDestroySwapchainSyncObjects(context->device.handle, &context->swapchain);
-
-    ignisFreeCommandBuffers(&context->device, IGNIS_MAX_FRAMES_IN_FLIGHT, context->commandBuffers);
-
-    ignisDestroySwapchain(context->device.handle, &context->swapchain);
-    ignisDestroyDevice(&context->device);
-
     vkDestroySurfaceKHR(context->instance, context->surface, ignisGetAllocator());
 
 #ifdef IGNIS_DEBUG

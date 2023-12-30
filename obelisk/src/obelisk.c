@@ -35,7 +35,7 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
         MINIMAL_CRITICAL("Failed to create ignis context.");
         return MINIMAL_FAIL;
     }
-    MINIMAL_INFO("Ignis context created successfully.");
+    MINIMAL_TRACE("Ignis context created successfully.");
 
     ignisSetClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
@@ -45,7 +45,7 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
 void obeliskDestroy(ObeliskApp* app)
 {
     ignisTerminate();
-    MINIMAL_INFO("Ignis context terminated.");
+    MINIMAL_TRACE("Ignis context terminated.");
 
     minimalDestroyWindow(app->window);
     minimalPlatformTerminate();

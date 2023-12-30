@@ -5,12 +5,39 @@
 
 
 static IgnisContext context;
+uint32_t cached_width, cached_height;
 
 uint8_t ignisInit(const char* name, const IgnisPlatform* platform)
 {
     if (!ignisCreateContext(&context, name, platform))
     {
         MINIMAL_CRITICAL("failed to create context");
+        return IGNIS_FAIL;
+    }
+    
+    if (!ignisCreateDevice(context.instance, context.surface, &context.device))
+    {
+        MINIMAL_CRITICAL("failed to create device");
+        return IGNIS_FAIL;
+    }
+    
+    ignisPrintDeviceInfo(&context.device);
+
+    if (!ignisCreateSwapchain(&context.device, context.surface, VK_NULL_HANDLE, 1280, 720, &context.swapchain))
+    {
+        MINIMAL_CRITICAL("failed to create swapchain");
+        return IGNIS_FAIL;
+    }
+
+    if (ignisAllocCommandBuffers(&context.device, VK_COMMAND_BUFFER_LEVEL_PRIMARY, IGNIS_MAX_FRAMES_IN_FLIGHT, context.swapchain.commandBuffers) != VK_SUCCESS)
+    {
+        MINIMAL_ERROR("Failed to allocate command buffers");
+        return IGNIS_FAIL;
+    }
+
+    if (!ignisCreateSwapchainSyncObjects(context.device.handle, &context.swapchain))
+    {
+        MINIMAL_CRITICAL("failed to create swapchain sync objects");
         return IGNIS_FAIL;
     }
 
@@ -26,12 +53,23 @@ uint8_t ignisInit(const char* name, const IgnisPlatform* platform)
 void ignisTerminate()
 {
     vkDeviceWaitIdle(context.device.handle);
+
+    ignisDestroySwapchainSyncObjects(context.device.handle, &context.swapchain);
+    ignisFreeCommandBuffers(&context.device, IGNIS_MAX_FRAMES_IN_FLIGHT, context.swapchain.commandBuffers);
+
+    ignisDestroySwapchain(context.device.handle, &context.swapchain);
+    ignisDestroyDevice(&context.device);
+
     ignisDestroyContext(&context);
 }
 
 uint8_t ignisResize(uint32_t width, uint32_t height)
 {
-    return ignisRecreateSwapchain(&context.device, context.surface, width, height, &context.swapchain);
+    cached_width = width;
+    cached_height = height;
+    context.swapchainGeneration++;
+
+    return IGNIS_OK;
 }
 
 void ignisSetClearColor(float r, float g, float b, float a)
@@ -64,23 +102,27 @@ void ignisSetDepthRange(float nearVal, float farVal)
 
 uint8_t ignisBeginFrame()
 {
-    if (!ignisAcquireSwapchainImage(context.device.handle, &context.swapchain, context.currentFrame, &context.imageIndex))
-        return IGNIS_FAIL;
-
-    // Begin recording commands.
-    VkCommandBuffer commandBuffer = context.commandBuffers[context.currentFrame];
-    vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
-
-    VkCommandBufferBeginInfo beginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = 0
-    };
-
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
+    // Check if swapchain is out of date.
+    if (context.swapchainGeneration != context.swapchainLastGeneration)
     {
-        MINIMAL_WARN("failed to begin recording command buffer!");
-        return IGNIS_FAIL;
+        // window is minimized
+        if (cached_width == 0 || cached_height == 0)
+            return IGNIS_FAIL;
+
+        if (!ignisRecreateSwapchain(&context.device, context.surface, cached_width, cached_height, &context.swapchain))
+        {
+            MINIMAL_ERROR("Failed to recreate swapchain");
+            return IGNIS_FAIL;
+        }
+        context.swapchainLastGeneration = context.swapchainGeneration;
+
+        MINIMAL_TRACE("Recreated Swapchchain");
     }
+
+    if (!ignisAcquireNextImage(context.device.handle, &context.swapchain, context.currentFrame, &context.imageIndex))
+        return IGNIS_FAIL;
+
+    context.commandBuffer = ignisBeginCommandBuffer(&context.swapchain, context.currentFrame);
 
     // begin render pass
     VkClearValue clearValues[] = {
@@ -98,31 +140,26 @@ uint8_t ignisBeginFrame()
         .clearValueCount = 2
     };
 
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(context.commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     // set dynamic state
-    vkCmdSetViewport(commandBuffer, 0, 1, &context.viewport);
+    vkCmdSetViewport(context.commandBuffer, 0, 1, &context.viewport);
 
     return IGNIS_OK;
 }
 
 uint8_t ignisEndFrame()
 {
-    VkCommandBuffer commandBuffer = context.commandBuffers[context.currentFrame];
-    
-    vkCmdEndRenderPass(commandBuffer);
-
-    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
-        MINIMAL_WARN("failed to record command buffer!");
+    vkCmdEndRenderPass(context.commandBuffer);
 
     VkQueue graphicsQueue = context.device.queues[IGNIS_QUEUE_GRAPHICS];
-    if (!ignisSubmitFrame(graphicsQueue, &context.swapchain, commandBuffer, context.currentFrame))
+    if (!ingisSubmitFrame(graphicsQueue, context.commandBuffer, context.currentFrame, &context.swapchain))
         MINIMAL_WARN("failed to submit frame");
 
     VkQueue presentQueue = context.device.queues[IGNIS_QUEUE_PRESENT];
-    if (!ignisPresentFrame(presentQueue, &context.swapchain, context.imageIndex, context.currentFrame))
+    if (!ignisPresentFrame(presentQueue, context.imageIndex, context.currentFrame, &context.swapchain))
         MINIMAL_WARN("failed to present frame");
-
+    
     /* next frame */
     context.currentFrame = (context.currentFrame + 1) % IGNIS_MAX_FRAMES_IN_FLIGHT;
 
