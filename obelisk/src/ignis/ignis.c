@@ -1,11 +1,14 @@
 #include "ignis.h"
 
+#include "pipeline.h"
 
 #include "minimal/common.h"
 
 
 static IgnisContext context;
-uint32_t cached_width, cached_height;
+uint32_t cachedWidth, cachedHeight;
+
+static IgnisPipeline pipeline;
 
 uint8_t ignisInit(const char* name, const IgnisPlatform* platform)
 {
@@ -47,12 +50,26 @@ uint8_t ignisInit(const char* name, const IgnisPlatform* platform)
     ignisSetViewport(0.0f, 0.0f, context.swapchain.extent.width, context.swapchain.extent.height);
     ignisSetDepthRange(0.0f, 1.0f);
 
+    IgnisPipelineConfig pipelineConfig = {
+        .vertPath = "./obelisk/res/vert.spv",
+        .fragPath = "./obelisk/res/frag.spv",
+        .renderPass = context.swapchain.renderPass
+    };
+
+    if (!ignisCreatePipeline(context.device.handle, &pipelineConfig, &pipeline))
+    {
+        MINIMAL_CRITICAL("failed to create pipeline");
+        return IGNIS_FAIL;
+    }
+
     return IGNIS_OK;
 }
 
 void ignisTerminate()
 {
     vkDeviceWaitIdle(context.device.handle);
+
+    ignisDestroyPipeline(context.device.handle, &pipeline);
 
     ignisDestroySwapchainSyncObjects(context.device.handle, &context.swapchain);
     ignisFreeCommandBuffers(&context.device, IGNIS_MAX_FRAMES_IN_FLIGHT, context.swapchain.commandBuffers);
@@ -65,8 +82,8 @@ void ignisTerminate()
 
 uint8_t ignisResize(uint32_t width, uint32_t height)
 {
-    cached_width = width;
-    cached_height = height;
+    cachedWidth = width;
+    cachedHeight = height;
     context.swapchainGeneration++;
 
     return IGNIS_OK;
@@ -106,10 +123,10 @@ uint8_t ignisBeginFrame()
     if (context.swapchainGeneration != context.swapchainLastGeneration)
     {
         // window is minimized
-        if (cached_width == 0 || cached_height == 0)
+        if (cachedWidth == 0 || cachedHeight == 0)
             return IGNIS_FAIL;
 
-        if (!ignisRecreateSwapchain(&context.device, context.surface, cached_width, cached_height, &context.swapchain))
+        if (!ignisRecreateSwapchain(&context.device, context.surface, cachedWidth, cachedHeight, &context.swapchain))
         {
             MINIMAL_ERROR("Failed to recreate swapchain");
             return IGNIS_FAIL;
@@ -144,6 +161,18 @@ uint8_t ignisBeginFrame()
 
     // set dynamic state
     vkCmdSetViewport(context.commandBuffer, 0, 1, &context.viewport);
+
+    VkRect2D scissor = {
+        .offset = {0, 0},
+        .extent = context.swapchain.extent
+    };
+    vkCmdSetScissor(context.commandBuffer, 0, 1, &scissor);
+
+
+
+    vkCmdBindPipeline(context.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
+
+    vkCmdDraw(context.commandBuffer, 3, 1, 0, 0);
 
     return IGNIS_OK;
 }

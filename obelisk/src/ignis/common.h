@@ -13,6 +13,7 @@
 void* ignisAlloc(size_t size);
 void  ignisFree(void* block, size_t size);
 
+char* ignisReadFile(const char* path, size_t* sizeptr);
 
 uint32_t ignisClamp32(uint32_t val, uint32_t min, uint32_t max);
 

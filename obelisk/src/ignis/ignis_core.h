@@ -112,7 +112,7 @@ struct IgnisContext
     VkSurfaceKHR surface;
 
 #ifdef IGNIS_DEBUG
-    VkDebugUtilsMessengerEXT debug_messenger;
+    VkDebugUtilsMessengerEXT debugMessenger;
 #endif
 
     IgnisDevice device;
