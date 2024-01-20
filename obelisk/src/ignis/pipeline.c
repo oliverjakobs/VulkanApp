@@ -41,10 +41,33 @@ uint8_t ignisCreatePipeline(VkDevice device, const IgnisPipelineConfig* config, 
         }
     };
 
+    VkVertexInputBindingDescription bindingDescription = {
+        .binding = 0,
+        .stride = sizeof(float) * 5,
+        .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+    };
+
+    VkVertexInputAttributeDescription attributeDescriptions[] = {
+        {
+            .binding = 0,
+            .location = 0,
+            .format = VK_FORMAT_R32G32_SFLOAT,
+            .offset = sizeof(float) * 0
+        },
+        {
+            .binding = 0,
+            .location = 1,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            .offset = sizeof(float) * 2
+        }
+    };
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 0,
-        .vertexAttributeDescriptionCount = 0
+        .vertexBindingDescriptionCount = 1,
+        .pVertexBindingDescriptions = &bindingDescription,
+        .vertexAttributeDescriptionCount = 2,
+        .pVertexAttributeDescriptions = attributeDescriptions
     };
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {

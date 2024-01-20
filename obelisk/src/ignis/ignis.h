@@ -16,4 +16,6 @@ void ignisSetDepthRange(float nearVal, float farVal);
 uint8_t ignisBeginFrame();
 uint8_t ignisEndFrame();
 
+IgnisContext* ignisGetContext();
+
 #endif /* !IGNIS_H */

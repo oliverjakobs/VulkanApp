@@ -41,10 +41,11 @@ uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice
 void ignisDestroyDevice(IgnisDevice* device);
 
 VkFormat ignisQueryDeviceDepthFormat(VkPhysicalDevice device);
-uint32_t ignisFindMemoryTypeIndex(VkPhysicalDevice device, uint32_t filter, VkMemoryPropertyFlags properties);
 
 VkResult ignisAllocCommandBuffers(const IgnisDevice* device, VkCommandBufferLevel level, uint32_t count, VkCommandBuffer* buffers);
 void ignisFreeCommandBuffers(const IgnisDevice* device, uint32_t count, const VkCommandBuffer* buffers);
+
+uint8_t ignisAllocateDeviceMemory(const IgnisDevice* device, VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, VkDeviceMemory* memory);
 
 void ignisPrintDeviceInfo(const IgnisDevice* device);
 

@@ -114,9 +114,9 @@ static uint8_t ignisCreateSwapchainImages(VkDevice device, uint32_t count, VkFor
     return IGNIS_OK;
 }
 
-static uint8_t ignisCreateSwapchainDepthImages(VkDevice device, VkPhysicalDevice physical, IgnisSwapchain* swapchain)
+static uint8_t ignisCreateSwapchainDepthImages(const IgnisDevice* device, IgnisSwapchain* swapchain)
 {
-    swapchain->depthFormat = ignisQueryDeviceDepthFormat(physical);
+    swapchain->depthFormat = ignisQueryDeviceDepthFormat(device->physical);
     if (swapchain->depthFormat == VK_FORMAT_UNDEFINED) return IGNIS_FAIL;
 
     swapchain->depthImages = ignisAlloc(swapchain->imageCount * sizeof(VkImage));
@@ -147,35 +147,24 @@ static uint8_t ignisCreateSwapchainDepthImages(VkDevice device, VkPhysicalDevice
             .flags = 0
         };
 
-        if (vkCreateImage(device, &imageInfo, ignisGetAllocator(), &swapchain->depthImages[i]) != VK_SUCCESS)
+        if (vkCreateImage(device->handle, &imageInfo, ignisGetAllocator(), &swapchain->depthImages[i]) != VK_SUCCESS)
         {
             MINIMAL_ERROR("failed to create image!");
             return IGNIS_FAIL;
         }
 
         VkMemoryRequirements memoryReq;
-        vkGetImageMemoryRequirements(device, swapchain->depthImages[i], &memoryReq);
+        vkGetImageMemoryRequirements(device->handle, swapchain->depthImages[i], &memoryReq);
 
-        uint32_t memoryTypeIndex = ignisFindMemoryTypeIndex(physical, memoryReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        if (memoryTypeIndex == UINT32_MAX)
-        {
-            MINIMAL_ERROR("failed to find suitable memory type!");
-            return IGNIS_FAIL;
-        }
+        VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-        VkMemoryAllocateInfo allocInfo = {
-            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            .allocationSize = memoryReq.size,
-            .memoryTypeIndex = memoryTypeIndex
-        };
-
-        if (vkAllocateMemory(device, &allocInfo, ignisGetAllocator(), &swapchain->depthImageMemories[i]) != VK_SUCCESS)
+        if (!ignisAllocateDeviceMemory(device, memoryReq, properties, &swapchain->depthImageMemories[i]))
         {
             MINIMAL_ERROR("failed to allocate image memory!");
             return IGNIS_FAIL;
         }
 
-        if (vkBindImageMemory(device, swapchain->depthImages[i], swapchain->depthImageMemories[i], 0) != VK_SUCCESS)
+        if (vkBindImageMemory(device->handle, swapchain->depthImages[i], swapchain->depthImageMemories[i], 0) != VK_SUCCESS)
         {
             MINIMAL_ERROR("failed to bind image memory!");
             return IGNIS_FAIL;
@@ -193,7 +182,7 @@ static uint8_t ignisCreateSwapchainDepthImages(VkDevice device, VkPhysicalDevice
             .subresourceRange.layerCount = 1
         };
 
-        if (vkCreateImageView(device, &viewInfo, ignisGetAllocator(), &swapchain->depthImageViews[i]) != VK_SUCCESS)
+        if (vkCreateImageView(device->handle, &viewInfo, ignisGetAllocator(), &swapchain->depthImageViews[i]) != VK_SUCCESS)
         {
             MINIMAL_ERROR("failed to create depth image view!");
             return IGNIS_FAIL;
@@ -366,7 +355,7 @@ uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, Vk
     if (!ignisCreateSwapchainImages(device->handle, imageCount, surfaceFormat.format, swapchain))
         return IGNIS_FAIL;
 
-    if (!ignisCreateSwapchainDepthImages(device->handle, device->physical, swapchain))
+    if (!ignisCreateSwapchainDepthImages(device, swapchain))
         return IGNIS_FAIL;
     
     if (!ignisCreateSwapchainRenderPass(device->handle, swapchain))

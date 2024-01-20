@@ -256,19 +256,42 @@ VkFormat ignisQueryDeviceDepthFormat(VkPhysicalDevice device)
     return VK_FORMAT_UNDEFINED;
 }
 
-uint32_t ignisFindMemoryTypeIndex(VkPhysicalDevice device, uint32_t filter, VkMemoryPropertyFlags properties)
+uint8_t ignisAllocateDeviceMemory(const IgnisDevice* device, VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, VkDeviceMemory* memory)
 {
     VkPhysicalDeviceMemoryProperties memoryProps;
-    vkGetPhysicalDeviceMemoryProperties(device, &memoryProps);
+    vkGetPhysicalDeviceMemoryProperties(device->physical, &memoryProps);
 
-    for (uint32_t i = 0; i < memoryProps.memoryTypeCount; i++)
+    uint32_t memoryTypeIndex = memoryProps.memoryTypeCount;
+    for (uint32_t i = 0; i < memoryProps.memoryTypeCount; ++i)
     {
-        if ((filter & (1 << i)) && (memoryProps.memoryTypes[i].propertyFlags & properties) == properties)
-            return i;
+        if ((requirements.memoryTypeBits & (1 << i)) && (memoryProps.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            memoryTypeIndex = i;
+            break;
+        }
     }
 
-    return UINT32_MAX;
+    if (memoryTypeIndex == memoryProps.memoryTypeCount)
+    {
+        MINIMAL_ERROR("failed to find suitable memory type!");
+        return IGNIS_FAIL;
+    }
+
+    VkMemoryAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = requirements.size,
+        .memoryTypeIndex = memoryTypeIndex
+    };
+
+    if (vkAllocateMemory(device->handle, &allocInfo, ignisGetAllocator(), memory) != VK_SUCCESS)
+    {
+        MINIMAL_ERROR("failed to find allocate device memory!");
+        return IGNIS_FAIL;
+    }
+
+    return IGNIS_OK;
 }
+
 
 VkResult ignisAllocCommandBuffers(const IgnisDevice* device, VkCommandBufferLevel level, uint32_t count, VkCommandBuffer* buffers)
 {
