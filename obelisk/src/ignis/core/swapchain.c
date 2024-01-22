@@ -2,30 +2,31 @@
 
 #include "minimal/common.h"
 
-static uint8_t ignisChooseSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR surface, VkSurfaceFormatKHR* format)
+static VkSurfaceFormatKHR ignisChooseSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
     uint32_t count;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, NULL);
-    if (!count) return IGNIS_FAIL;
+    if (!count) return (VkSurfaceFormatKHR){VK_FORMAT_UNDEFINED, 0};
 
     VkSurfaceFormatKHR* formats = ignisAlloc(sizeof(VkSurfaceFormatKHR) * count);
-    if (!formats) return IGNIS_FAIL;
+    if (!formats) return (VkSurfaceFormatKHR){VK_FORMAT_UNDEFINED, 0};
 
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, formats);
 
     /* set fallback */
-    *format = formats[0];
+    VkSurfaceFormatKHR format = formats[0];
     for (uint32_t i = 0; i < count; ++i)
     {
-        if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM  && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM
+            && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
         {
-            *format = formats[i];
+            format = formats[i];
             break;
         }
     }
 
     ignisFree(formats, sizeof(VkSurfaceFormatKHR) * count);
-    return IGNIS_OK;
+    return format;
 }
 
 static VkPresentModeKHR ignisChoosePresentMode(VkPhysicalDevice device, VkSurfaceKHR surface)
@@ -67,11 +68,75 @@ static VkExtent2D ignisGetSurfaceExtent(const VkSurfaceCapabilitiesKHR* capabili
     return extent;
 }
 
-static uint8_t ignisCreateSwapchainImages(VkDevice device, uint32_t count, VkFormat format, IgnisSwapchain* swapchain)
+static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, IgnisSwapchain* swapchain)
 {
-    swapchain->imageCount = count;
-    swapchain->imageFormat = format;
+    VkAttachmentDescription attachments[] = {
+        {
+            // colorAttachment
+            .format = swapchain->imageFormat,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        },
+        {
+            // depthAttachment
+            .format = swapchain->depthFormat,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        }
+    };
 
+    VkAttachmentReference attachmentRefs[] = {
+        { .attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
+        { .attachment = 1, .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL }
+    };
+
+    VkSubpassDescription subpass = {
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .pColorAttachments = attachmentRefs,
+        .colorAttachmentCount = 1,
+        .pDepthStencilAttachment = &attachmentRefs[1]
+    };
+
+    VkSubpassDependency dependency = {
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcAccessMask = 0,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    };
+
+    VkRenderPassCreateInfo renderPassInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .pAttachments = attachments,
+        .attachmentCount = sizeof(attachments) / sizeof(VkAttachmentDescription),
+        .pSubpasses = &subpass,
+        .subpassCount = 1,
+        .pDependencies = &dependency,
+        .dependencyCount = 1
+    };
+
+    if (vkCreateRenderPass(device, &renderPassInfo, ignisGetAllocator(), &swapchain->renderPass) != VK_SUCCESS)
+    {
+        MINIMAL_ERROR("failed to create render pass!");
+        return IGNIS_FAIL;
+    }
+
+    return IGNIS_OK;
+}
+
+static uint8_t ignisCreateSwapchainImages(VkDevice device, IgnisSwapchain* swapchain)
+{
     /* create images */
     swapchain->images = ignisAlloc(swapchain->imageCount * sizeof(VkImage));
     if (!swapchain->images) return IGNIS_FAIL;
@@ -116,9 +181,7 @@ static uint8_t ignisCreateSwapchainImages(VkDevice device, uint32_t count, VkFor
 
 static uint8_t ignisCreateSwapchainDepthImages(const IgnisDevice* device, IgnisSwapchain* swapchain)
 {
-    swapchain->depthFormat = ignisQueryDeviceDepthFormat(device->physical);
-    if (swapchain->depthFormat == VK_FORMAT_UNDEFINED) return IGNIS_FAIL;
-
+    /* create depth images and views */
     swapchain->depthImages = ignisAlloc(swapchain->imageCount * sizeof(VkImage));
     if (!swapchain->depthImages) return IGNIS_FAIL;
 
@@ -192,73 +255,6 @@ static uint8_t ignisCreateSwapchainDepthImages(const IgnisDevice* device, IgnisS
     return IGNIS_OK;
 }
 
-static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, IgnisSwapchain* swapchain)
-{
-    VkAttachmentDescription attachments[] = {
-        {
-            // colorAttachment
-            .format = swapchain->imageFormat,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-        },
-        {
-            // depthAttachment
-            .format = swapchain->depthFormat,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        }
-    };
-
-    VkAttachmentReference attachmentRefs[] = {
-        { .attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
-        { .attachment = 1, .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL }
-    };
-
-    VkSubpassDescription subpass = {
-        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-        .pColorAttachments = attachmentRefs,
-        .colorAttachmentCount = 1,
-        .pDepthStencilAttachment = &attachmentRefs[1]
-    };
-
-    VkSubpassDependency dependency = {
-        .srcSubpass = VK_SUBPASS_EXTERNAL,
-        .dstSubpass = 0,
-        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        .srcAccessMask = 0,
-        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-    };
-
-    VkRenderPassCreateInfo renderPassInfo = {
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .pAttachments = attachments,
-        .attachmentCount = sizeof(attachments) / sizeof(VkAttachmentDescription),
-        .pSubpasses = &subpass,
-        .subpassCount = 1,
-        .pDependencies = &dependency,
-        .dependencyCount = 1
-    };
-
-    if (vkCreateRenderPass(device, &renderPassInfo, ignisGetAllocator(), &swapchain->renderPass) != VK_SUCCESS)
-    {
-        MINIMAL_ERROR("failed to create render pass!");
-        return IGNIS_FAIL;
-    }
-
-    return IGNIS_OK;
-}
-
 static uint8_t ignisCreateSwapchainFramebuffers(VkDevice device, IgnisSwapchain* swapchain)
 {
     swapchain->framebuffers = ignisAlloc(swapchain->imageCount * sizeof(VkFramebuffer));
@@ -294,8 +290,8 @@ static uint8_t ignisCreateSwapchainFramebuffers(VkDevice device, IgnisSwapchain*
 uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, VkSwapchainKHR old, uint32_t w, uint32_t h, IgnisSwapchain* swapchain)
 {
     /* choose swap chain surface format */
-    VkSurfaceFormatKHR surfaceFormat;
-    if (!ignisChooseSurfaceFormat(device->physical, surface, &surfaceFormat))
+    VkSurfaceFormatKHR surfaceFormat = ignisChooseSurfaceFormat(device->physical, surface);
+    if (surfaceFormat.format == VK_FORMAT_UNDEFINED)
     {
         MINIMAL_ERROR("failed to choose swap chain surface format!");
         return IGNIS_FAIL;
@@ -349,16 +345,52 @@ uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, Vk
         MINIMAL_ERROR("failed to create swap chain!");
         return IGNIS_FAIL;
     }
-    
-    swapchain->extent = extent;
 
-    if (!ignisCreateSwapchainImages(device->handle, imageCount, surfaceFormat.format, swapchain))
+    /* query for depth format */
+    VkFormat candidates[] = {
+        VK_FORMAT_D32_SFLOAT,
+        VK_FORMAT_D32_SFLOAT_S8_UINT,
+        VK_FORMAT_D24_UNORM_S8_UINT
+    };
+    const uint32_t count = sizeof(candidates) / sizeof(candidates[0]);;
+
+    VkFormatFeatureFlags features = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+    VkFormat depthFormat = VK_FORMAT_UNDEFINED;
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(device->physical, candidates[i], &props);
+
+        if ((props.linearTilingFeatures & features) == features)
+        {
+            depthFormat = candidates[i];
+            break;
+        }
+        else if ((props.optimalTilingFeatures & features) == features)
+        {
+            depthFormat = candidates[i];
+            break;
+        }
+    }
+    if (depthFormat == VK_FORMAT_UNDEFINED)
+    {
+        MINIMAL_ERROR("failed to find suitable depth format!");
+        return IGNIS_FAIL;
+    }
+
+    swapchain->extent = extent;
+    swapchain->imageCount = imageCount;
+    swapchain->imageFormat = surfaceFormat.format;
+    swapchain->depthFormat = depthFormat;
+    
+    if (!ignisCreateSwapchainRenderPass(device->handle, swapchain))
+        return IGNIS_FAIL;
+
+    if (!ignisCreateSwapchainImages(device->handle, swapchain))
         return IGNIS_FAIL;
 
     if (!ignisCreateSwapchainDepthImages(device, swapchain))
-        return IGNIS_FAIL;
-    
-    if (!ignisCreateSwapchainRenderPass(device->handle, swapchain))
         return IGNIS_FAIL;
 
     if (!ignisCreateSwapchainFramebuffers(device->handle, swapchain))
@@ -377,7 +409,7 @@ void ignisDestroySwapchain(VkDevice device, IgnisSwapchain* swapchain)
     {
         for (size_t i = 0; i < swapchain->imageCount; ++i)
             vkDestroyFramebuffer(device, swapchain->framebuffers[i], allocator);
-        
+
         ignisFree(swapchain->framebuffers, swapchain->imageCount * sizeof(VkFramebuffer));
     }
 
@@ -475,26 +507,6 @@ uint8_t ignisAcquireNextImage(VkDevice device, IgnisSwapchain* swapchain, uint32
     vkResetFences(device, 1, &swapchain->inFlightFences[frame]);
 
     return IGNIS_OK;
-}
-
-VkCommandBuffer ignisBeginCommandBuffer(IgnisSwapchain* swapchain, uint32_t frame)
-{
-    // Begin recording commands.
-    VkCommandBuffer commandBuffer = swapchain->commandBuffers[frame];
-    vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
-
-    VkCommandBufferBeginInfo beginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = 0
-    };
-
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
-    {
-        MINIMAL_WARN("failed to begin recording command buffer!");
-        return VK_NULL_HANDLE;
-    }
-
-    return commandBuffer;
 }
 
 uint8_t ingisSubmitFrame(VkQueue graphics, VkCommandBuffer buffer, uint32_t frame, IgnisSwapchain* swapchain)

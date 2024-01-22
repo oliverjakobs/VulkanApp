@@ -7,7 +7,7 @@
 
 const VkAllocationCallbacks* ignisGetAllocator();
 
-typedef struct IgnisContext IgnisContext;
+#define IGNIS_VK_PFN(instance, name) ((PFN_##name)vkGetInstanceProcAddr((instance), (#name)))
 
 /* --------------------------| device |---------------------------------- */
 typedef enum
@@ -40,8 +40,6 @@ typedef struct
 uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice* device);
 void ignisDestroyDevice(IgnisDevice* device);
 
-VkFormat ignisQueryDeviceDepthFormat(VkPhysicalDevice device);
-
 VkResult ignisAllocCommandBuffers(const IgnisDevice* device, VkCommandBufferLevel level, uint32_t count, VkCommandBuffer* buffers);
 void ignisFreeCommandBuffers(const IgnisDevice* device, uint32_t count, const VkCommandBuffer* buffers);
 
@@ -60,18 +58,18 @@ typedef struct
     VkFormat depthFormat;
     VkExtent2D extent;
 
+    VkRenderPass renderPass;
+
     uint32_t imageCount;
-    VkImage* images;
-    VkImageView* imageViews;
+
+    VkImage*        images;
+    VkImageView*    imageViews;
 
     VkImage*        depthImages;
     VkImageView*    depthImageViews;
     VkDeviceMemory* depthImageMemories;
 
-    VkRenderPass renderPass;
     VkFramebuffer* framebuffers;
-
-    VkCommandBuffer commandBuffers[IGNIS_MAX_FRAMES_IN_FLIGHT];
 
     /* Sync objects */
     VkSemaphore imageAvailable[IGNIS_MAX_FRAMES_IN_FLIGHT];
@@ -89,12 +87,8 @@ void ignisDestroySwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain
 
 uint8_t ignisAcquireNextImage(VkDevice device, IgnisSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex);
 
-VkCommandBuffer ignisBeginCommandBuffer(IgnisSwapchain* swapchain, uint32_t frame);
-
 uint8_t ingisSubmitFrame(VkQueue graphics, VkCommandBuffer buffer, uint32_t frame, IgnisSwapchain* swapchain);
 uint8_t ignisPresentFrame(VkQueue present, uint32_t imageIndex, uint32_t frame, IgnisSwapchain* swapchain);
-
-
 
 /* --------------------------| platform |-------------------------------- */
 typedef VkResult (*ignisCreateSurfaceFn)(VkInstance, const void*, const VkAllocationCallbacks*, VkSurfaceKHR*);
@@ -107,7 +101,7 @@ typedef struct
 } IgnisPlatform;
 
 /* --------------------------| context |--------------------------------- */
-struct IgnisContext
+typedef struct
 {
     VkInstance instance;
     VkSurfaceKHR surface;
@@ -119,18 +113,20 @@ struct IgnisContext
     IgnisDevice device;
     IgnisSwapchain swapchain;
 
-    uint32_t currentFrame;
-    uint32_t imageIndex;
-    VkCommandBuffer commandBuffer;
-
     uint16_t swapchainGeneration;
     uint16_t swapchainLastGeneration;
 
+    VkCommandBuffer commandBuffers[IGNIS_MAX_FRAMES_IN_FLIGHT];
+
+    uint32_t currentFrame;
+    uint32_t imageIndex;
+
     // state
     VkViewport viewport;
-    VkClearColorValue clearColor;
-    VkClearDepthStencilValue depthStencil;
-};
+    VkRect2D scissor;
+    VkClearValue clearColor;
+    VkClearValue depthStencil;
+} IgnisContext;
 
 uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisPlatform* platform);
 void ignisDestroyContext(IgnisContext* context);

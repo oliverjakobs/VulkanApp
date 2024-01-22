@@ -19,9 +19,16 @@ static uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR sur
 static uint8_t ignisQuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
 static uint8_t ignisCheckDeviceExtensionSupport(VkPhysicalDevice device);
 
-
-static uint8_t ignisPickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice* device)
+static uint8_t ignisArrayCheckUnique(uint32_t arr[], uint32_t size)
 {
+    for (uint32_t i = 1; i < size; ++i)
+        if (arr[0] == arr[i]) return IGNIS_FAIL;
+    return IGNIS_OK;
+}
+
+uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice* device)
+{
+    // pick physical device
     uint32_t count = 0;
     vkEnumeratePhysicalDevices(instance, &count, NULL);
     if (!count) return IGNIS_FAIL;
@@ -56,19 +63,8 @@ static uint8_t ignisPickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface
     }
 
     ignisFree(devices, sizeof(VkPhysicalDevice) * count);
-    return device->physical != VK_NULL_HANDLE;
-}
 
-static uint8_t ignisArrayCheckUnique(uint32_t arr[], uint32_t size)
-{
-    for (uint32_t i = 1; i < size; ++i)
-        if (arr[0] == arr[i]) return IGNIS_FAIL;
-    return IGNIS_OK;
-}
-
-uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice* device)
-{
-    if (!ignisPickPhysicalDevice(instance, surface, device))
+    if (device->physical == VK_NULL_HANDLE)
     {
         MINIMAL_ERROR("failed to pick physical device");
         return IGNIS_FAIL;
@@ -231,29 +227,6 @@ uint8_t ignisCheckDeviceExtensionSupport(VkPhysicalDevice device)
 
     ignisFree(properties, sizeof(VkExtensionProperties) * count);
     return found;
-}
-
-VkFormat ignisQueryDeviceDepthFormat(VkPhysicalDevice device)
-{
-    VkFormat candidates[] = {
-        VK_FORMAT_D32_SFLOAT,
-        VK_FORMAT_D32_SFLOAT_S8_UINT,
-        VK_FORMAT_D24_UNORM_S8_UINT
-    };
-    const uint32_t count = sizeof(candidates) / sizeof(candidates[0]);;
-
-    VkFormatFeatureFlags features = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    for (uint32_t i = 0; i < count; ++i)
-    {
-        VkFormatProperties props;
-        vkGetPhysicalDeviceFormatProperties(device, candidates[i], &props);
-
-        if ((props.linearTilingFeatures & features) == features)
-            return candidates[i];
-        else if ((props.optimalTilingFeatures & features) == features)
-            return candidates[i];
-    }
-    return VK_FORMAT_UNDEFINED;
 }
 
 uint8_t ignisAllocateDeviceMemory(const IgnisDevice* device, VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, VkDeviceMemory* memory)

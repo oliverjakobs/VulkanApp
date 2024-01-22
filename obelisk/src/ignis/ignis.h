@@ -12,10 +12,12 @@ void ignisSetClearColor(float r, float g, float b, float a);
 void ignisSetDepthStencil(float depth, uint32_t stencil);
 void ignisSetViewport(float x, float y, float width, float height);
 void ignisSetDepthRange(float nearVal, float farVal);
+void ignisSetScissor(int32_t x, int32_t y, uint32_t w, uint32_t h);
 
 uint8_t ignisBeginFrame();
 uint8_t ignisEndFrame();
 
 IgnisContext* ignisGetContext();
+VkCommandBuffer ignisGetCommandBuffer();
 
 #endif /* !IGNIS_H */

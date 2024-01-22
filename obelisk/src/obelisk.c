@@ -95,6 +95,7 @@ u8 obeliskOnEvent(ObeliskApp* app, const MinimalEvent* e)
     if (minimalEventWindowSize(e, &width, &height))
     {
         ignisResize(width, height);
+        ignisSetViewport(0.0f, 0.0f, width, height);
     }
 
     return app->on_event(app, e);
@@ -106,7 +107,7 @@ static void obeliskOnTick(ObeliskApp* app, const MinimalFrameData* framedata)
     {
         app->on_tick(app, framedata->deltatime);
 
-        VkCommandBuffer commandBuffer = ignisGetContext()->commandBuffer;
+        VkCommandBuffer commandBuffer = ignisGetCommandBuffer();
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
 
