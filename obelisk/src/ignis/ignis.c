@@ -14,7 +14,7 @@ uint8_t ignisInit(const char* name, const IgnisPlatform* platform)
         return IGNIS_FAIL;
     }
     
-    ignisPrintDeviceInfo(&context.device);
+    ignisPrintPhysicalDeviceInfo(context.device.physical);
 
     // set default state
     ignisSetClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -85,7 +85,8 @@ uint8_t ignisBeginFrame()
         if (cachedWidth == 0 || cachedHeight == 0)
             return IGNIS_FAIL;
 
-        if (!ignisRecreateSwapchain(&context.device, context.surface, cachedWidth, cachedHeight, &context.swapchain))
+        VkExtent2D extent = { cachedWidth, cachedHeight };
+        if (!ignisRecreateSwapchain(&context.device, context.surface, extent, &context.swapchain))
         {
             MINIMAL_ERROR("Failed to recreate swapchain");
             return IGNIS_FAIL;
@@ -113,6 +114,10 @@ uint8_t ignisBeginFrame()
         return IGNIS_FAIL;
     }
 
+    // set dynamic state
+    vkCmdSetViewport(commandBuffer, 0, 1, &context.viewport);
+    vkCmdSetScissor(commandBuffer, 0, 1, &context.scissor);
+
     // begin render pass
     VkClearValue clearValues[] = {
         context.clearColor,
@@ -130,10 +135,6 @@ uint8_t ignisBeginFrame()
     };
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    // set dynamic state
-    vkCmdSetViewport(commandBuffer, 0, 1, &context.viewport);
-    vkCmdSetScissor(commandBuffer, 0, 1, &context.scissor);
 
     return IGNIS_OK;
 }

@@ -143,7 +143,8 @@ uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisP
     if (func)
     {
         result = func(context->instance, &debugCreateInfo, allocator, &context->debugMessenger);
-        MINIMAL_WARN("Failed to create debug messenger with result: %u", result);
+        if (result != VK_SUCCESS)
+            MINIMAL_WARN("Failed to create debug messenger with result: %u", result);
     }
     else
     {
@@ -164,13 +165,22 @@ uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisP
         return IGNIS_FAIL;
     }
 
-    if (!ignisCreateSwapchain(&context->device, context->surface, VK_NULL_HANDLE, 1280, 720, &context->swapchain))
+    VkExtent2D extent = { 1280, 720 };
+    if (!ignisCreateSwapchain(&context->device, context->surface, VK_NULL_HANDLE, extent, &context->swapchain))
     {
         MINIMAL_CRITICAL("failed to create swapchain");
         return IGNIS_FAIL;
     }
 
-    if (ignisAllocCommandBuffers(&context->device, VK_COMMAND_BUFFER_LEVEL_PRIMARY, IGNIS_MAX_FRAMES_IN_FLIGHT, context->commandBuffers) != VK_SUCCESS)
+    /* allocate command buffers */
+    VkCommandBufferAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandPool = context->device.commandPool,
+        .commandBufferCount = IGNIS_MAX_FRAMES_IN_FLIGHT
+    };
+
+    if (vkAllocateCommandBuffers(context->device.handle, &allocInfo, context->commandBuffers) != VK_SUCCESS)
     {
         MINIMAL_ERROR("Failed to allocate command buffers");
         return IGNIS_FAIL;
@@ -195,7 +205,7 @@ void ignisDestroyContext(IgnisContext* context)
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
 
     ignisDestroySwapchainSyncObjects(context->device.handle, &context->swapchain);
-    ignisFreeCommandBuffers(&context->device, IGNIS_MAX_FRAMES_IN_FLIGHT, context->commandBuffers);
+    vkFreeCommandBuffers(context->device.handle, context->device.commandPool, IGNIS_MAX_FRAMES_IN_FLIGHT, context->commandBuffers);
 
     ignisDestroySwapchain(context->device.handle, &context->swapchain);
     ignisDestroyDevice(&context->device);

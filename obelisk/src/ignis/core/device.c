@@ -42,9 +42,9 @@ uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice
     for (uint32_t i = 0; i < count; ++i)
     {
         // skip device if required queue families are not supported
-        uint32_t family_indices[IGNIS_QUEUE_MAX_ENUM];
-        uint32_t families_set = ignisFindQueueFamilies(devices[i], surface, family_indices);
-        if (!(families_set & REQ_QUEUE_FAMILIES))
+        uint32_t familyIndices[IGNIS_QUEUE_MAX_ENUM];
+        uint32_t familiesSet = ignisFindQueueFamilies(devices[i], surface, familyIndices);
+        if (!(familiesSet & REQ_QUEUE_FAMILIES))
             continue;
 
         // skip device if required swapchain is not support
@@ -57,8 +57,8 @@ uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice
 
         // suitable device found
         device->physical = devices[i];
-        device->queueFamiliesSet = families_set;
-        memcpy(device->queueFamilyIndices, family_indices, sizeof(uint32_t) * IGNIS_QUEUE_MAX_ENUM);
+        device->queueFamiliesSet = familiesSet;
+        memcpy(device->queueFamilyIndices, familyIndices, sizeof(uint32_t) * IGNIS_QUEUE_MAX_ENUM);
         break;
     }
 
@@ -70,35 +70,36 @@ uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice
         return IGNIS_FAIL;
     }
 
-    uint32_t queue_count = 0;
-    VkDeviceQueueCreateInfo queue_create_infos[IGNIS_QUEUE_MAX_ENUM] = { 0 };
+    /* create logical device */
+    uint32_t queueCount = 0;
+    VkDeviceQueueCreateInfo queueCreateInfos[IGNIS_QUEUE_MAX_ENUM] = { 0 };
 
-    float queue_priority = 1.0f;
+    float priority = 1.0f;
     for (uint32_t i = 0; i < IGNIS_QUEUE_MAX_ENUM; ++i)
     {
         if (!ignisArrayCheckUnique(device->queueFamilyIndices + i, IGNIS_QUEUE_MAX_ENUM - i))
             continue;
 
-        queue_create_infos[queue_count++] = (VkDeviceQueueCreateInfo){
+        queueCreateInfos[queueCount++] = (VkDeviceQueueCreateInfo){
             .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
             .queueFamilyIndex = device->queueFamilyIndices[i],
             .queueCount = 1,
-            .pQueuePriorities = &queue_priority,
+            .pQueuePriorities = &priority,
         };
     }
 
-    VkPhysicalDeviceFeatures device_features = { 0 };
+    VkPhysicalDeviceFeatures deviceFeatures = { 0 };
 
-    VkDeviceCreateInfo create_info = {
+    VkDeviceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .pQueueCreateInfos = queue_create_infos,
-        .queueCreateInfoCount = queue_count,
-        .pEnabledFeatures = &device_features,
+        .pQueueCreateInfos = queueCreateInfos,
+        .queueCreateInfoCount = queueCount,
+        .pEnabledFeatures = &deviceFeatures,
         .ppEnabledExtensionNames = REQ_EXTENSIONS,
         .enabledExtensionCount = REQ_EXTENSION_COUNT
     };
 
-    VkResult result = vkCreateDevice(device->physical, &create_info, ignisGetAllocator(), &device->handle);
+    VkResult result = vkCreateDevice(device->physical, &createInfo, ignisGetAllocator(), &device->handle);
     if (result != VK_SUCCESS)
         return IGNIS_FAIL;
 
@@ -125,7 +126,6 @@ uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice
 void ignisDestroyDevice(IgnisDevice* device)
 {
     vkDestroyCommandPool(device->handle, device->commandPool, ignisGetAllocator());
-
     vkDestroyDevice(device->handle, ignisGetAllocator());
 }
 
@@ -140,26 +140,26 @@ uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, u
 
     vkGetPhysicalDeviceQueueFamilyProperties(device, &count, properties);
 
-    uint32_t families_set = 0;
-    uint8_t min_transfer_score = 255;
+    uint32_t familiesSet = 0;
+    uint8_t minTransferScore = -1;
     for (uint32_t i = 0; i < count; ++i)
     {
-        uint8_t current_transfer_score = 0;
+        uint8_t currentTransferScore = 0;
 
         // graphics queue
         if (properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
         {
             indices[IGNIS_QUEUE_GRAPHICS] = i;
-            families_set |= IGNIS_QUEUE_FLAG_GRAPHICS;
-            ++current_transfer_score;
+            familiesSet |= IGNIS_QUEUE_FLAG_GRAPHICS;
+            ++currentTransferScore;
         }
 
         // compute queue
         if (properties[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
         {
             indices[IGNIS_QUEUE_COMPUTE] = i;
-            families_set |= IGNIS_QUEUE_FLAG_COMPUTE;
-            ++current_transfer_score;
+            familiesSet |= IGNIS_QUEUE_FLAG_COMPUTE;
+            ++currentTransferScore;
         }
 
         // transfer queue
@@ -167,11 +167,11 @@ uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, u
         {
             // Take the index if it is the current lowest. This increases the
             // liklihood that it is a dedicated transfer queue.
-            if (current_transfer_score <= min_transfer_score)
+            if (currentTransferScore <= minTransferScore)
             {
-                min_transfer_score = current_transfer_score;
+                minTransferScore = currentTransferScore;
                 indices[IGNIS_QUEUE_TRANSFER] = i;
-                families_set |= IGNIS_QUEUE_FLAG_TRANSFER;
+                familiesSet |= IGNIS_QUEUE_FLAG_TRANSFER;
             }
         }
 
@@ -180,23 +180,23 @@ uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, u
         if (supported)
         {
             indices[IGNIS_QUEUE_PRESENT] = i;
-            families_set |= IGNIS_QUEUE_FLAG_PRESENT;
+            familiesSet |= IGNIS_QUEUE_FLAG_PRESENT;
         }
     }
 
     ignisFree(properties, sizeof(VkQueueFamilyProperties) * count);
-    return families_set;
+    return familiesSet;
 }
 
 uint8_t ignisQuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
-    uint32_t format_count;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, NULL);
+    uint32_t formatCount;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, NULL);
 
-    uint32_t present_mode_count;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, NULL);
+    uint32_t presentModeCount;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, NULL);
 
-    return format_count > 0 && present_mode_count > 0;
+    return formatCount > 0 && presentModeCount > 0;
 }
 
 uint8_t ignisCheckDeviceExtensionSupport(VkPhysicalDevice device)
@@ -229,81 +229,25 @@ uint8_t ignisCheckDeviceExtensionSupport(VkPhysicalDevice device)
     return found;
 }
 
-uint8_t ignisAllocateDeviceMemory(const IgnisDevice* device, VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, VkDeviceMemory* memory)
-{
-    VkPhysicalDeviceMemoryProperties memoryProps;
-    vkGetPhysicalDeviceMemoryProperties(device->physical, &memoryProps);
-
-    uint32_t memoryTypeIndex = memoryProps.memoryTypeCount;
-    for (uint32_t i = 0; i < memoryProps.memoryTypeCount; ++i)
-    {
-        if ((requirements.memoryTypeBits & (1 << i)) && (memoryProps.memoryTypes[i].propertyFlags & properties) == properties)
-        {
-            memoryTypeIndex = i;
-            break;
-        }
-    }
-
-    if (memoryTypeIndex == memoryProps.memoryTypeCount)
-    {
-        MINIMAL_ERROR("failed to find suitable memory type!");
-        return IGNIS_FAIL;
-    }
-
-    VkMemoryAllocateInfo allocInfo = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize = requirements.size,
-        .memoryTypeIndex = memoryTypeIndex
-    };
-
-    if (vkAllocateMemory(device->handle, &allocInfo, ignisGetAllocator(), memory) != VK_SUCCESS)
-    {
-        MINIMAL_ERROR("failed to find allocate device memory!");
-        return IGNIS_FAIL;
-    }
-
-    return IGNIS_OK;
-}
-
-
-VkResult ignisAllocCommandBuffers(const IgnisDevice* device, VkCommandBufferLevel level, uint32_t count, VkCommandBuffer* buffers)
-{
-    VkCommandBufferAllocateInfo allocInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .level = level,
-        .commandPool = device->commandPool,
-        .commandBufferCount = count
-    };
-
-    return vkAllocateCommandBuffers(device->handle, &allocInfo, buffers);
-}
-
-void ignisFreeCommandBuffers(const IgnisDevice* device, uint32_t count, const VkCommandBuffer* buffers)
-{
-    vkFreeCommandBuffers(device->handle, device->commandPool, count, buffers);
-}
-
-
-
-void ignisPrintDeviceInfo(const IgnisDevice* device)
+void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device)
 {
     VkPhysicalDeviceProperties properties;
-    vkGetPhysicalDeviceProperties(device->physical, &properties);
+    vkGetPhysicalDeviceProperties(device, &properties);
 
     VkPhysicalDeviceFeatures features;
-    vkGetPhysicalDeviceFeatures(device->physical, &features);
+    vkGetPhysicalDeviceFeatures(device, &features);
 
     VkPhysicalDeviceMemoryProperties memory;
-    vkGetPhysicalDeviceMemoryProperties(device->physical, &memory);
+    vkGetPhysicalDeviceMemoryProperties(device, &memory);
 
     MINIMAL_INFO("Physical device: %s", properties.deviceName);
     
     const char* typeDesc[] = {
-        [VK_PHYSICAL_DEVICE_TYPE_OTHER] = "OTHER",
+        [VK_PHYSICAL_DEVICE_TYPE_OTHER]          = "OTHER",
         [VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU] = "INTEGRATED GPU",
-        [VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU] = "DISCRETE GPU",
-        [VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU] = "VIRTUAL GPU",
-        [VK_PHYSICAL_DEVICE_TYPE_CPU] = "CPU",
+        [VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU]   = "DISCRETE GPU",
+        [VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU]    = "VIRTUAL GPU",
+        [VK_PHYSICAL_DEVICE_TYPE_CPU]            = "CPU",
     };
     MINIMAL_INFO("  > Device Type: %s", typeDesc[properties.deviceType]);
 
@@ -328,3 +272,42 @@ void ignisPrintDeviceInfo(const IgnisDevice* device)
             MINIMAL_INFO("    Shared: %.2f GiB", memory_size_gib);
     }
 }
+
+
+
+
+VkDeviceMemory ignisAllocateDeviceMemory(const IgnisDevice* device, VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, const VkAllocationCallbacks* allocator)
+{
+    VkPhysicalDeviceMemoryProperties memoryProps;
+    vkGetPhysicalDeviceMemoryProperties(device->physical, &memoryProps);
+
+    uint32_t memoryTypeIndex = memoryProps.memoryTypeCount;
+    for (uint32_t i = 0; i < memoryProps.memoryTypeCount; ++i)
+    {
+        if ((requirements.memoryTypeBits & (1 << i)) && (memoryProps.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            memoryTypeIndex = i;
+            break;
+        }
+    }
+
+    if (memoryTypeIndex == memoryProps.memoryTypeCount)
+    {
+        MINIMAL_ERROR("failed to find suitable memory type!");
+        return VK_NULL_HANDLE;
+    }
+
+    VkMemoryAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = requirements.size,
+        .memoryTypeIndex = memoryTypeIndex
+    };
+
+    VkDeviceMemory memory = VK_NULL_HANDLE;
+    if (vkAllocateMemory(device->handle, &allocInfo, allocator, &memory) != VK_SUCCESS)
+        MINIMAL_ERROR("failed to find allocate device memory!");
+
+    return memory;
+}
+
+

@@ -55,20 +55,7 @@ static VkPresentModeKHR ignisChoosePresentMode(VkPhysicalDevice device, VkSurfac
     return mode;
 }
 
-static VkExtent2D ignisGetSurfaceExtent(const VkSurfaceCapabilitiesKHR* capabilities, uint32_t w, uint32_t h)
-{
-    if (capabilities->currentExtent.width != 0xffffffff)
-        return capabilities->currentExtent;
-
-    VkExtent2D extent = {
-        .width = ignisClamp32(w, capabilities->minImageExtent.width, capabilities->maxImageExtent.width),
-        .height = ignisClamp32(h, capabilities->minImageExtent.height, capabilities->maxImageExtent.height)
-    };
-
-    return extent;
-}
-
-static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, IgnisSwapchain* swapchain)
+static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
 {
     VkAttachmentDescription attachments[] = {
         {
@@ -126,7 +113,7 @@ static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, IgnisSwapchain* s
         .dependencyCount = 1
     };
 
-    if (vkCreateRenderPass(device, &renderPassInfo, ignisGetAllocator(), &swapchain->renderPass) != VK_SUCCESS)
+    if (vkCreateRenderPass(device, &renderPassInfo, allocator, &swapchain->renderPass) != VK_SUCCESS)
     {
         MINIMAL_ERROR("failed to create render pass!");
         return IGNIS_FAIL;
@@ -135,7 +122,7 @@ static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, IgnisSwapchain* s
     return IGNIS_OK;
 }
 
-static uint8_t ignisCreateSwapchainImages(VkDevice device, IgnisSwapchain* swapchain)
+static uint8_t ignisCreateSwapchainImages(VkDevice device, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
 {
     /* create images */
     swapchain->images = ignisAlloc(swapchain->imageCount * sizeof(VkImage));
@@ -169,7 +156,7 @@ static uint8_t ignisCreateSwapchainImages(VkDevice device, IgnisSwapchain* swapc
             .subresourceRange.layerCount = 1
         };
 
-        if (vkCreateImageView(device, &createInfo, ignisGetAllocator(), &swapchain->imageViews[i]) != VK_SUCCESS)
+        if (vkCreateImageView(device, &createInfo, allocator, &swapchain->imageViews[i]) != VK_SUCCESS)
         {
             MINIMAL_ERROR("failed to create image view");
             return IGNIS_FAIL;
@@ -179,7 +166,7 @@ static uint8_t ignisCreateSwapchainImages(VkDevice device, IgnisSwapchain* swapc
     return IGNIS_OK;
 }
 
-static uint8_t ignisCreateSwapchainDepthImages(const IgnisDevice* device, IgnisSwapchain* swapchain)
+static uint8_t ignisCreateSwapchainDepthImages(const IgnisDevice* device, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
 {
     /* create depth images and views */
     swapchain->depthImages = ignisAlloc(swapchain->imageCount * sizeof(VkImage));
@@ -210,7 +197,7 @@ static uint8_t ignisCreateSwapchainDepthImages(const IgnisDevice* device, IgnisS
             .flags = 0
         };
 
-        if (vkCreateImage(device->handle, &imageInfo, ignisGetAllocator(), &swapchain->depthImages[i]) != VK_SUCCESS)
+        if (vkCreateImage(device->handle, &imageInfo, allocator, &swapchain->depthImages[i]) != VK_SUCCESS)
         {
             MINIMAL_ERROR("failed to create image!");
             return IGNIS_FAIL;
@@ -221,7 +208,8 @@ static uint8_t ignisCreateSwapchainDepthImages(const IgnisDevice* device, IgnisS
 
         VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-        if (!ignisAllocateDeviceMemory(device, memoryReq, properties, &swapchain->depthImageMemories[i]))
+        swapchain->depthImageMemories[i] = ignisAllocateDeviceMemory(device, memoryReq, properties, allocator);
+        if (!swapchain->depthImageMemories[i])
         {
             MINIMAL_ERROR("failed to allocate image memory!");
             return IGNIS_FAIL;
@@ -245,7 +233,7 @@ static uint8_t ignisCreateSwapchainDepthImages(const IgnisDevice* device, IgnisS
             .subresourceRange.layerCount = 1
         };
 
-        if (vkCreateImageView(device->handle, &viewInfo, ignisGetAllocator(), &swapchain->depthImageViews[i]) != VK_SUCCESS)
+        if (vkCreateImageView(device->handle, &viewInfo, allocator, &swapchain->depthImageViews[i]) != VK_SUCCESS)
         {
             MINIMAL_ERROR("failed to create depth image view!");
             return IGNIS_FAIL;
@@ -255,7 +243,7 @@ static uint8_t ignisCreateSwapchainDepthImages(const IgnisDevice* device, IgnisS
     return IGNIS_OK;
 }
 
-static uint8_t ignisCreateSwapchainFramebuffers(VkDevice device, IgnisSwapchain* swapchain)
+static uint8_t ignisCreateSwapchainFramebuffers(VkDevice device, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
 {
     swapchain->framebuffers = ignisAlloc(swapchain->imageCount * sizeof(VkFramebuffer));
     if (!swapchain->framebuffers) return IGNIS_FAIL;
@@ -277,7 +265,7 @@ static uint8_t ignisCreateSwapchainFramebuffers(VkDevice device, IgnisSwapchain*
             .layers = 1
         };
 
-        if (vkCreateFramebuffer(device, &info, NULL, &swapchain->framebuffers[i]) != VK_SUCCESS)
+        if (vkCreateFramebuffer(device, &info, allocator, &swapchain->framebuffers[i]) != VK_SUCCESS)
         {
             MINIMAL_ERROR("failed to create framebuffer");
             return IGNIS_FAIL;
@@ -287,8 +275,18 @@ static uint8_t ignisCreateSwapchainFramebuffers(VkDevice device, IgnisSwapchain*
     return IGNIS_OK;
 }
 
-uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, VkSwapchainKHR old, uint32_t w, uint32_t h, IgnisSwapchain* swapchain)
+static VkExtent2D ignisClampExtent2D(VkExtent2D extent, VkExtent2D min, VkExtent2D max)
 {
+    return (VkExtent2D){
+        .width = ignisClamp32(extent.width, min.width, max.width),
+        .height = ignisClamp32(extent.height, min.height, max.height)
+    };
+}
+
+uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, VkSwapchainKHR old, VkExtent2D extent, IgnisSwapchain* swapchain)
+{
+    const VkAllocationCallbacks* allocator = ignisGetAllocator();
+
     /* choose swap chain surface format */
     VkSurfaceFormatKHR surfaceFormat = ignisChooseSurfaceFormat(device->physical, surface);
     if (surfaceFormat.format == VK_FORMAT_UNDEFINED)
@@ -303,8 +301,13 @@ uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, Vk
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->physical, surface, &capabilities);
 
-    VkExtent2D extent = ignisGetSurfaceExtent(&capabilities, w, h);
+    /* get surface extent */
+    if (capabilities.currentExtent.width != 0xffffffff)
+        extent = capabilities.currentExtent;
+    else
+        extent = ignisClampExtent2D(extent, capabilities.minImageExtent, capabilities.maxImageExtent);
 
+    /* get image count */
     uint32_t imageCount = capabilities.minImageCount + 1;
     if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount)
         imageCount = capabilities.maxImageCount;
@@ -340,7 +343,7 @@ uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, Vk
         createInfo.pQueueFamilyIndices = queue_family_indices;
     }
 
-    if (vkCreateSwapchainKHR(device->handle, &createInfo, ignisGetAllocator(), &swapchain->handle) != VK_SUCCESS)
+    if (vkCreateSwapchainKHR(device->handle, &createInfo, allocator, &swapchain->handle) != VK_SUCCESS)
     {
         MINIMAL_ERROR("failed to create swap chain!");
         return IGNIS_FAIL;
@@ -383,17 +386,17 @@ uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, Vk
     swapchain->imageCount = imageCount;
     swapchain->imageFormat = surfaceFormat.format;
     swapchain->depthFormat = depthFormat;
-    
-    if (!ignisCreateSwapchainRenderPass(device->handle, swapchain))
+
+    if (!ignisCreateSwapchainRenderPass(device->handle, allocator, swapchain))
         return IGNIS_FAIL;
 
-    if (!ignisCreateSwapchainImages(device->handle, swapchain))
+    if (!ignisCreateSwapchainImages(device->handle, allocator, swapchain))
         return IGNIS_FAIL;
 
-    if (!ignisCreateSwapchainDepthImages(device, swapchain))
+    if (!ignisCreateSwapchainDepthImages(device, allocator, swapchain))
         return IGNIS_FAIL;
 
-    if (!ignisCreateSwapchainFramebuffers(device->handle, swapchain))
+    if (!ignisCreateSwapchainFramebuffers(device->handle, allocator, swapchain))
         return IGNIS_FAIL;
 
     return IGNIS_OK;
@@ -441,8 +444,10 @@ void ignisDestroySwapchain(VkDevice device, IgnisSwapchain* swapchain)
     vkDestroySwapchainKHR(device, swapchain->handle, allocator);
 }
 
-uint8_t ignisRecreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, uint32_t width, uint32_t height, IgnisSwapchain* swapchain)
+uint8_t ignisRecreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, VkExtent2D extent, IgnisSwapchain* swapchain)
 {
+    const VkAllocationCallbacks* allocator = ignisGetAllocator();
+
     vkDeviceWaitIdle(device->handle);
 
     VkSwapchainKHR oldSwapchain = swapchain->handle;
@@ -450,15 +455,17 @@ uint8_t ignisRecreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, 
 
     ignisDestroySwapchain(device->handle, swapchain);
 
-    uint8_t result = ignisCreateSwapchain(device, surface, oldSwapchain, width, height, swapchain);
-    
-    vkDestroySwapchainKHR(device->handle, oldSwapchain, ignisGetAllocator());
+    uint8_t result = ignisCreateSwapchain(device, surface, oldSwapchain, extent, swapchain);
+
+    vkDestroySwapchainKHR(device->handle, oldSwapchain, allocator);
 
     return result;
 }
 
 uint8_t ignisCreateSwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain)
 {
+    const VkAllocationCallbacks* allocator = ignisGetAllocator();
+
     VkSemaphoreCreateInfo semaphoreInfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
     };
@@ -468,7 +475,6 @@ uint8_t ignisCreateSwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapcha
         .flags = VK_FENCE_CREATE_SIGNALED_BIT
     };
 
-    const VkAllocationCallbacks* allocator = ignisGetAllocator();
     for (size_t i = 0; i < IGNIS_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         if (vkCreateSemaphore(device, &semaphoreInfo, allocator, &swapchain->imageAvailable[i]) != VK_SUCCESS)
@@ -497,10 +503,10 @@ void ignisDestroySwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain
 
 uint8_t ignisAcquireNextImage(VkDevice device, IgnisSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex)
 {
-    vkWaitForFences(device, 1, &swapchain->inFlightFences[frame], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(device, 1, &swapchain->inFlightFences[frame], VK_TRUE, -1);
 
     VkSemaphore semaphore = swapchain->imageAvailable[frame];
-    VkResult result = vkAcquireNextImageKHR(device, swapchain->handle, UINT64_MAX, semaphore, VK_NULL_HANDLE, imageIndex);
+    VkResult result = vkAcquireNextImageKHR(device, swapchain->handle, -1, semaphore, VK_NULL_HANDLE, imageIndex);
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
         return IGNIS_FAIL;
 

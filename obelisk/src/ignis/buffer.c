@@ -21,7 +21,9 @@ uint8_t ignisCreateVertexBuffer(const IgnisDevice* device, const float* vertices
     vkGetBufferMemoryRequirements(device->handle, buffer->handle, &memRequirements);
 
     VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    if (!ignisAllocateDeviceMemory(device, memRequirements, properties, &buffer->memory))
+
+    buffer->memory = ignisAllocateDeviceMemory(device, memRequirements, properties, ignisGetAllocator());
+    if (!buffer->memory)
     {
         MINIMAL_ERROR("failed to find allocate device memory!");
         return IGNIS_FAIL;

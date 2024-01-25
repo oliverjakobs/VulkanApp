@@ -40,12 +40,9 @@ typedef struct
 uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice* device);
 void ignisDestroyDevice(IgnisDevice* device);
 
-VkResult ignisAllocCommandBuffers(const IgnisDevice* device, VkCommandBufferLevel level, uint32_t count, VkCommandBuffer* buffers);
-void ignisFreeCommandBuffers(const IgnisDevice* device, uint32_t count, const VkCommandBuffer* buffers);
+void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device);
 
-uint8_t ignisAllocateDeviceMemory(const IgnisDevice* device, VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, VkDeviceMemory* memory);
 
-void ignisPrintDeviceInfo(const IgnisDevice* device);
 
 /* --------------------------| swapchain |------------------------------- */
 #define IGNIS_MAX_FRAMES_IN_FLIGHT 2
@@ -77,10 +74,10 @@ typedef struct
     VkFence inFlightFences[IGNIS_MAX_FRAMES_IN_FLIGHT];
 } IgnisSwapchain;
 
-uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, VkSwapchainKHR old, uint32_t w, uint32_t h, IgnisSwapchain* swapchain);
+uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, VkSwapchainKHR old, VkExtent2D extent, IgnisSwapchain* swapchain);
 void ignisDestroySwapchain(VkDevice device, IgnisSwapchain* swapchain);
 
-uint8_t ignisRecreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, uint32_t width, uint32_t height, IgnisSwapchain* swapchain);
+uint8_t ignisRecreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, VkExtent2D extent, IgnisSwapchain* swapchain);
 
 uint8_t ignisCreateSwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain);
 void ignisDestroySwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain);
@@ -128,10 +125,19 @@ typedef struct
     VkClearValue depthStencil;
 } IgnisContext;
 
+
+
+
 uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisPlatform* platform);
 void ignisDestroyContext(IgnisContext* context);
 
 
+VkDeviceMemory ignisAllocateDeviceMemory(const IgnisDevice* device, VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, const VkAllocationCallbacks* allocator);
+
+
+VkInstance       ignisGetVkInstance();
+VkDevice         ignisGetVkDevice();
+VkPhysicalDevice ignisGetVkPhysicalDevice();
 
 
 #endif /* IGNIS_CORE_H */
