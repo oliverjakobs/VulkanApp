@@ -9,8 +9,8 @@ typedef struct
     VkDeviceMemory memory;
 } IgnisBuffer;
 
-uint8_t ignisCreateVertexBuffer(const IgnisDevice* device, const float* vertices, size_t size, IgnisBuffer* buffer);
+uint8_t ignisCreateVertexBuffer(const float* vertices, size_t size, IgnisBuffer* buffer);
 
-void ignisDestroyBuffer(VkDevice device, IgnisBuffer* buffer);
+void ignisDestroyBuffer(IgnisBuffer* buffer);
 
 #endif /* !IGNIS_BUFFER_H */

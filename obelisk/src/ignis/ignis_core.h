@@ -5,87 +5,7 @@
 
 #include "common.h"
 
-const VkAllocationCallbacks* ignisGetAllocator();
-
 #define IGNIS_VK_PFN(instance, name) ((PFN_##name)vkGetInstanceProcAddr((instance), (#name)))
-
-/* --------------------------| device |---------------------------------- */
-typedef enum
-{
-    IGNIS_QUEUE_GRAPHICS,
-    IGNIS_QUEUE_TRANSFER,
-    IGNIS_QUEUE_COMPUTE,
-    IGNIS_QUEUE_PRESENT,
-    IGNIS_QUEUE_MAX_ENUM
-} IgnisQueueFamilyIndex;
-
-#define IGNIS_QUEUE_FLAG_GRAPHICS   0x0001
-#define IGNIS_QUEUE_FLAG_TRANSFER   0x0002
-#define IGNIS_QUEUE_FLAG_COMPUTE    0x0004
-#define IGNIS_QUEUE_FLAG_PRESENT    0x0008
-
-typedef struct
-{
-    VkPhysicalDevice physical;
-    VkDevice handle;
-
-    uint32_t queueFamiliesSet;
-    uint32_t queueFamilyIndices[IGNIS_QUEUE_MAX_ENUM];
-
-    VkQueue queues[IGNIS_QUEUE_MAX_ENUM];
-
-    VkCommandPool commandPool;
-} IgnisDevice;
-
-uint8_t ignisCreateDevice(VkInstance instance, VkSurfaceKHR surface, IgnisDevice* device);
-void ignisDestroyDevice(IgnisDevice* device);
-
-void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device);
-
-
-
-/* --------------------------| swapchain |------------------------------- */
-#define IGNIS_MAX_FRAMES_IN_FLIGHT 2
-
-typedef struct
-{
-    VkSwapchainKHR handle;
-
-    VkFormat imageFormat;
-    VkFormat depthFormat;
-    VkExtent2D extent;
-
-    VkRenderPass renderPass;
-
-    uint32_t imageCount;
-
-    VkImage*        images;
-    VkImageView*    imageViews;
-
-    VkImage*        depthImages;
-    VkImageView*    depthImageViews;
-    VkDeviceMemory* depthImageMemories;
-
-    VkFramebuffer* framebuffers;
-
-    /* Sync objects */
-    VkSemaphore imageAvailable[IGNIS_MAX_FRAMES_IN_FLIGHT];
-    VkSemaphore renderFinished[IGNIS_MAX_FRAMES_IN_FLIGHT];
-    VkFence inFlightFences[IGNIS_MAX_FRAMES_IN_FLIGHT];
-} IgnisSwapchain;
-
-uint8_t ignisCreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, VkSwapchainKHR old, VkExtent2D extent, IgnisSwapchain* swapchain);
-void ignisDestroySwapchain(VkDevice device, IgnisSwapchain* swapchain);
-
-uint8_t ignisRecreateSwapchain(const IgnisDevice* device, VkSurfaceKHR surface, VkExtent2D extent, IgnisSwapchain* swapchain);
-
-uint8_t ignisCreateSwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain);
-void ignisDestroySwapchainSyncObjects(VkDevice device, IgnisSwapchain* swapchain);
-
-uint8_t ignisAcquireNextImage(VkDevice device, IgnisSwapchain* swapchain, uint32_t frame, uint32_t* imageIndex);
-
-uint8_t ingisSubmitFrame(VkQueue graphics, VkCommandBuffer buffer, uint32_t frame, IgnisSwapchain* swapchain);
-uint8_t ignisPresentFrame(VkQueue present, uint32_t imageIndex, uint32_t frame, IgnisSwapchain* swapchain);
 
 /* --------------------------| platform |-------------------------------- */
 typedef VkResult (*ignisCreateSurfaceFn)(VkInstance, const void*, const VkAllocationCallbacks*, VkSurfaceKHR*);
@@ -98,46 +18,49 @@ typedef struct
 } IgnisPlatform;
 
 /* --------------------------| context |--------------------------------- */
-typedef struct
+uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform);
+void ignisDestroyContext();
+
+typedef enum
 {
-    VkInstance instance;
-    VkSurfaceKHR surface;
+    IGNIS_QUEUE_GRAPHICS,
+    IGNIS_QUEUE_TRANSFER,
+    IGNIS_QUEUE_COMPUTE,
+    IGNIS_QUEUE_PRESENT,
+    IGNIS_QUEUE_FAMILY_MAX_ENUM
+} IgnisQueueFamily;
 
-#ifdef IGNIS_DEBUG
-    VkDebugUtilsMessengerEXT debugMessenger;
-#endif
+#define IGNIS_QUEUE_FLAG_GRAPHICS   0x0001
+#define IGNIS_QUEUE_FLAG_TRANSFER   0x0002
+#define IGNIS_QUEUE_FLAG_COMPUTE    0x0004
+#define IGNIS_QUEUE_FLAG_PRESENT    0x0008
 
-    IgnisDevice device;
-    IgnisSwapchain swapchain;
+VkDeviceMemory ignisAllocateDeviceMemory(VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, const VkAllocationCallbacks* allocator);
 
-    uint16_t swapchainGeneration;
-    uint16_t swapchainLastGeneration;
+uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family);
 
-    VkCommandBuffer commandBuffers[IGNIS_MAX_FRAMES_IN_FLIGHT];
+void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device);
 
-    uint32_t currentFrame;
-    uint32_t imageIndex;
+uint8_t ignisResize(uint32_t width, uint32_t height);
 
-    // state
-    VkViewport viewport;
-    VkRect2D scissor;
-    VkClearValue clearColor;
-    VkClearValue depthStencil;
-} IgnisContext;
+void ignisSetClearColor(float r, float g, float b, float a);
+void ignisSetDepthStencil(float depth, uint32_t stencil);
+void ignisSetViewport(float x, float y, float width, float height);
+void ignisSetDepthRange(float nearVal, float farVal);
+void ignisSetScissor(int32_t x, int32_t y, uint32_t w, uint32_t h);
 
-
-
-
-uint8_t ignisCreateContext(IgnisContext* context, const char* name, const IgnisPlatform* platform);
-void ignisDestroyContext(IgnisContext* context);
-
-
-VkDeviceMemory ignisAllocateDeviceMemory(const IgnisDevice* device, VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, const VkAllocationCallbacks* allocator);
+uint8_t ignisBeginFrame();
+uint8_t ignisEndFrame();
 
 
 VkInstance       ignisGetVkInstance();
 VkDevice         ignisGetVkDevice();
 VkPhysicalDevice ignisGetVkPhysicalDevice();
+VkRenderPass     ignisGetVkRenderPass();
+
+VkCommandBuffer  ignisGetCommandBuffer();
+
+const VkAllocationCallbacks* ignisGetAllocator();
 
 
 #endif /* IGNIS_CORE_H */

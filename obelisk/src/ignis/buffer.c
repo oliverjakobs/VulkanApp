@@ -1,10 +1,13 @@
 #include "buffer.h"
 
+#include "ignis.h"
 
 #include "minimal/common.h"
 
-uint8_t ignisCreateVertexBuffer(const IgnisDevice* device, const float* vertices, size_t size, IgnisBuffer* buffer)
+uint8_t ignisCreateVertexBuffer(const float* vertices, size_t size, IgnisBuffer* buffer)
 {
+    VkDevice device = ignisGetVkDevice();
+
     VkBufferCreateInfo bufferInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .size = sizeof(float) * size,
@@ -12,35 +15,37 @@ uint8_t ignisCreateVertexBuffer(const IgnisDevice* device, const float* vertices
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
 
-    if (vkCreateBuffer(device->handle, &bufferInfo, ignisGetAllocator(), &buffer->handle) != VK_SUCCESS)
+    if (vkCreateBuffer(device, &bufferInfo, ignisGetAllocator(), &buffer->handle) != VK_SUCCESS)
     {
         return IGNIS_FAIL;
     }
 
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device->handle, buffer->handle, &memRequirements);
+    vkGetBufferMemoryRequirements(device, buffer->handle, &memRequirements);
 
     VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
-    buffer->memory = ignisAllocateDeviceMemory(device, memRequirements, properties, ignisGetAllocator());
+    buffer->memory = ignisAllocateDeviceMemory(memRequirements, properties, ignisGetAllocator());
     if (!buffer->memory)
     {
         MINIMAL_ERROR("failed to find allocate device memory!");
         return IGNIS_FAIL;
     }
 
-    vkBindBufferMemory(device->handle, buffer->handle, buffer->memory, 0);
+    vkBindBufferMemory(device, buffer->handle, buffer->memory, 0);
 
     void* data;
-    vkMapMemory(device->handle, buffer->memory, 0, bufferInfo.size, 0, &data);
+    vkMapMemory(device, buffer->memory, 0, bufferInfo.size, 0, &data);
         memcpy(data, vertices, (size_t) bufferInfo.size);
-    vkUnmapMemory(device->handle, buffer->memory);
+    vkUnmapMemory(device, buffer->memory);
 
     return IGNIS_OK;
 }
 
-void ignisDestroyBuffer(VkDevice device, IgnisBuffer* buffer)
+void ignisDestroyBuffer(IgnisBuffer* buffer)
 {
+    VkDevice device = ignisGetVkDevice();
+
     vkDestroyBuffer(device, buffer->handle, ignisGetAllocator());
     vkFreeMemory(device, buffer->memory, ignisGetAllocator());
 }

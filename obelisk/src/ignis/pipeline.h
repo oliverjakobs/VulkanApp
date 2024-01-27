@@ -18,7 +18,7 @@ typedef struct
     VkPipelineLayout layout;
 } IgnisPipeline;
 
-uint8_t ignisCreatePipeline(VkDevice device, const IgnisPipelineConfig* config, IgnisPipeline* pipeline);
-void ignisDestroyPipeline(VkDevice device, IgnisPipeline* pipeline);
+uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pipeline);
+void ignisDestroyPipeline(IgnisPipeline* pipeline);
 
 #endif /* !IGNIS_PIPELINE_H */

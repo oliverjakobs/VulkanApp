@@ -1,6 +1,8 @@
 #include "pipeline.h"
 
-static VkShaderModule ignisCreateShaderModule(VkDevice device, const char* path)
+#include "ignis.h"
+
+static VkShaderModule ignisCreateShaderModule(VkDevice device, const char* path, const VkAllocationCallbacks* allocator)
 {
     size_t size;
     char* code = ignisReadFile(path, &size);
@@ -12,7 +14,7 @@ static VkShaderModule ignisCreateShaderModule(VkDevice device, const char* path)
     };
 
     VkShaderModule module;
-    VkResult result = vkCreateShaderModule(device, &info, ignisGetAllocator(), &module);
+    VkResult result = vkCreateShaderModule(device, &info, allocator, &module);
 
     ignisFree(code, size);
 
@@ -21,10 +23,13 @@ static VkShaderModule ignisCreateShaderModule(VkDevice device, const char* path)
     return module;
 }
 
-uint8_t ignisCreatePipeline(VkDevice device, const IgnisPipelineConfig* config, IgnisPipeline* pipeline)
+uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pipeline)
 {
-    VkShaderModule vertModule = ignisCreateShaderModule(device, config->vertPath);
-    VkShaderModule fragModule = ignisCreateShaderModule(device, config->fragPath);
+    VkDevice device = ignisGetVkDevice();
+    const VkAllocationCallbacks* allocator = ignisGetAllocator();
+
+    VkShaderModule vertModule = ignisCreateShaderModule(device, config->vertPath, allocator);
+    VkShaderModule fragModule = ignisCreateShaderModule(device, config->fragPath, allocator);
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {
         {
@@ -145,7 +150,7 @@ uint8_t ignisCreatePipeline(VkDevice device, const IgnisPipelineConfig* config, 
         .pushConstantRangeCount = 0,
     };
 
-    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, ignisGetAllocator(), &pipeline->layout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, allocator, &pipeline->layout) != VK_SUCCESS)
     {
         return IGNIS_FAIL;
     }
@@ -168,17 +173,19 @@ uint8_t ignisCreatePipeline(VkDevice device, const IgnisPipelineConfig* config, 
         .basePipelineHandle = VK_NULL_HANDLE
     };
 
-    VkResult result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, ignisGetAllocator(), &pipeline->handle);
-    
+    VkResult result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, allocator, &pipeline->handle);
 
-    vkDestroyShaderModule(device, vertModule, ignisGetAllocator());
-    vkDestroyShaderModule(device, fragModule, ignisGetAllocator());
+    vkDestroyShaderModule(device, vertModule, allocator);
+    vkDestroyShaderModule(device, fragModule, allocator);
 
     return result != VK_SUCCESS ? IGNIS_FAIL : IGNIS_OK;
 }
 
-void ignisDestroyPipeline(VkDevice device, IgnisPipeline* pipeline)
+void ignisDestroyPipeline(IgnisPipeline* pipeline)
 {
-    vkDestroyPipeline(device, pipeline->handle, ignisGetAllocator());
-    vkDestroyPipelineLayout(device, pipeline->layout, ignisGetAllocator());
+    VkDevice device = ignisGetVkDevice();
+    const VkAllocationCallbacks* allocator = ignisGetAllocator();
+
+    vkDestroyPipeline(device, pipeline->handle, allocator);
+    vkDestroyPipelineLayout(device, pipeline->layout, allocator);
 }

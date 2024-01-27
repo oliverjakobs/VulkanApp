@@ -57,10 +57,10 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
     IgnisPipelineConfig pipelineConfig = {
         .vertPath = "./obelisk/res/vert.spv",
         .fragPath = "./obelisk/res/frag.spv",
-        .renderPass = ignisGetContext()->swapchain.renderPass
+        .renderPass = ignisGetVkRenderPass()
     };
 
-    if (!ignisCreatePipeline(ignisGetContext()->device.handle, &pipelineConfig, &pipeline))
+    if (!ignisCreatePipeline(&pipelineConfig, &pipeline))
     {
         MINIMAL_CRITICAL("failed to create pipeline");
         return MINIMAL_FAIL;
@@ -68,7 +68,7 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
 
 
     // create buffer
-    if (!ignisCreateVertexBuffer(&ignisGetContext()->device, vertices, vertexCount * 5, &buffer))
+    if (!ignisCreateVertexBuffer(vertices, vertexCount * 5, &buffer))
     {
         return MINIMAL_FAIL;
     }
@@ -78,9 +78,9 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
 
 void obeliskDestroy(ObeliskApp* app)
 {
-    ignisDestroyBuffer(ignisGetContext()->device.handle, &buffer);
+    ignisDestroyBuffer(&buffer);
 
-    ignisDestroyPipeline(ignisGetContext()->device.handle, &pipeline);
+    ignisDestroyPipeline(&pipeline);
 
     ignisTerminate();
     MINIMAL_TRACE("Ignis context terminated.");
@@ -126,5 +126,5 @@ void obeliskRun(ObeliskApp* app)
     minimalRun(app->window, (MinimalTickCB)obeliskOnTick, app);
 
     
-    vkDeviceWaitIdle(ignisGetContext()->device.handle);
+    vkDeviceWaitIdle(ignisGetVkDevice());
 }
