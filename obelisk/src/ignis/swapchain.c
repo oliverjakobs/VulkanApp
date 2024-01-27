@@ -55,6 +55,46 @@ static VkPresentModeKHR ignisChoosePresentMode(VkPhysicalDevice device, VkSurfac
     return mode;
 }
 
+static VkExtent2D ignisClampExtent2D(VkExtent2D extent, VkExtent2D min, VkExtent2D max)
+{
+    return (VkExtent2D){
+        .width = ignisClamp32(extent.width, min.width, max.width),
+        .height = ignisClamp32(extent.height, min.height, max.height)
+    };
+}
+
+static VkFormat ignisQueryDepthFormat(VkPhysicalDevice device)
+{
+    VkFormat candidates[] = {
+        VK_FORMAT_D32_SFLOAT,
+        VK_FORMAT_D32_SFLOAT_S8_UINT,
+        VK_FORMAT_D24_UNORM_S8_UINT
+    };
+    const uint32_t count = sizeof(candidates) / sizeof(candidates[0]);;
+
+    VkFormatFeatureFlags features = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+    VkFormat format = VK_FORMAT_UNDEFINED;
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(device, candidates[i], &props);
+
+        if ((props.linearTilingFeatures & features) == features)
+        {
+            format = candidates[i];
+            break;
+        }
+        else if ((props.optimalTilingFeatures & features) == features)
+        {
+            format = candidates[i];
+            break;
+        }
+    }
+
+    return format;
+}
+
 static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
 {
     VkAttachmentDescription attachments[] = {
@@ -275,14 +315,6 @@ static uint8_t ignisCreateSwapchainFramebuffers(VkDevice device, const VkAllocat
     return IGNIS_OK;
 }
 
-static VkExtent2D ignisClampExtent2D(VkExtent2D extent, VkExtent2D min, VkExtent2D max)
-{
-    return (VkExtent2D){
-        .width = ignisClamp32(extent.width, min.width, max.width),
-        .height = ignisClamp32(extent.height, min.height, max.height)
-    };
-}
-
 uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfaceKHR surface, VkSwapchainKHR old, VkExtent2D extent, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
 {
     /* choose swap chain surface format */
@@ -310,6 +342,15 @@ uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfa
     if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount)
         imageCount = capabilities.maxImageCount;
 
+    /* query for depth format */
+    VkFormat depthFormat = ignisQueryDepthFormat(physical);
+    if (depthFormat == VK_FORMAT_UNDEFINED)
+    {
+        MINIMAL_ERROR("failed to find suitable depth format!");
+        return IGNIS_FAIL;
+    }
+
+    /* create swapchain */
     VkSwapchainCreateInfoKHR createInfo = {
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface = surface,
@@ -329,54 +370,21 @@ uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfa
         .oldSwapchain = old
     };
 
-    uint32_t queue_family_indices[] = {
+    uint32_t queueFamilyIndices[] = {
         ignisGetQueueFamilyIndex(IGNIS_QUEUE_GRAPHICS),
         ignisGetQueueFamilyIndex(IGNIS_QUEUE_PRESENT)
     };
 
-    if (queue_family_indices[0] != queue_family_indices[1])
+    if (queueFamilyIndices[0] != queueFamilyIndices[1])
     {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
-        createInfo.pQueueFamilyIndices = queue_family_indices;
+        createInfo.pQueueFamilyIndices = queueFamilyIndices;
     }
 
     if (vkCreateSwapchainKHR(device, &createInfo, allocator, &swapchain->handle) != VK_SUCCESS)
     {
         MINIMAL_ERROR("failed to create swap chain!");
-        return IGNIS_FAIL;
-    }
-
-    /* query for depth format */
-    VkFormat candidates[] = {
-        VK_FORMAT_D32_SFLOAT,
-        VK_FORMAT_D32_SFLOAT_S8_UINT,
-        VK_FORMAT_D24_UNORM_S8_UINT
-    };
-    const uint32_t count = sizeof(candidates) / sizeof(candidates[0]);;
-
-    VkFormatFeatureFlags features = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
-
-    VkFormat depthFormat = VK_FORMAT_UNDEFINED;
-    for (uint32_t i = 0; i < count; ++i)
-    {
-        VkFormatProperties props;
-        vkGetPhysicalDeviceFormatProperties(physical, candidates[i], &props);
-
-        if ((props.linearTilingFeatures & features) == features)
-        {
-            depthFormat = candidates[i];
-            break;
-        }
-        else if ((props.optimalTilingFeatures & features) == features)
-        {
-            depthFormat = candidates[i];
-            break;
-        }
-    }
-    if (depthFormat == VK_FORMAT_UNDEFINED)
-    {
-        MINIMAL_ERROR("failed to find suitable depth format!");
         return IGNIS_FAIL;
     }
 
@@ -388,6 +396,7 @@ uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfa
     if (!ignisCreateSwapchainRenderPass(device, allocator, swapchain))
         return IGNIS_FAIL;
 
+    /* create frambuffers */
     if (!ignisCreateSwapchainImages(device, allocator, swapchain))
         return IGNIS_FAIL;
 
