@@ -30,16 +30,17 @@ typedef enum
     IGNIS_QUEUE_FAMILY_MAX_ENUM
 } IgnisQueueFamily;
 
-#define IGNIS_QUEUE_FLAG_GRAPHICS   0x0001
-#define IGNIS_QUEUE_FLAG_TRANSFER   0x0002
-#define IGNIS_QUEUE_FLAG_COMPUTE    0x0004
-#define IGNIS_QUEUE_FLAG_PRESENT    0x0008
+typedef enum
+{
+    IGNIS_QUEUE_GRAPHICS_BIT = 0x0001,
+    IGNIS_QUEUE_TRANSFER_BIT = 0x0002,
+    IGNIS_QUEUE_COMPUTE_BIT  = 0x0004,
+    IGNIS_QUEUE_PRESENT_BIT  = 0x0008
+} ignisQueueFamilyBits;
 
 VkDeviceMemory ignisAllocateDeviceMemory(VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, const VkAllocationCallbacks* allocator);
 
 uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family);
-
-void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device);
 
 uint8_t ignisResize(uint32_t width, uint32_t height);
 
@@ -62,5 +63,7 @@ VkCommandBuffer  ignisGetCommandBuffer();
 
 const VkAllocationCallbacks* ignisGetAllocator();
 
+
+void ignisPrintInfo();
 
 #endif /* IGNIS_CORE_H */

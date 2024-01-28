@@ -263,8 +263,6 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
     context.swapchainGeneration = 0;
     context.swapchainLastGeneration = 0;
 
-    ignisPrintPhysicalDeviceInfo(context.physicalDevice);
-
     // set default state
     ignisSetClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     ignisSetDepthStencil(1.0f, 0);
@@ -313,9 +311,9 @@ static const char* const REQ_EXTENSIONS[] = {
 
 static const uint32_t REQ_EXTENSION_COUNT = sizeof(REQ_EXTENSIONS) / sizeof(REQ_EXTENSIONS[0]);
 
-static const uint32_t REQ_QUEUE_FAMILIES = IGNIS_QUEUE_FLAG_GRAPHICS
-                                        | IGNIS_QUEUE_FLAG_TRANSFER
-                                        | IGNIS_QUEUE_FLAG_PRESENT;
+static const uint32_t REQ_QUEUE_FAMILIES = IGNIS_QUEUE_GRAPHICS_BIT
+                                        | IGNIS_QUEUE_TRANSFER_BIT
+                                        | IGNIS_QUEUE_PRESENT_BIT;
 
 static uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t* indices);
 static uint8_t ignisQuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
@@ -430,7 +428,7 @@ uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, u
         if (properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
         {
             indices[IGNIS_QUEUE_GRAPHICS] = i;
-            familiesSet |= IGNIS_QUEUE_FLAG_GRAPHICS;
+            familiesSet |= IGNIS_QUEUE_GRAPHICS_BIT;
             ++currentTransferScore;
         }
 
@@ -438,7 +436,7 @@ uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, u
         if (properties[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
         {
             indices[IGNIS_QUEUE_COMPUTE] = i;
-            familiesSet |= IGNIS_QUEUE_FLAG_COMPUTE;
+            familiesSet |= IGNIS_QUEUE_COMPUTE_BIT;
             ++currentTransferScore;
         }
 
@@ -451,7 +449,7 @@ uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, u
             {
                 minTransferScore = currentTransferScore;
                 indices[IGNIS_QUEUE_TRANSFER] = i;
-                familiesSet |= IGNIS_QUEUE_FLAG_TRANSFER;
+                familiesSet |= IGNIS_QUEUE_TRANSFER_BIT;
             }
         }
 
@@ -460,7 +458,7 @@ uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, u
         if (supported)
         {
             indices[IGNIS_QUEUE_PRESENT] = i;
-            familiesSet |= IGNIS_QUEUE_FLAG_PRESENT;
+            familiesSet |= IGNIS_QUEUE_PRESENT_BIT;
         }
     }
 
@@ -508,51 +506,6 @@ uint8_t ignisCheckDeviceExtensionSupport(VkPhysicalDevice device)
     ignisFree(properties, sizeof(VkExtensionProperties) * count);
     return found;
 }
-
-void ignisPrintPhysicalDeviceInfo(VkPhysicalDevice device)
-{
-    VkPhysicalDeviceProperties properties;
-    vkGetPhysicalDeviceProperties(device, &properties);
-
-    VkPhysicalDeviceFeatures features;
-    vkGetPhysicalDeviceFeatures(device, &features);
-
-    VkPhysicalDeviceMemoryProperties memory;
-    vkGetPhysicalDeviceMemoryProperties(device, &memory);
-
-    MINIMAL_INFO("Physical device: %s", properties.deviceName);
-    
-    const char* typeDesc[] = {
-        [VK_PHYSICAL_DEVICE_TYPE_OTHER]          = "OTHER",
-        [VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU] = "INTEGRATED GPU",
-        [VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU]   = "DISCRETE GPU",
-        [VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU]    = "VIRTUAL GPU",
-        [VK_PHYSICAL_DEVICE_TYPE_CPU]            = "CPU",
-    };
-    MINIMAL_INFO("  > Device Type: %s", typeDesc[properties.deviceType]);
-
-    MINIMAL_INFO("  > Driver Version: %d.%d.%d",
-        VK_VERSION_MAJOR(properties.driverVersion),
-        VK_VERSION_MINOR(properties.driverVersion),
-        VK_VERSION_PATCH(properties.driverVersion));
-
-    MINIMAL_INFO("  > Vulkan API Version: %d.%d.%d",
-        VK_VERSION_MAJOR(properties.apiVersion),
-        VK_VERSION_MINOR(properties.apiVersion),
-        VK_VERSION_PATCH(properties.apiVersion));
-
-    MINIMAL_INFO("  > Memory:");
-    for (uint32_t i = 0; i < memory.memoryHeapCount; ++i)
-    {
-        float memory_size_gib = (((float)memory.memoryHeaps[i].size) / 1024.0f / 1024.0f / 1024.0f);
-
-        if (memory.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
-            MINIMAL_INFO("    Local:  %.2f GiB", memory_size_gib);
-        else
-            MINIMAL_INFO("    Shared: %.2f GiB", memory_size_gib);
-    }
-}
-
 
 
 
@@ -732,3 +685,55 @@ uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family) { return context.queu
 
 
 const VkAllocationCallbacks* ignisGetAllocator() { return NULL; }
+
+
+void ignisPrintInfo()
+{
+    VkPhysicalDeviceProperties properties;
+    vkGetPhysicalDeviceProperties(context.physicalDevice, &properties);
+
+    VkPhysicalDeviceFeatures features;
+    vkGetPhysicalDeviceFeatures(context.physicalDevice, &features);
+
+    VkPhysicalDeviceMemoryProperties memory;
+    vkGetPhysicalDeviceMemoryProperties(context.physicalDevice, &memory);
+
+    MINIMAL_INFO("Physical device: %s", properties.deviceName);
+    
+    const char* typeDesc[] = {
+        [VK_PHYSICAL_DEVICE_TYPE_OTHER]          = "OTHER",
+        [VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU] = "INTEGRATED GPU",
+        [VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU]   = "DISCRETE GPU",
+        [VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU]    = "VIRTUAL GPU",
+        [VK_PHYSICAL_DEVICE_TYPE_CPU]            = "CPU",
+    };
+    MINIMAL_INFO("  > Device Type: %s", typeDesc[properties.deviceType]);
+
+    MINIMAL_INFO("  > Driver Version: %d.%d.%d",
+        VK_VERSION_MAJOR(properties.driverVersion),
+        VK_VERSION_MINOR(properties.driverVersion),
+        VK_VERSION_PATCH(properties.driverVersion));
+
+    MINIMAL_INFO("  > Vulkan API Version: %d.%d.%d",
+        VK_VERSION_MAJOR(properties.apiVersion),
+        VK_VERSION_MINOR(properties.apiVersion),
+        VK_VERSION_PATCH(properties.apiVersion));
+
+    MINIMAL_INFO("  > Memory:");
+    for (uint32_t i = 0; i < memory.memoryHeapCount; ++i)
+    {
+        float memory_size_gib = (((float)memory.memoryHeaps[i].size) / 1024.0f / 1024.0f / 1024.0f);
+
+        if (memory.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+            MINIMAL_INFO("    Local:  %.2f GiB", memory_size_gib);
+        else
+            MINIMAL_INFO("    Shared: %.2f GiB", memory_size_gib);
+    }
+
+    
+    MINIMAL_INFO("Queues:");
+    MINIMAL_INFO("  > Graphics: %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_GRAPHICS_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_GRAPHICS]);
+    MINIMAL_INFO("  > Transfer: %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_TRANSFER_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_TRANSFER]);
+    MINIMAL_INFO("  > Compute:  %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_COMPUTE_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_COMPUTE]);
+    MINIMAL_INFO("  > Present:  %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_PRESENT_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_PRESENT]);
+}

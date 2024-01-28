@@ -6,15 +6,24 @@
 #include "ignis/buffer.h"
 
 static IgnisPipeline pipeline;
-static IgnisBuffer buffer;
+static IgnisBuffer vertexBuffer;
+static IgnisBuffer indexBuffer;
 
 static float vertices[] = {
-     0.0f, -0.5f, 1.0f, 1.0f, 1.0f,
-     0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
-    -0.5f,  0.5f, 0.0f, 0.0f, 1.0f
+    -0.5f, -0.5f,   1.0f, 0.0f, 0.0f,
+     0.5f, -0.5f,   0.0f, 1.0f, 0.0f,
+     0.5f,  0.5f,   0.0f, 0.0f, 1.0f,
+    -0.5f,  0.5f,   1.0f, 1.0f, 1.0f
 };
 
-static uint32_t vertexCount = 3;
+static size_t vertexCount = 4;
+static size_t vertexSize = 5 * sizeof(float);
+
+const uint32_t indices[] = {
+    0, 1, 2, 2, 3, 0
+};
+
+static size_t indexCount = 6;
 
 static u8 obeliskOnEvent(ObeliskApp* app, const MinimalEvent* e);
 
@@ -51,8 +60,9 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
     }
     MINIMAL_TRACE("Ignis context created successfully.");
 
-    ignisSetClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    ignisPrintInfo();
 
+    ignisSetClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     
     IgnisPipelineConfig pipelineConfig = {
         .vertPath = "./obelisk/res/vert.spv",
@@ -66,19 +76,20 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
         return MINIMAL_FAIL;
     }
 
-
     // create buffer
-    if (!ignisCreateVertexBuffer(vertices, vertexCount * 5, &buffer))
-    {
+    if (!ignisCreateVertexBuffer(vertices, vertexCount * vertexSize, &vertexBuffer))
         return MINIMAL_FAIL;
-    }
+
+    if (!ignisCreateIndexBuffer(indices, indexCount, &indexBuffer))
+        return MINIMAL_FAIL;
 
     return (app->on_load) ? app->on_load(app, w, h) : MINIMAL_OK;
 }
 
 void obeliskDestroy(ObeliskApp* app)
 {
-    ignisDestroyBuffer(&buffer);
+    ignisDestroyBuffer(&vertexBuffer);
+    ignisDestroyBuffer(&indexBuffer);
 
     ignisDestroyPipeline(&pipeline);
 
@@ -111,11 +122,12 @@ static void obeliskOnTick(ObeliskApp* app, const MinimalFrameData* framedata)
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
 
-        VkBuffer vertexBuffers[] = {buffer.handle};
+        VkBuffer vertexBuffers[] = {vertexBuffer.handle};
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-        vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
 
         ignisEndFrame();
     }
