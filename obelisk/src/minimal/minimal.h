@@ -18,8 +18,8 @@ MINIMAL_API const char* minimalGetVersionString();
 /* --------------------------| game loop |------------------------------- */
 typedef struct
 {
-    f32 deltatime;
-    u32 fps;
+    float deltatime;
+    uint32_t fps;
 } MinimalFrameData;
 
 typedef void (*MinimalTickCB)(void* context, const MinimalFrameData*);

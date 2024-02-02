@@ -3,17 +3,17 @@
 
 #include "common.h"
 
-u8 minimalPlatformInit();
-u8 minimalPlatformTerminate();
+uint8_t minimalPlatformInit();
+uint8_t minimalPlatformTerminate();
 
-MinimalWindow* minimalCreateWindow(const char* title, i32 x, i32 y, u32 w, u32 h);
+MinimalWindow* minimalCreateWindow(const char* title, int32_t x, int32_t y, uint32_t w, uint32_t h);
 void minimalDestroyWindow(MinimalWindow* window);
 
 MINIMAL_API void minimalSetWindowTitle(MinimalWindow* window, const char* title);
 
 void minimalPollWindowEvents(MinimalWindow* window);
 
-u8 minimalShouldClose(const MinimalWindow* window);
+uint8_t minimalShouldClose(const MinimalWindow* window);
 MINIMAL_API void minimalClose(MinimalWindow* window);
 
 double minimalGetTime();
@@ -24,7 +24,7 @@ double minimalGetTime();
 
 VkResult minimalCreateWindowSurface(VkInstance instance, const MinimalWindow* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface);
 
-const char* const *minimalQueryRequiredExtensions(u32* count);
+const char* const *minimalQueryRequiredExtensions(uint32_t* count);
 
 #endif
 

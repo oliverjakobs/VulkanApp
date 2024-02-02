@@ -8,7 +8,9 @@ typedef struct
     const char* vertPath;
     const char* fragPath;
 
-    VkRenderPass renderPass;
+    VkVertexInputAttributeDescription* vertexAttributes;
+    size_t attributeCount;
+    uint32_t vertexStride;
 } IgnisPipelineConfig;
 
 

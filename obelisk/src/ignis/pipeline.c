@@ -28,6 +28,17 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
     VkDevice device = ignisGetVkDevice();
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
 
+    /* layout */
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 0,
+        .pushConstantRangeCount = 0,
+    };
+
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, allocator, &pipeline->layout) != VK_SUCCESS)
+        return IGNIS_FAIL;
+
+    /* shader */
     VkShaderModule vertModule = ignisCreateShaderModule(device, config->vertPath, allocator);
     VkShaderModule fragModule = ignisCreateShaderModule(device, config->fragPath, allocator);
 
@@ -46,47 +57,36 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         }
     };
 
+    /* vertex input */
     VkVertexInputBindingDescription bindingDescription = {
         .binding = 0,
-        .stride = sizeof(float) * 5,
+        .stride = config->vertexStride,
         .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-    };
-
-    VkVertexInputAttributeDescription attributeDescriptions[] = {
-        {
-            .binding = 0,
-            .location = 0,
-            .format = VK_FORMAT_R32G32_SFLOAT,
-            .offset = sizeof(float) * 0
-        },
-        {
-            .binding = 0,
-            .location = 1,
-            .format = VK_FORMAT_R32G32B32_SFLOAT,
-            .offset = sizeof(float) * 2
-        }
     };
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         .vertexBindingDescriptionCount = 1,
         .pVertexBindingDescriptions = &bindingDescription,
-        .vertexAttributeDescriptionCount = 2,
-        .pVertexAttributeDescriptions = attributeDescriptions
+        .vertexAttributeDescriptionCount = config->attributeCount,
+        .pVertexAttributeDescriptions = config->vertexAttributes
     };
 
+    /* input assembly */
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
         .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
         .primitiveRestartEnable = VK_FALSE
     };
 
+    /* viewport */
     VkPipelineViewportStateCreateInfo viewportState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
         .viewportCount = 1,
         .scissorCount = 1
     };
 
+    /* rasterization */
     VkPipelineRasterizationStateCreateInfo rasterizer = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .depthClampEnable = VK_FALSE,
@@ -98,12 +98,14 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         .depthBiasEnable = VK_FALSE
     };
 
+    /* multisample */
     VkPipelineMultisampleStateCreateInfo multisampling = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
         .sampleShadingEnable = VK_FALSE,
         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
     };
 
+    /* depth stencil */
     VkPipelineDepthStencilStateCreateInfo depthStencil = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
         .depthTestEnable = VK_TRUE,
@@ -113,6 +115,7 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         .stencilTestEnable = VK_FALSE
     };
 
+    /* color blending */
     VkPipelineColorBlendAttachmentState colorBlendAttachment = {
         .colorWriteMask = VK_COLOR_COMPONENT_R_BIT
                         | VK_COLOR_COMPONENT_G_BIT
@@ -133,6 +136,7 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         .blendConstants[3] = 0.0f
     };
 
+    /* dynamic states */
     VkDynamicState dynamicStates[] = {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR
@@ -144,17 +148,7 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         .pDynamicStates = dynamicStates
     };
 
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 0,
-        .pushConstantRangeCount = 0,
-    };
-
-    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, allocator, &pipeline->layout) != VK_SUCCESS)
-    {
-        return IGNIS_FAIL;
-    }
-
+    /* create pipeline */
     VkGraphicsPipelineCreateInfo pipelineInfo = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         .stageCount = 2,
@@ -168,7 +162,7 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         .pColorBlendState = &colorBlending,
         .pDynamicState = &dynamicStateInfo,
         .layout = pipeline->layout,
-        .renderPass = config->renderPass,
+        .renderPass = ignisGetVkRenderPass(),
         .subpass = 0,
         .basePipelineHandle = VK_NULL_HANDLE
     };

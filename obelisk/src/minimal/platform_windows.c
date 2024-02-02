@@ -14,18 +14,18 @@
 
 #define MINIMAL_WNDCLASSNAME "MINIMALWNDCLASS"
 
-#define MINIMAL_GET_X_LPARAM(lp)    ((i32)(i16)LOWORD(lp))
-#define MINIMAL_GET_Y_LPARAM(lp)    ((i32)(i16)HIWORD(lp))
+#define MINIMAL_GET_X_LPARAM(lp)    ((int32_t)(int16_t)LOWORD(lp))
+#define MINIMAL_GET_Y_LPARAM(lp)    ((int32_t)(int16_t)HIWORD(lp))
 
-#define MINIMAL_GET_SCROLL(wp)      ((i32)((i16)HIWORD(wp) / (f32)WHEEL_DELTA))
+#define MINIMAL_GET_SCROLL(wp)      ((int32_t)((int16_t)HIWORD(wp) / (float)WHEEL_DELTA))
 
 //clock
-static u64 _minimal_timer_frequency = 0;
-static u64 _minimal_timer_offset = 0;
+static uint64_t _minimal_timer_frequency = 0;
+static uint64_t _minimal_timer_offset = 0;
 
 static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-u8 minimalPlatformInit()
+uint8_t minimalPlatformInit()
 {
     // register window class
     WNDCLASSA wnd_class = {
@@ -58,7 +58,7 @@ u8 minimalPlatformInit()
     return MINIMAL_OK;
 }
 
-u8 minimalPlatformTerminate()
+uint8_t minimalPlatformTerminate()
 {
     // unregister window class
     if (!UnregisterClassA(MINIMAL_WNDCLASSNAME, GetModuleHandleA(NULL)))
@@ -74,10 +74,10 @@ struct MinimalWindow
     HINSTANCE   instance;
     HWND        handle;
 
-    u8 should_close;
+    uint8_t should_close;
 };
 
-MinimalWindow* minimalCreateWindow(const char* title, i32 x, i32 y, u32 w, u32 h)
+MinimalWindow* minimalCreateWindow(const char* title, int32_t x, int32_t y, uint32_t w, uint32_t h)
 {
     MinimalWindow* window = MINIMAL_ALLOC(sizeof(MinimalWindow));
     if (!window) return NULL;
@@ -135,21 +135,21 @@ void minimalSetWindowTitle(MinimalWindow* window, const char* title)
     SetWindowTextA(window->handle, title);
 }
 
-u8   minimalShouldClose(const MinimalWindow* window) { return window->should_close; }
-void minimalClose(MinimalWindow* window)             { window->should_close = 1; }
+uint8_t minimalShouldClose(const MinimalWindow* window) { return window->should_close; }
+void    minimalClose(MinimalWindow* window)             { window->should_close = 1; }
 
 
-f64 minimalGetTime()
+double minimalGetTime()
 {
-    u64 value;
+    uint64_t value;
     QueryPerformanceCounter((LARGE_INTEGER*)&value);
 
-    return (f64)(value - _minimal_timer_offset) / _minimal_timer_frequency;
+    return (double)(value - _minimal_timer_offset) / _minimal_timer_frequency;
 }
 
-static u32 minimalGetKeyMods()
+static uint32_t minimalGetKeyMods()
 {
-    u32 mods = 0;
+    uint32_t mods = 0;
     if (GetKeyState(VK_SHIFT) & 0x8000)                         mods |= MINIMAL_KEY_MOD_SHIFT;
     if (GetKeyState(VK_CONTROL) & 0x8000)                       mods |= MINIMAL_KEY_MOD_CONTROL;
     if (GetKeyState(VK_MENU) & 0x8000)                          mods |= MINIMAL_KEY_MOD_ALT;
@@ -159,7 +159,7 @@ static u32 minimalGetKeyMods()
     return mods;
 }
 
-static u16 minimalGetMouseButton(UINT msg, WPARAM wParam)
+static uint16_t minimalGetMouseButton(UINT msg, WPARAM wParam)
 {
     if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP)   return MINIMAL_MOUSE_BUTTON_LEFT;
     if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONUP)   return MINIMAL_MOUSE_BUTTON_RIGHT;
@@ -187,8 +187,8 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         return 0;
     case WM_SIZE:
     {
-        i32 width  = LOWORD(lParam);
-        i32 height = HIWORD(lParam);
+        int32_t width  = LOWORD(lParam);
+        int32_t height = HIWORD(lParam);
 
         minimalDispatchEvent(MINIMAL_EVENT_WINDOW_SIZE, 0, width, height);
         return 0;
@@ -197,8 +197,8 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
     case WM_SYSCHAR:
     case WM_UNICHAR:
     {
-        u32 codepoint = (u32)wParam;
-        u32 mods = minimalGetKeyMods();
+        uint32_t codepoint = (uint32_t)wParam;
+        uint32_t mods = minimalGetKeyMods();
 
         if (codepoint > 31)
             minimalDispatchEvent(MINIMAL_EVENT_CHAR, codepoint, 0, mods);
@@ -210,9 +210,9 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
     case WM_KEYUP:
     case WM_SYSKEYUP:
     {
-        u8 action = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
-        u32 keycode = (u16)wParam;
-        u32 mods = minimalGetKeyMods();
+        uint8_t action = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
+        uint32_t keycode = (uint16_t)wParam;
+        uint32_t mods = minimalGetKeyMods();
 
         if (minimalProcessKey(keycode, action))
             minimalDispatchEvent(MINIMAL_EVENT_KEY, keycode, action, mods);
@@ -228,14 +228,14 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
     case WM_MBUTTONUP:
     case WM_XBUTTONUP:
     {
-        u8 action = msg == WM_LBUTTONDOWN
+        uint8_t action = msg == WM_LBUTTONDOWN
                         || msg == WM_RBUTTONDOWN
                         || msg == WM_MBUTTONDOWN
                         || msg == WM_XBUTTONDOWN;
 
-        u16 button = minimalGetMouseButton(msg, wParam);
-        i32 x = MINIMAL_GET_X_LPARAM(lParam);
-        i32 y = MINIMAL_GET_Y_LPARAM(lParam);
+        uint16_t button = minimalGetMouseButton(msg, wParam);
+        int32_t x = MINIMAL_GET_X_LPARAM(lParam);
+        int32_t y = MINIMAL_GET_Y_LPARAM(lParam);
 
         if (minimalProcessMouseButton(button, action))
             minimalDispatchEvent(MINIMAL_EVENT_MOUSE_BUTTON, (button << 16) + action, x, y);
@@ -244,22 +244,22 @@ static LRESULT CALLBACK minimalWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LP
     }
     case WM_MOUSEMOVE:
     {
-        i32 x = MINIMAL_GET_X_LPARAM(lParam);
-        i32 y = MINIMAL_GET_Y_LPARAM(lParam);
+        int32_t x = MINIMAL_GET_X_LPARAM(lParam);
+        int32_t y = MINIMAL_GET_Y_LPARAM(lParam);
 
-        if (minimalProcessMouseButton((f32)x, (f32)y))
+        if (minimalProcessMouseButton((float)x, (float)y))
             minimalDispatchEvent(MINIMAL_EVENT_MOUSE_MOVED, 0, x, y);
         return 0;
     }
     case WM_MOUSEWHEEL:
     {
-        i32 scroll = MINIMAL_GET_SCROLL(wParam);
+        int32_t scroll = MINIMAL_GET_SCROLL(wParam);
         minimalDispatchEvent(MINIMAL_EVENT_MOUSE_SCROLLED, 0, 0, scroll);
         return 0;
     }
     case WM_MOUSEHWHEEL:
     {
-        i32 scroll = MINIMAL_GET_SCROLL(wParam);
+        int32_t scroll = MINIMAL_GET_SCROLL(wParam);
         minimalDispatchEvent(MINIMAL_EVENT_MOUSE_SCROLLED, 0, scroll, 0);
         return 0;
     }
@@ -288,7 +288,7 @@ static const char* const extensions[] = {
     "VK_KHR_win32_surface",
 };
 
-const char* const *minimalQueryRequiredExtensions(u32* count)
+const char* const *minimalQueryRequiredExtensions(uint32_t* count)
 {
     *count = sizeof(extensions) / sizeof(extensions[0]);
     return extensions;

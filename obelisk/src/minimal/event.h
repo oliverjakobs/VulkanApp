@@ -23,27 +23,27 @@
 #define MINIMAL_EVENT_LAST              MINIMAL_EVENT_MOUSE_SCROLLED
 
 /* Dispatch */
-typedef u8 (*MinimalEventCB)(void* context, const MinimalEvent* e);
+typedef uint8_t (*MinimalEventCB)(void* context, const MinimalEvent* e);
 void minimalSetEventHandler(void* context, MinimalEventCB callback);
 
-void minimalDispatchEvent(u32 type, u32 uParam, i32 lParam, i32 rParam);
-void minimalDispatchExternalEvent(u32 type, const void* data);
+void minimalDispatchEvent(uint32_t type, uint32_t uParam, int32_t lParam, int32_t rParam);
+void minimalDispatchExternalEvent(uint32_t type, const void* data);
 
 /* Utility */
-MINIMAL_API u8 minimalEventIsType(const MinimalEvent* e, u32 type);
-MINIMAL_API u8 minimalEventIsExternal(const MinimalEvent* e);
+MINIMAL_API uint8_t minimalEventIsType(const MinimalEvent* e, uint32_t type);
+MINIMAL_API uint8_t minimalEventIsExternal(const MinimalEvent* e);
 
 MINIMAL_API const void* minimalExternalEvent(const MinimalEvent* e);
 
-MINIMAL_API u8 minimalEventWindowSize(const MinimalEvent* e, u32* w, u32* h);
+MINIMAL_API uint8_t minimalEventWindowSize(const MinimalEvent* e, uint32_t* w, uint32_t* h);
 
-MINIMAL_API u8 minimalEventMouseButton(const MinimalEvent* e, MinimalMouseButton button, f32* x, f32* y);
-MINIMAL_API u8 minimalEventMouseButtonPressed(const MinimalEvent* e, MinimalMouseButton button, f32* x, f32* y);
-MINIMAL_API u8 minimalEventMouseButtonReleased(const MinimalEvent* e, MinimalMouseButton button, f32* x, f32* y);
-MINIMAL_API u16 minimalEventMouseButtonAction(const MinimalEvent* e);
+MINIMAL_API uint8_t minimalEventMouseButton(const MinimalEvent* e, MinimalMouseButton button, float* x, float* y);
+MINIMAL_API uint8_t minimalEventMouseButtonPressed(const MinimalEvent* e, MinimalMouseButton button, float* x, float* y);
+MINIMAL_API uint8_t minimalEventMouseButtonReleased(const MinimalEvent* e, MinimalMouseButton button, float* x, float* y);
+MINIMAL_API uint16_t minimalEventMouseButtonAction(const MinimalEvent* e);
 
-MINIMAL_API u8 minimalEventMouseMoved(const MinimalEvent* e, f32* x, f32* y);
-MINIMAL_API u8 minimalEventMouseScrolled(const MinimalEvent* e, f32* xoffset, f32* yoffset);
+MINIMAL_API uint8_t minimalEventMouseMoved(const MinimalEvent* e, float* x, float* y);
+MINIMAL_API uint8_t minimalEventMouseScrolled(const MinimalEvent* e, float* xoffset, float* yoffset);
 
 MINIMAL_API MinimalKeycode minimalEventKey(const MinimalEvent* e);
 MINIMAL_API MinimalKeycode minimalEventKeyPressed(const MinimalEvent* e);

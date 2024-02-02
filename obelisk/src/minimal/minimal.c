@@ -21,15 +21,15 @@ const char* minimalGetVersionString()
 /* --------------------------| game loop |------------------------------- */
 void minimalRun(MinimalWindow* window, MinimalTickCB on_tick, void* context)
 {
-    f64 seconds = 0.0;
-    f64 lastframe = 0.0;
-    u32 frames = 0;
+    double seconds = 0.0;
+    double lastframe = 0.0;
+    uint32_t frames = 0;
 
     MinimalFrameData framedata = {0};
 
     while (!minimalShouldClose(window))
     {
-        f64 time = minimalGetTime();
+        double time = minimalGetTime();
         framedata.deltatime = time - lastframe;
         lastframe = time;
 

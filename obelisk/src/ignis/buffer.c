@@ -14,7 +14,7 @@ static uint8_t ignisWriteBuffer(const void* data, size_t size, IgnisBuffer* buff
     memcpy(mapped, data, size);
 
     vkUnmapMemory(device, buffer->memory);
-    
+
     return IGNIS_OK;
 }
 
@@ -50,22 +50,6 @@ static uint8_t ignisCreateBuffer(const void* data, size_t size, VkBufferUsageFla
     vkBindBufferMemory(device, buffer->handle, buffer->memory, 0);
 
     return ignisWriteBuffer(data, size, buffer);
-}
-
-uint8_t ignisCreateVertexBuffer(const float* vertices, size_t size, IgnisBuffer* buffer)
-{
-    if (!ignisCreateBuffer(vertices, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, buffer))
-        return IGNIS_FAIL;
-
-    return IGNIS_OK;
-}
-
-uint8_t ignisCreateIndexBuffer(const uint32_t* indices, size_t count, IgnisBuffer* buffer)
-{
-    if (!ignisCreateBuffer(indices, count * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, buffer))
-        return IGNIS_FAIL;
-
-    return IGNIS_OK;
 }
 
 void ignisDestroyBuffer(IgnisBuffer* buffer)

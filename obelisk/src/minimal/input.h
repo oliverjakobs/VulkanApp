@@ -166,28 +166,28 @@
 #define MINIMAL_PRESS   1
 #define MINIMAL_RELEASE 0
 
-typedef i16 MinimalKeycode;
-typedef i8  MinimalMouseButton;
+typedef int16_t MinimalKeycode;
+typedef int8_t  MinimalMouseButton;
 
 void minimalUpdateInput();
 
-u8 minimalProcessKey(MinimalKeycode keycode, u8 action);
-u8 minimalProcessMouseButton(MinimalMouseButton button, u8 action);
-u8 minimalProcessMouseMove(f32 x, f32 y);
+uint8_t minimalProcessKey(MinimalKeycode keycode, uint8_t action);
+uint8_t minimalProcessMouseButton(MinimalMouseButton button, uint8_t action);
+uint8_t minimalProcessMouseMove(float x, float y);
 
-u8 minimalKeycodeValid(MinimalKeycode keycode);
-u8 minimalMouseButtonValid(MinimalMouseButton button);
+uint8_t minimalKeycodeValid(MinimalKeycode keycode);
+uint8_t minimalMouseButtonValid(MinimalMouseButton button);
 
-u8 minimalKeyPressed(MinimalKeycode keycode);
-u8 minimalKeyReleased(MinimalKeycode keycode);
-u8 minimalKeyDown(MinimalKeycode keycode);
+uint8_t minimalKeyPressed(MinimalKeycode keycode);
+uint8_t minimalKeyReleased(MinimalKeycode keycode);
+uint8_t minimalKeyDown(MinimalKeycode keycode);
 
-u8 minimalMousePressed(MinimalMouseButton button);
-u8 minimalMouseReleased(MinimalMouseButton button);
-u8 minimalMouseDown(MinimalMouseButton button);
+uint8_t minimalMousePressed(MinimalMouseButton button);
+uint8_t minimalMouseReleased(MinimalMouseButton button);
+uint8_t minimalMouseDown(MinimalMouseButton button);
 
-void minimalCursorPos(f32* x, f32* y);
-f32 minimalCursorX();
-f32 minimalCursorY();
+void minimalCursorPos(float* x, float* y);
+float minimalCursorX();
+float minimalCursorY();
 
 #endif // !MINIMAL_INPUT_H

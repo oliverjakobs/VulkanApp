@@ -63,11 +63,18 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
     ignisPrintInfo();
 
     ignisSetClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+
+    VkVertexInputAttributeDescription attributes[] = {
+        {0, 0, VK_FORMAT_R32G32_SFLOAT,     0 * sizeof(float)},
+        {1, 0, VK_FORMAT_R32G32B32_SFLOAT,  2 * sizeof(float)}
+    };
     
     IgnisPipelineConfig pipelineConfig = {
         .vertPath = "./obelisk/res/vert.spv",
         .fragPath = "./obelisk/res/frag.spv",
-        .renderPass = ignisGetVkRenderPass()
+        .vertexAttributes = attributes,
+        .attributeCount = 2,
+        .vertexStride = 5 * sizeof(float)
     };
 
     if (!ignisCreatePipeline(&pipelineConfig, &pipeline))
