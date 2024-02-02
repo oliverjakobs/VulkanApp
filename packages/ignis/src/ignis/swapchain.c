@@ -1,7 +1,5 @@
 #include "swapchain.h"
 
-#include "minimal/common.h"
-
 static VkSurfaceFormatKHR ignisChooseSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
     uint32_t count;
@@ -155,7 +153,7 @@ static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, const VkAllocatio
 
     if (vkCreateRenderPass(device, &renderPassInfo, allocator, &swapchain->renderPass) != VK_SUCCESS)
     {
-        MINIMAL_ERROR("failed to create render pass!");
+        IGNIS_ERROR("failed to create render pass!");
         return IGNIS_FAIL;
     }
 
@@ -170,7 +168,7 @@ static uint8_t ignisCreateSwapchainImages(VkDevice device, const VkAllocationCal
 
     if (vkGetSwapchainImagesKHR(device, swapchain->handle, &swapchain->imageCount, swapchain->images) != VK_SUCCESS)
     {
-        MINIMAL_ERROR("failed to get images");
+        IGNIS_ERROR("failed to get images");
         return IGNIS_FAIL;
     }
 
@@ -198,7 +196,7 @@ static uint8_t ignisCreateSwapchainImages(VkDevice device, const VkAllocationCal
 
         if (vkCreateImageView(device, &createInfo, allocator, &swapchain->imageViews[i]) != VK_SUCCESS)
         {
-            MINIMAL_ERROR("failed to create image view");
+            IGNIS_ERROR("failed to create image view");
             return IGNIS_FAIL;
         }
     }
@@ -239,7 +237,7 @@ static uint8_t ignisCreateSwapchainDepthImages(VkDevice device, const VkAllocati
 
         if (vkCreateImage(device, &imageInfo, allocator, &swapchain->depthImages[i]) != VK_SUCCESS)
         {
-            MINIMAL_ERROR("failed to create image!");
+            IGNIS_ERROR("failed to create image!");
             return IGNIS_FAIL;
         }
 
@@ -251,13 +249,13 @@ static uint8_t ignisCreateSwapchainDepthImages(VkDevice device, const VkAllocati
         swapchain->depthImageMemories[i] = ignisAllocateDeviceMemory( memoryReq, properties, allocator);
         if (!swapchain->depthImageMemories[i])
         {
-            MINIMAL_ERROR("failed to allocate image memory!");
+            IGNIS_ERROR("failed to allocate image memory!");
             return IGNIS_FAIL;
         }
 
         if (vkBindImageMemory(device, swapchain->depthImages[i], swapchain->depthImageMemories[i], 0) != VK_SUCCESS)
         {
-            MINIMAL_ERROR("failed to bind image memory!");
+            IGNIS_ERROR("failed to bind image memory!");
             return IGNIS_FAIL;
         }
 
@@ -275,7 +273,7 @@ static uint8_t ignisCreateSwapchainDepthImages(VkDevice device, const VkAllocati
 
         if (vkCreateImageView(device, &viewInfo, allocator, &swapchain->depthImageViews[i]) != VK_SUCCESS)
         {
-            MINIMAL_ERROR("failed to create depth image view!");
+            IGNIS_ERROR("failed to create depth image view!");
             return IGNIS_FAIL;
         }
     }
@@ -307,7 +305,7 @@ static uint8_t ignisCreateSwapchainFramebuffers(VkDevice device, const VkAllocat
 
         if (vkCreateFramebuffer(device, &info, allocator, &swapchain->framebuffers[i]) != VK_SUCCESS)
         {
-            MINIMAL_ERROR("failed to create framebuffer");
+            IGNIS_ERROR("failed to create framebuffer");
             return IGNIS_FAIL;
         }
     }
@@ -321,7 +319,7 @@ uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfa
     VkSurfaceFormatKHR surfaceFormat = ignisChooseSurfaceFormat(physical, surface);
     if (surfaceFormat.format == VK_FORMAT_UNDEFINED)
     {
-        MINIMAL_ERROR("failed to choose swap chain surface format!");
+        IGNIS_ERROR("failed to choose swap chain surface format!");
         return IGNIS_FAIL;
     }
 
@@ -346,7 +344,7 @@ uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfa
     VkFormat depthFormat = ignisQueryDepthFormat(physical);
     if (depthFormat == VK_FORMAT_UNDEFINED)
     {
-        MINIMAL_ERROR("failed to find suitable depth format!");
+        IGNIS_ERROR("failed to find suitable depth format!");
         return IGNIS_FAIL;
     }
 
@@ -384,7 +382,7 @@ uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfa
 
     if (vkCreateSwapchainKHR(device, &createInfo, allocator, &swapchain->handle) != VK_SUCCESS)
     {
-        MINIMAL_ERROR("failed to create swap chain!");
+        IGNIS_ERROR("failed to create swap chain!");
         return IGNIS_FAIL;
     }
 
@@ -518,7 +516,7 @@ uint8_t ignisAcquireNextImage(VkDevice device, IgnisSwapchain* swapchain, uint32
 uint8_t ingisSubmitFrame(VkQueue graphics, VkCommandBuffer buffer, uint32_t frame, IgnisSwapchain* swapchain)
 {
     if (vkEndCommandBuffer(buffer) != VK_SUCCESS)
-        MINIMAL_WARN("failed to record command buffer!");
+        IGNIS_WARN("failed to record command buffer!");
 
     VkSemaphore waitSemaphores[] = { swapchain->imageAvailable[frame] };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };

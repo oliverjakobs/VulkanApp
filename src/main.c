@@ -1,9 +1,10 @@
-#include "obelisk.h"
-
+#include "minimal/minimal.h"
 #include "ignis/ignis.h"
 
 #include "ignis/pipeline.h"
 #include "ignis/buffer.h"
+
+static MinimalWindow* window;
 
 static IgnisPipeline pipeline;
 static IgnisBuffer vertexBuffer;
@@ -25,9 +26,9 @@ const uint32_t indices[] = {
 
 static size_t indexCount = 6;
 
-static u8 obeliskOnEvent(ObeliskApp* app, const MinimalEvent* e);
+uint8_t onEvent(void* handler, const MinimalEvent* e);
 
-u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
+uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
 {
     /* minimal initialization */
     if (!minimalPlatformInit())
@@ -37,23 +38,23 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
     }
 
     /* creating the window */
-    app->window = minimalCreateWindow(title, x, y, w, h);
-    if (!app->window)
+    window = minimalCreateWindow(title, x, y, w, h);
+    if (!window)
     {
         MINIMAL_ERROR("[App] Failed to create Minimal window");
         return MINIMAL_FAIL;
     }
     
-    minimalSetCurrentContext(app->window);
-    minimalSetEventHandler(app, (MinimalEventCB)obeliskOnEvent);
+    minimalSetCurrentContext(window);
+    minimalSetEventHandler(NULL, (MinimalEventCB)onEvent);
 
     IgnisPlatform platform = {
         .createSurface = (ignisCreateSurfaceFn)minimalCreateWindowSurface,
         .queryExtensions = (ignisQueryExtensionFn)minimalQueryRequiredExtensions,
-        .context = app->window
+        .context = window
     };
 
-    if (!ignisInit("ObeliskApp", &platform))
+    if (!ignisInit("VulkanApp", &platform))
     {
         MINIMAL_CRITICAL("Failed to create ignis context.");
         return MINIMAL_FAIL;
@@ -70,8 +71,8 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
     };
     
     IgnisPipelineConfig pipelineConfig = {
-        .vertPath = "./obelisk/res/vert.spv",
-        .fragPath = "./obelisk/res/frag.spv",
+        .vertPath = "./res/vert.spv",
+        .fragPath = "./res/frag.spv",
         .vertexAttributes = attributes,
         .attributeCount = 2,
         .vertexStride = 5 * sizeof(float)
@@ -90,11 +91,15 @@ u8 obeliskLoad(ObeliskApp* app, const char* title,  i32 x, i32 y, u32 w, u32 h)
     if (!ignisCreateIndexBuffer(indices, indexCount, &indexBuffer))
         return MINIMAL_FAIL;
 
-    return (app->on_load) ? app->on_load(app, w, h) : MINIMAL_OK;
+    MINIMAL_INFO("[Minimal] Version: %s", minimalGetVersionString());
+    
+    return MINIMAL_OK;
 }
 
-void obeliskDestroy(ObeliskApp* app)
+void onDestroy()
 {
+    vkDeviceWaitIdle(ignisGetVkDevice());
+
     ignisDestroyBuffer(&vertexBuffer);
     ignisDestroyBuffer(&indexBuffer);
 
@@ -103,28 +108,29 @@ void obeliskDestroy(ObeliskApp* app)
     ignisTerminate();
     MINIMAL_TRACE("Ignis context terminated.");
 
-    minimalDestroyWindow(app->window);
+    minimalDestroyWindow(window);
     minimalPlatformTerminate();
 }
 
-u8 obeliskOnEvent(ObeliskApp* app, const MinimalEvent* e)
+uint8_t onEvent(void* handler, const MinimalEvent* e)
 {
-    u32 width, height;
+    uint32_t width, height;
     if (minimalEventWindowSize(e, &width, &height))
     {
         ignisResize(width, height);
         ignisSetViewport(0.0f, 0.0f, width, height);
     }
 
-    return app->on_event(app, e);
+    if (minimalEventKeyPressed(e) == MINIMAL_KEY_ESCAPE)
+        minimalClose(window);
+
+    return MINIMAL_OK;
 }
 
-static void obeliskOnTick(ObeliskApp* app, const MinimalFrameData* framedata)
+void onTick(void* context, const MinimalFrameData* framedata)
 {
     if (ignisBeginFrame())
     {
-        app->on_tick(app, framedata->deltatime);
-
         VkCommandBuffer commandBuffer = ignisGetCommandBuffer();
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
@@ -140,10 +146,12 @@ static void obeliskOnTick(ObeliskApp* app, const MinimalFrameData* framedata)
     }
 }
 
-void obeliskRun(ObeliskApp* app)
+int main(void)
 {
-    minimalRun(app->window, (MinimalTickCB)obeliskOnTick, app);
+    if (onLoad("Vulkan Test", 100, 100, 1280, 720))
+        minimalRun(window, (MinimalTickCB)onTick, NULL);
 
-    
-    vkDeviceWaitIdle(ignisGetVkDevice());
+    onDestroy();
+
+    return 0;
 }

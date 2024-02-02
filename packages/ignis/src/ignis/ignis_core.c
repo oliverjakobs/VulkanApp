@@ -2,8 +2,6 @@
 
 #include "swapchain.h"
 
-#include "minimal/common.h"
-
 typedef struct
 {
     VkInstance instance;
@@ -51,16 +49,16 @@ VKAPI_ATTR VkBool32 VKAPI_CALL ignisDebugUtilsMessengerCallback(
     {
         default:
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-            MINIMAL_ERROR(callback_data->pMessage);
+            IGNIS_ERROR(callback_data->pMessage);
             break;
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-            MINIMAL_WARN(callback_data->pMessage);
+            IGNIS_WARN(callback_data->pMessage);
             break;
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-            MINIMAL_INFO(callback_data->pMessage);
+            IGNIS_INFO(callback_data->pMessage);
             break;
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-            MINIMAL_TRACE(callback_data->pMessage);
+            IGNIS_TRACE(callback_data->pMessage);
             break;
     }
     return VK_FALSE;
@@ -119,7 +117,7 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
 #ifdef IGNIS_DEBUG
     if (!ignisCheckValidationLayerSupport())
     {
-        MINIMAL_ERROR("validation layers requested, but not available!");
+        IGNIS_ERROR("validation layers requested, but not available!");
         return IGNIS_FAIL;
     }
 #endif
@@ -161,8 +159,8 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
         .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT
-                        | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-                        | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
+                        | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT,
+                        // | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
                         // | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
         .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
                     | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
@@ -176,7 +174,7 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
     VkResult result = vkCreateInstance(&createInfo, allocator, &context.instance);
     if (result != VK_SUCCESS)
     {
-        MINIMAL_ERROR("vkCreateInstance failed with result: %u", result);
+        IGNIS_ERROR("vkCreateInstance failed with result: %u", result);
         return IGNIS_FAIL;
     }
 
@@ -187,11 +185,11 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
     {
         result = func(context.instance, &debugCreateInfo, allocator, &context.debugMessenger);
         if (result != VK_SUCCESS)
-            MINIMAL_WARN("Failed to create debug messenger with result: %u", result);
+            IGNIS_WARN("Failed to create debug messenger with result: %u", result);
     }
     else
     {
-        MINIMAL_WARN("Could not find function 'vkCreateDebugUtilsMessengerEXT'");
+        IGNIS_WARN("Could not find function 'vkCreateDebugUtilsMessengerEXT'");
     }
 #endif
 
@@ -199,19 +197,19 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
     result = platform->createSurface(context.instance, platform->context, allocator, &context.surface);
     if (result != VK_SUCCESS)
     {
-        MINIMAL_ERROR("Failed to create window surface with result: %u", result);
+        IGNIS_ERROR("Failed to create window surface with result: %u", result);
         return IGNIS_FAIL;
     }
 
     if (ignisPickPhysicalDevice())
     {
-        MINIMAL_ERROR("failed to pick physical device");
+        IGNIS_ERROR("failed to pick physical device");
         return IGNIS_FAIL;
     }
 
     if (!ignisCreateLogicalDevice())
     {
-        MINIMAL_CRITICAL("failed to create logical device");
+        IGNIS_CRITICAL("failed to create logical device");
         return IGNIS_FAIL;
     }
 
@@ -224,7 +222,7 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
 
     if (vkCreateCommandPool(context.device, &info, allocator, &context.commandPool) != VK_SUCCESS)
     {
-        MINIMAL_ERROR("failed to create device command pool!");
+        IGNIS_ERROR("failed to create device command pool!");
         return IGNIS_FAIL;
     }
 
@@ -238,7 +236,7 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
 
     if (vkAllocateCommandBuffers(context.device, &allocInfo, context.commandBuffers) != VK_SUCCESS)
     {
-        MINIMAL_ERROR("Failed to allocate command buffers");
+        IGNIS_ERROR("Failed to allocate command buffers");
         return IGNIS_FAIL;
     }
 
@@ -247,13 +245,13 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
     VkExtent2D extent = { 1280, 720 };
     if (!ignisCreateSwapchain(context.device, context.physicalDevice, context.surface, VK_NULL_HANDLE, extent, allocator, &context.swapchain))
     {
-        MINIMAL_CRITICAL("failed to create swapchain");
+        IGNIS_CRITICAL("failed to create swapchain");
         return IGNIS_FAIL;
     }
 
     if (!ignisCreateSwapchainSyncObjects(context.device, allocator, &context.swapchain))
     {
-        MINIMAL_CRITICAL("failed to create swapchain sync objects");
+        IGNIS_CRITICAL("failed to create swapchain sync objects");
         return IGNIS_FAIL;
     }
 
@@ -293,7 +291,7 @@ void ignisDestroyContext()
     if (func)
         func(context.instance, context.debugMessenger, allocator);
     else
-        MINIMAL_WARN("Could not find function 'vkDestroyDebugUtilsMessengerEXT'");
+        IGNIS_WARN("Could not find function 'vkDestroyDebugUtilsMessengerEXT'");
 
 #endif
 
@@ -526,7 +524,7 @@ VkDeviceMemory ignisAllocateDeviceMemory(VkMemoryRequirements requirements, VkMe
 
     if (memoryTypeIndex == memoryProps.memoryTypeCount)
     {
-        MINIMAL_ERROR("failed to find suitable memory type!");
+        IGNIS_ERROR("failed to find suitable memory type!");
         return VK_NULL_HANDLE;
     }
 
@@ -538,7 +536,7 @@ VkDeviceMemory ignisAllocateDeviceMemory(VkMemoryRequirements requirements, VkMe
 
     VkDeviceMemory memory = VK_NULL_HANDLE;
     if (vkAllocateMemory(context.device, &allocInfo, allocator, &memory) != VK_SUCCESS)
-        MINIMAL_ERROR("failed to find allocate device memory!");
+        IGNIS_ERROR("failed to find allocate device memory!");
 
     return memory;
 }
@@ -604,12 +602,12 @@ uint8_t ignisBeginFrame()
 
         if (!ignisRecreateSwapchain(context.device, context.physicalDevice, context.surface, cachedExtent, ignisGetAllocator(), &context.swapchain))
         {
-            MINIMAL_ERROR("Failed to recreate swapchain");
+            IGNIS_ERROR("Failed to recreate swapchain");
             return IGNIS_FAIL;
         }
         context.swapchainLastGeneration = context.swapchainGeneration;
 
-        MINIMAL_TRACE("Recreated Swapchchain");
+        IGNIS_TRACE("Recreated Swapchchain");
     }
 
     if (!ignisAcquireNextImage(context.device, &context.swapchain, context.currentFrame, &context.imageIndex))
@@ -626,7 +624,7 @@ uint8_t ignisBeginFrame()
 
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
     {
-        MINIMAL_WARN("failed to begin recording command buffer!");
+        IGNIS_WARN("failed to begin recording command buffer!");
         return IGNIS_FAIL;
     }
 
@@ -662,11 +660,11 @@ uint8_t ignisEndFrame()
 
     VkQueue graphicsQueue = context.queues[IGNIS_QUEUE_GRAPHICS];
     if (!ingisSubmitFrame(graphicsQueue, commandBuffer, context.currentFrame, &context.swapchain))
-        MINIMAL_WARN("failed to submit frame");
+        IGNIS_WARN("failed to submit frame");
 
     VkQueue presentQueue = context.queues[IGNIS_QUEUE_PRESENT];
     if (!ignisPresentFrame(presentQueue, context.imageIndex, context.currentFrame, &context.swapchain))
-        MINIMAL_WARN("failed to present frame");
+        IGNIS_WARN("failed to present frame");
     
     /* next frame */
     context.currentFrame = (context.currentFrame + 1) % IGNIS_MAX_FRAMES_IN_FLIGHT;
@@ -698,7 +696,7 @@ void ignisPrintInfo()
     VkPhysicalDeviceMemoryProperties memory;
     vkGetPhysicalDeviceMemoryProperties(context.physicalDevice, &memory);
 
-    MINIMAL_INFO("Physical device: %s", properties.deviceName);
+    IGNIS_INFO("Physical device: %s", properties.deviceName);
     
     const char* typeDesc[] = {
         [VK_PHYSICAL_DEVICE_TYPE_OTHER]          = "OTHER",
@@ -707,33 +705,33 @@ void ignisPrintInfo()
         [VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU]    = "VIRTUAL GPU",
         [VK_PHYSICAL_DEVICE_TYPE_CPU]            = "CPU",
     };
-    MINIMAL_INFO("  > Device Type: %s", typeDesc[properties.deviceType]);
+    IGNIS_INFO("  > Device Type: %s", typeDesc[properties.deviceType]);
 
-    MINIMAL_INFO("  > Driver Version: %d.%d.%d",
+    IGNIS_INFO("  > Driver Version: %d.%d.%d",
         VK_VERSION_MAJOR(properties.driverVersion),
         VK_VERSION_MINOR(properties.driverVersion),
         VK_VERSION_PATCH(properties.driverVersion));
 
-    MINIMAL_INFO("  > Vulkan API Version: %d.%d.%d",
+    IGNIS_INFO("  > Vulkan API Version: %d.%d.%d",
         VK_VERSION_MAJOR(properties.apiVersion),
         VK_VERSION_MINOR(properties.apiVersion),
         VK_VERSION_PATCH(properties.apiVersion));
 
-    MINIMAL_INFO("  > Memory:");
+    IGNIS_INFO("  > Memory:");
     for (uint32_t i = 0; i < memory.memoryHeapCount; ++i)
     {
         float memory_size_gib = (((float)memory.memoryHeaps[i].size) / 1024.0f / 1024.0f / 1024.0f);
 
         if (memory.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
-            MINIMAL_INFO("    Local:  %.2f GiB", memory_size_gib);
+            IGNIS_INFO("    Local:  %.2f GiB", memory_size_gib);
         else
-            MINIMAL_INFO("    Shared: %.2f GiB", memory_size_gib);
+            IGNIS_INFO("    Shared: %.2f GiB", memory_size_gib);
     }
 
     
-    MINIMAL_INFO("Queues:");
-    MINIMAL_INFO("  > Graphics: %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_GRAPHICS_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_GRAPHICS]);
-    MINIMAL_INFO("  > Transfer: %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_TRANSFER_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_TRANSFER]);
-    MINIMAL_INFO("  > Compute:  %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_COMPUTE_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_COMPUTE]);
-    MINIMAL_INFO("  > Present:  %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_PRESENT_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_PRESENT]);
+    IGNIS_INFO("Queues:");
+    IGNIS_INFO("  > Graphics: %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_GRAPHICS_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_GRAPHICS]);
+    IGNIS_INFO("  > Transfer: %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_TRANSFER_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_TRANSFER]);
+    IGNIS_INFO("  > Compute:  %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_COMPUTE_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_COMPUTE]);
+    IGNIS_INFO("  > Present:  %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_PRESENT_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_PRESENT]);
 }

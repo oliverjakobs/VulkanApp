@@ -2,8 +2,6 @@
 
 #include "ignis.h"
 
-#include "minimal/common.h"
-
 static uint8_t ignisWriteBuffer(const void* data, size_t size, IgnisBuffer* buffer)
 {
     VkDevice device = ignisGetVkDevice();
@@ -18,7 +16,7 @@ static uint8_t ignisWriteBuffer(const void* data, size_t size, IgnisBuffer* buff
     return IGNIS_OK;
 }
 
-static uint8_t ignisCreateBuffer(const void* data, size_t size, VkBufferUsageFlags usage, IgnisBuffer* buffer)
+uint8_t ignisCreateBuffer(const void* data, size_t size, VkBufferUsageFlags usage, IgnisBuffer* buffer)
 {
     VkDevice device = ignisGetVkDevice();
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
@@ -32,7 +30,7 @@ static uint8_t ignisCreateBuffer(const void* data, size_t size, VkBufferUsageFla
 
     if (vkCreateBuffer(device, &bufferInfo, allocator, &buffer->handle) != VK_SUCCESS)
     {
-        MINIMAL_ERROR("failed to create buffer handle!");
+        IGNIS_ERROR("failed to create buffer handle!");
         return IGNIS_FAIL;
     }
 
@@ -43,7 +41,7 @@ static uint8_t ignisCreateBuffer(const void* data, size_t size, VkBufferUsageFla
     buffer->memory = ignisAllocateDeviceMemory(memRequirements, properties, allocator);
     if (!buffer->memory)
     {
-        MINIMAL_ERROR("failed to find allocate device memory!");
+        IGNIS_ERROR("failed to find allocate device memory!");
         return IGNIS_FAIL;
     }
 

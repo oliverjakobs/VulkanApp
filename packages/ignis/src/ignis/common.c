@@ -2,8 +2,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-
-#include "minimal/common.h"
+#include <stdarg.h>
 
 void* ignisAlloc(size_t size) { return malloc(size); }
 void  ignisFree(void* block, size_t size)  { free(block); }
@@ -13,7 +12,7 @@ char* ignisReadFile(const char* path, size_t* sizeptr)
     FILE* file = fopen(path, "rb");
     if (!file)
     {
-        MINIMAL_ERROR("[Ignis] Failed to open file: %s", path);
+        IGNIS_ERROR("[Ignis] Failed to open file: %s", path);
         return NULL;
     }
 
@@ -28,7 +27,7 @@ char* ignisReadFile(const char* path, size_t* sizeptr)
     {
         if (fread(buffer, size, 1, file) != 1)
         {
-            //IGNIS_ERROR("[Ignis] Failed to read file: %s", path);
+            IGNIS_ERROR("[Ignis] Failed to read file: %s", path);
             ignisFree(buffer, size + 1);
             fclose(file);
             return NULL;
@@ -39,7 +38,7 @@ char* ignisReadFile(const char* path, size_t* sizeptr)
     }
     else
     {
-        //IGNIS_ERROR("[Ignis] Failed to allocate memory for file: %s", path);
+        IGNIS_ERROR("[Ignis] Failed to allocate memory for file: %s", path);
     }
 
     fclose(file);
@@ -50,4 +49,16 @@ uint32_t ignisClamp32(uint32_t val, uint32_t min, uint32_t max)
 {
     const uint32_t t = val < min ? min : val;
     return t > max ? max : t;
+}
+
+// logging
+void _ignisLog(IgnisLogLevel level, const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+
+    vprintf(fmt, args);
+    printf("\n");
+    
+    va_end(args);
 }

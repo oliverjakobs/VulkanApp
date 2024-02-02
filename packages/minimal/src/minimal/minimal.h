@@ -11,8 +11,8 @@
 #define MINIMAL_VERSION_MINOR       0
 #define MINIMAL_VERSION_REVISION    0
 
-MINIMAL_API void minimalGetVersion(int* major, int* minor, int* rev);
-MINIMAL_API const char* minimalGetVersionString();
+void minimalGetVersion(int* major, int* minor, int* rev);
+const char* minimalGetVersionString();
 
 
 /* --------------------------| game loop |------------------------------- */
@@ -23,9 +23,9 @@ typedef struct
 } MinimalFrameData;
 
 typedef void (*MinimalTickCB)(void* context, const MinimalFrameData*);
-MINIMAL_API void minimalRun(MinimalWindow* window, MinimalTickCB on_tick, void* context);
+void minimalRun(MinimalWindow* window, MinimalTickCB on_tick, void* context);
 
-MINIMAL_API void minimalClose(MinimalWindow* window);
+void minimalClose(MinimalWindow* window);
 
 /* --------------------------| context |--------------------------------- */
 void minimalSetCurrentContext(MinimalWindow* context);

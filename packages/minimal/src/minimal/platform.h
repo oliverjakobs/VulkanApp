@@ -9,12 +9,12 @@ uint8_t minimalPlatformTerminate();
 MinimalWindow* minimalCreateWindow(const char* title, int32_t x, int32_t y, uint32_t w, uint32_t h);
 void minimalDestroyWindow(MinimalWindow* window);
 
-MINIMAL_API void minimalSetWindowTitle(MinimalWindow* window, const char* title);
+void minimalSetWindowTitle(MinimalWindow* window, const char* title);
 
 void minimalPollWindowEvents(MinimalWindow* window);
 
 uint8_t minimalShouldClose(const MinimalWindow* window);
-MINIMAL_API void minimalClose(MinimalWindow* window);
+void minimalClose(MinimalWindow* window);
 
 double minimalGetTime();
 

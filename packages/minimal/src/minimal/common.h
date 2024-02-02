@@ -25,20 +25,6 @@
     #error "Unknown platform!"
 #endif
 
-#ifdef MINIMAL_EXPORT // Exports
-    #ifdef _MSC_VER
-        #define MINIMAL_API __declspec(dllexport)
-    #else
-        #define MINIMAL_API __attribute__((visibility("default")))
-    #endif
-#else // Imports
-    #ifdef _MSC_VER
-        #define MINIMAL_API __declspec(dllimport)
-    #else
-        #define MINIMAL_API
-    #endif
-#endif
-
 #define MINIMAL_FAIL    0
 #define MINIMAL_OK      1
 
@@ -78,8 +64,8 @@ typedef enum
     MINIMAL_LOG_CRITICAL
 } MinimalLogLevel;
 
-MINIMAL_API void minimalLoggerPrint(MinimalLogLevel level, const char* fmt, ...);
-MINIMAL_API void minimalLoggerPrintV(MinimalLogLevel level, const char* fmt, va_list args);
+void minimalLoggerPrint(MinimalLogLevel level, const char* fmt, ...);
+void minimalLoggerPrintV(MinimalLogLevel level, const char* fmt, va_list args);
 
 /* --------------------------| assert |---------------------------------- */
 #ifndef MINIMAL_DISABLE_ASSERT
