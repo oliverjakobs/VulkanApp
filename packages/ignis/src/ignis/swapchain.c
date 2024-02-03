@@ -53,14 +53,6 @@ static VkPresentModeKHR ignisChoosePresentMode(VkPhysicalDevice device, VkSurfac
     return mode;
 }
 
-static VkExtent2D ignisClampExtent2D(VkExtent2D extent, VkExtent2D min, VkExtent2D max)
-{
-    return (VkExtent2D){
-        .width = ignisClamp32(extent.width, min.width, max.width),
-        .height = ignisClamp32(extent.height, min.height, max.height)
-    };
-}
-
 static VkFormat ignisQueryDepthFormat(VkPhysicalDevice device)
 {
     VkFormat candidates[] = {
@@ -91,6 +83,14 @@ static VkFormat ignisQueryDepthFormat(VkPhysicalDevice device)
     }
 
     return format;
+}
+
+static VkExtent2D ignisClampExtent2D(VkExtent2D extent, VkExtent2D min, VkExtent2D max)
+{
+    return (VkExtent2D){
+        .width = ignisClamp32(extent.width, min.width, max.width),
+        .height = ignisClamp32(extent.height, min.height, max.height)
+    };
 }
 
 static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
@@ -326,6 +326,14 @@ uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfa
     /* choose swap chain presentation mode */
     VkPresentModeKHR presentMode = ignisChoosePresentMode(physical, surface);
 
+    /* query for depth format */
+    VkFormat depthFormat = ignisQueryDepthFormat(physical);
+    if (depthFormat == VK_FORMAT_UNDEFINED)
+    {
+        IGNIS_ERROR("failed to find suitable depth format!");
+        return IGNIS_FAIL;
+    }
+
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &capabilities);
 
@@ -339,14 +347,6 @@ uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfa
     uint32_t imageCount = capabilities.minImageCount + 1;
     if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount)
         imageCount = capabilities.maxImageCount;
-
-    /* query for depth format */
-    VkFormat depthFormat = ignisQueryDepthFormat(physical);
-    if (depthFormat == VK_FORMAT_UNDEFINED)
-    {
-        IGNIS_ERROR("failed to find suitable depth format!");
-        return IGNIS_FAIL;
-    }
 
     /* create swapchain */
     VkSwapchainCreateInfoKHR createInfo = {

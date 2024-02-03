@@ -2,6 +2,7 @@
 #define IGNIS_COMMON_H
 
 #include <stdint.h>
+#include <string.h>
 
 #ifdef _DEBUG
     #define IGNIS_DEBUG

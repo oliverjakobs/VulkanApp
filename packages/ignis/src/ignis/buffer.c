@@ -2,8 +2,6 @@
 
 #include "ignis.h"
 
-#include <string.h>
-
 static uint8_t ignisWriteBuffer(const void* data, size_t size, IgnisBuffer* buffer)
 {
     VkDevice device = ignisGetVkDevice();

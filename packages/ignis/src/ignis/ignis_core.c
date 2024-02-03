@@ -106,11 +106,7 @@ static uint8_t ignisCheckValidationLayerSupport()
 static IgnisContext context;
 static VkExtent2D cachedExtent;
 
-
-uint8_t ignisPickPhysicalDevice();
-uint8_t ignisCreateLogicalDevice();
-
-uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
+uint8_t ignisCreateInstance(const char* name, const char* const* extensions, uint32_t extensionCount)
 {
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
 
@@ -121,18 +117,6 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
         return IGNIS_FAIL;
     }
 #endif
-
-    // TODO: make platform agnostic
-    const char* const extensions[] = {
-        VK_KHR_SURFACE_EXTENSION_NAME,
-        "VK_KHR_win32_surface",
-#ifdef IGNIS_DEBUG
-        VK_EXT_DEBUG_UTILS_EXTENSION_NAME
-#endif
-    };
-
-    const uint32_t extensionCount = sizeof(extensions) / sizeof(extensions[0]);
-    // const char* const extensions = platform->queryExtensions(&extensionCount);
 
     VkApplicationInfo appInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -160,13 +144,13 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
         .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
         .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT
                         | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT,
-                        // | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
-                        // | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
-        .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-                    | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
-                    | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT,
-        .pfnUserCallback = ignisDebugUtilsMessengerCallback
-    
+        // | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
+        // | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
+.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+            | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
+            | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT,
+.pfnUserCallback = ignisDebugUtilsMessengerCallback
+
     };
     createInfo.pNext = &debugCreateInfo;
 #endif
@@ -193,23 +177,21 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
     }
 #endif
 
-    // Surface
-    result = platform->createSurface(context.instance, platform->context, allocator, &context.surface);
-    if (result != VK_SUCCESS)
-    {
-        IGNIS_ERROR("Failed to create window surface with result: %u", result);
-        return IGNIS_FAIL;
-    }
+    return IGNIS_OK;
+}
 
-    if (ignisPickPhysicalDevice())
-    {
-        IGNIS_ERROR("failed to pick physical device");
-        return IGNIS_FAIL;
-    }
+static uint8_t ignisCreateDevice();
 
-    if (!ignisCreateLogicalDevice())
+uint8_t ignisCreateContext(VkSurfaceKHR surface, VkExtent2D extent)
+{
+    const VkAllocationCallbacks* allocator = ignisGetAllocator();
+
+    context.surface = surface;
+
+    /* create device */
+    if (!ignisCreateDevice())
     {
-        IGNIS_CRITICAL("failed to create logical device");
+        IGNIS_ERROR("failed to create device");
         return IGNIS_FAIL;
     }
 
@@ -240,9 +222,6 @@ uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform)
         return IGNIS_FAIL;
     }
 
-
-
-    VkExtent2D extent = { 1280, 720 };
     if (!ignisCreateSwapchain(context.device, context.physicalDevice, context.surface, VK_NULL_HANDLE, extent, allocator, &context.swapchain))
     {
         IGNIS_CRITICAL("failed to create swapchain");
@@ -298,8 +277,6 @@ void ignisDestroyContext()
     vkDestroyInstance(context.instance, allocator);
 }
 
-
-
 /* ---------------------------------| Device |------------------------------------------ */
 
 // Device requirements
@@ -317,8 +294,16 @@ static uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR sur
 static uint8_t ignisQuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
 static uint8_t ignisCheckDeviceExtensionSupport(VkPhysicalDevice device);
 
-uint8_t ignisPickPhysicalDevice()
+static uint8_t ignisArrayCheckUnique(uint32_t arr[], uint32_t size)
 {
+    for (uint32_t i = 1; i < size; ++i)
+        if (arr[0] == arr[i]) return IGNIS_FAIL;
+    return IGNIS_OK;
+}
+
+uint8_t ignisCreateDevice()
+{
+    // pick physical device
     uint32_t count = 0;
     vkEnumeratePhysicalDevices(context.instance, &count, NULL);
     if (!count) return IGNIS_FAIL;
@@ -354,18 +339,13 @@ uint8_t ignisPickPhysicalDevice()
 
     ignisFree(devices, sizeof(VkPhysicalDevice) * count);
 
-    return context.physicalDevice == VK_NULL_HANDLE;
-}
+    if (context.physicalDevice == VK_NULL_HANDLE)
+    {
+        IGNIS_ERROR("Could not find suitable physical device");
+        return IGNIS_FAIL;
+    }
 
-static uint8_t ignisArrayCheckUnique(uint32_t arr[], uint32_t size)
-{
-    for (uint32_t i = 1; i < size; ++i)
-        if (arr[0] == arr[i]) return IGNIS_FAIL;
-    return IGNIS_OK;
-}
-
-uint8_t ignisCreateLogicalDevice()
-{
+    // create logical device
     uint32_t queueCount = 0;
     VkDeviceQueueCreateInfo queueCreateInfos[IGNIS_QUEUE_FAMILY_MAX_ENUM] = { 0 };
 
@@ -398,7 +378,7 @@ uint8_t ignisCreateLogicalDevice()
     if (result != VK_SUCCESS)
         return IGNIS_FAIL;
 
-    /* get queues */
+    // get queues
     for (size_t i = 0; i < IGNIS_QUEUE_FAMILY_MAX_ENUM; ++i)
         vkGetDeviceQueue(context.device, context.queueFamilyIndices[i], 0, &context.queues[i]);
 
@@ -681,6 +661,11 @@ VkCommandBuffer  ignisGetCommandBuffer()    { return context.commandBuffers[cont
 uint32_t ignisGetCurrentFrame() { return context.currentFrame; }
 
 uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family) { return context.queueFamilyIndices[family]; }
+
+float ignisGetAspectRatio()
+{
+    return context.swapchain.extent.width / (float)context.swapchain.extent.height;
+}
 
 
 const VkAllocationCallbacks* ignisGetAllocator() { return NULL; }

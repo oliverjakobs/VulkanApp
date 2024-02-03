@@ -28,7 +28,7 @@ const uint32_t indices[] = {
 
 static size_t indexCount = 6;
 
-uint8_t onEvent(void* handler, const MinimalEvent* e);
+uint8_t onEvent(void* context, const MinimalEvent* e);
 
 uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
 {
@@ -79,7 +79,7 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
         .attributeCount = 2,
         .vertexStride = 5 * sizeof(float),
         .cullMode = VK_CULL_MODE_BACK_BIT,
-        .frontFace = VK_FRONT_FACE_CLOCKWISE
+        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE
     };
 
     if (!ignisCreatePipeline(&pipelineConfig, &pipeline))
@@ -116,7 +116,7 @@ void onDestroy()
     minimalPlatformTerminate();
 }
 
-uint8_t onEvent(void* handler, const MinimalEvent* e)
+uint8_t onEvent(void* context, const MinimalEvent* e)
 {
     uint32_t width, height;
     if (minimalEventWindowSize(e, &width, &height))
@@ -141,12 +141,14 @@ void onTick(void* context, const MinimalFrameData* framedata)
 
         UniformBufferObject ubo = { 0 };
 
-        //mat4 model = mat4_rotate_z(mat4_identity(), minimalGetTime() * degToRad(90.0f));
-        //mat4 view = mat4_look_at((vec3) { 2.0f, 2.0f, 2.0f }, (vec3) { 0.0f }, (vec3) { 0.0f, 0.0f, 1.0f });
+        mat4 model = mat4_rotation((vec3) { 0.0f, 0.0f, 1.0f }, minimalGetTime() * degToRad(90.0f));
+        mat4 view = mat4_look_at((vec3) { 2.0f, 2.0f, 2.0f }, (vec3) { 0.0f }, (vec3) { 0.0f, 0.0f, 1.0f });
+        mat4 proj = mat4_perspective(degToRad(45.0f), ignisGetAspectRatio(), 0.1f, 10.0f);
+        proj.v[1][1] *= -1;
 
-        mat4 model = mat4_identity();
-        mat4 view = mat4_identity();
-        mat4 proj = mat4_identity();
+        // mat4 model = mat4_identity();
+        // mat4 view = mat4_identity();
+        // mat4 proj = mat4_identity();
 
         ignisPipelinePushUniform(&pipeline, &model, sizeof(mat4), 0 * sizeof(mat4));
         ignisPipelinePushUniform(&pipeline, &view, sizeof(mat4), 1 * sizeof(mat4));

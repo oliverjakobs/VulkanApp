@@ -7,18 +7,10 @@
 
 #define IGNIS_VK_PFN(instance, name) ((PFN_##name)vkGetInstanceProcAddr((instance), (#name)))
 
-/* --------------------------| platform |-------------------------------- */
-typedef VkResult (*ignisCreateSurfaceFn)(VkInstance, const void*, const VkAllocationCallbacks*, VkSurfaceKHR*);
-typedef const char* const*(*ignisQueryExtensionFn)(uint32_t*);
-typedef struct
-{
-    ignisCreateSurfaceFn createSurface;
-    ignisQueryExtensionFn queryExtensions;
-    const void* context;
-} IgnisPlatform;
-
 /* --------------------------| context |--------------------------------- */
-uint8_t ignisCreateContext(const char* name, const IgnisPlatform* platform);
+uint8_t ignisCreateInstance(const char* name, const char* const* extensions, uint32_t count);
+uint8_t ignisCreateContext(VkSurfaceKHR surface, VkExtent2D extent);
+
 void ignisDestroyContext();
 
 typedef enum
@@ -52,7 +44,6 @@ void ignisSetScissor(int32_t x, int32_t y, uint32_t w, uint32_t h);
 uint8_t ignisBeginFrame();
 uint8_t ignisEndFrame();
 
-
 VkInstance       ignisGetVkInstance();
 VkDevice         ignisGetVkDevice();
 VkPhysicalDevice ignisGetVkPhysicalDevice();
@@ -62,6 +53,8 @@ VkCommandBuffer  ignisGetCommandBuffer();
 
 uint32_t ignisGetCurrentFrame();
 uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family);
+
+float ignisGetAspectRatio();
 
 const VkAllocationCallbacks* ignisGetAllocator();
 

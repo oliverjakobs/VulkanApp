@@ -45,6 +45,33 @@ mat4 mat4_ortho(float left, float right, float bottom, float top, float near, fl
     return result;
 }
 
+mat4 mat4_look_at(vec3 eye, vec3 look_at, vec3 up)
+{
+    vec3 forward = vec3_normalize(vec3_sub(look_at, eye));
+    vec3 side = vec3_normalize(vec3_cross(forward, up));
+    vec3 upward = vec3_cross(side, forward);
+
+    mat4 result;
+    result.v[0][0] = side.x;
+    result.v[0][1] = upward.x;
+    result.v[0][2] = -forward.x;
+    result.v[0][3] = 0.0f;
+    result.v[1][0] = side.y;
+    result.v[1][1] = upward.y;
+    result.v[1][2] = -forward.y;
+    result.v[1][3] = 0.0f;
+    result.v[2][0] = side.z;
+    result.v[2][1] = upward.z;
+    result.v[2][2] = -forward.z;
+    result.v[2][3] = 0.0f;
+    result.v[3][0] = -vec3_dot(side, eye);
+    result.v[3][1] = -vec3_dot(upward, eye);
+    result.v[3][2] = vec3_dot(forward, eye);
+    result.v[3][3] = 1.0f;
+
+    return result;
+}
+
 mat4 mat4_rotation(vec3 axis, float angle)
 {
     float c = cosf(angle);

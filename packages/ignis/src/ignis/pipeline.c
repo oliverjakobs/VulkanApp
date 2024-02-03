@@ -2,8 +2,6 @@
 
 #include "ignis.h"
 
-#include <string.h>
-
 
 static VkShaderModule ignisCreateShaderModule(VkDevice device, const char* path, const VkAllocationCallbacks* allocator)
 {
