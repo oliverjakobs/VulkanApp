@@ -40,7 +40,6 @@ typedef enum
 
 VkDeviceMemory ignisAllocateDeviceMemory(VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, const VkAllocationCallbacks* allocator);
 
-uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family);
 
 uint8_t ignisResize(uint32_t width, uint32_t height);
 
@@ -60,6 +59,9 @@ VkPhysicalDevice ignisGetVkPhysicalDevice();
 VkRenderPass     ignisGetVkRenderPass();
 
 VkCommandBuffer  ignisGetCommandBuffer();
+
+uint32_t ignisGetCurrentFrame();
+uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family);
 
 const VkAllocationCallbacks* ignisGetAllocator();
 

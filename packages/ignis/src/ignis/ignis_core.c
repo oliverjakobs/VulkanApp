@@ -678,6 +678,7 @@ VkPhysicalDevice ignisGetVkPhysicalDevice() { return context.physicalDevice; }
 VkRenderPass     ignisGetVkRenderPass()     { return context.swapchain.renderPass; }
 VkCommandBuffer  ignisGetCommandBuffer()    { return context.commandBuffers[context.currentFrame]; }
 
+uint32_t ignisGetCurrentFrame() { return context.currentFrame; }
 
 uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family) { return context.queueFamilyIndices[family]; }
 

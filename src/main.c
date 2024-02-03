@@ -4,6 +4,8 @@
 #include "ignis/pipeline.h"
 #include "ignis/buffer.h"
 
+#include "math/math.h"
+
 static MinimalWindow* window;
 
 static IgnisPipeline pipeline;
@@ -75,7 +77,9 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
         .fragPath = "./res/frag.spv",
         .vertexAttributes = attributes,
         .attributeCount = 2,
-        .vertexStride = 5 * sizeof(float)
+        .vertexStride = 5 * sizeof(float),
+        .cullMode = VK_CULL_MODE_BACK_BIT,
+        .frontFace = VK_FRONT_FACE_CLOCKWISE
     };
 
     if (!ignisCreatePipeline(&pipelineConfig, &pipeline))
@@ -133,7 +137,20 @@ void onTick(void* context, const MinimalFrameData* framedata)
     {
         VkCommandBuffer commandBuffer = ignisGetCommandBuffer();
 
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
+        ignisBindPipeline(commandBuffer, &pipeline);
+
+        UniformBufferObject ubo = { 0 };
+
+        //mat4 model = mat4_rotate_z(mat4_identity(), minimalGetTime() * degToRad(90.0f));
+        //mat4 view = mat4_look_at((vec3) { 2.0f, 2.0f, 2.0f }, (vec3) { 0.0f }, (vec3) { 0.0f, 0.0f, 1.0f });
+
+        mat4 model = mat4_identity();
+        mat4 view = mat4_identity();
+        mat4 proj = mat4_identity();
+
+        ignisPipelinePushUniform(&pipeline, &model, sizeof(mat4), 0 * sizeof(mat4));
+        ignisPipelinePushUniform(&pipeline, &view, sizeof(mat4), 1 * sizeof(mat4));
+        ignisPipelinePushUniform(&pipeline, &proj, sizeof(mat4), 2 * sizeof(mat4));
 
         VkBuffer vertexBuffers[] = {vertexBuffer.handle};
         VkDeviceSize offsets[] = {0};

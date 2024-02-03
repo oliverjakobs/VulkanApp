@@ -2,6 +2,9 @@
 
 #include "ignis.h"
 
+#include <string.h>
+
+
 static VkShaderModule ignisCreateShaderModule(VkDevice device, const char* path, const VkAllocationCallbacks* allocator)
 {
     size_t size;
@@ -28,10 +31,92 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
     VkDevice device = ignisGetVkDevice();
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
 
+    /* descriptor layout */
+    VkDescriptorSetLayoutBinding descriptorBinding = {
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .pImmutableSamplers = NULL
+    };
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = 1,
+        .pBindings = &descriptorBinding
+    };
+
+    if (vkCreateDescriptorSetLayout(device, &layoutInfo, allocator, &pipeline->descriptorSetLayout) != VK_SUCCESS)
+        return IGNIS_FAIL;
+
+    /* descriptor pool */
+    VkDescriptorPoolSize poolSize = {
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = IGNIS_MAX_FRAMES_IN_FLIGHT
+    };
+
+    VkDescriptorPoolCreateInfo poolInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .poolSizeCount = 1,
+        .pPoolSizes = &poolSize,
+        .maxSets = IGNIS_MAX_FRAMES_IN_FLIGHT
+    };
+
+    /* uniform buffer */
+    pipeline->uniformBufferSize = sizeof(UniformBufferObject);
+
+    for (size_t i = 0; i < IGNIS_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        ignisCreateBuffer(NULL, pipeline->uniformBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &pipeline->uniformBuffers[i]);
+        vkMapMemory(device, pipeline->uniformBuffers[i].memory, 0, pipeline->uniformBufferSize, 0, &pipeline->uniformBufferData[i]);
+    }
+
+    if (vkCreateDescriptorPool(device, &poolInfo, allocator, &pipeline->descriptorPool) != VK_SUCCESS)
+    {
+        IGNIS_ERROR("failed to create descriptor pool!");
+        return IGNIS_FAIL;
+    }
+
+    /* descriptor sets */
+    for (size_t i = 0; i < IGNIS_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        VkDescriptorSetAllocateInfo allocInfo = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .descriptorPool = pipeline->descriptorPool,
+            .descriptorSetCount = 1,
+            .pSetLayouts = &pipeline->descriptorSetLayout
+        };
+
+        if (vkAllocateDescriptorSets(device, &allocInfo, &pipeline->descriptorSets[i]) != VK_SUCCESS) {
+            IGNIS_ERROR("failed to allocate descriptor sets!");
+        }
+
+        VkDescriptorBufferInfo bufferInfo = {
+            .buffer = pipeline->uniformBuffers[i].handle,
+            .offset = 0,
+            .range = VK_WHOLE_SIZE
+        };
+
+        VkWriteDescriptorSet descriptorWrite = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = pipeline->descriptorSets[i],
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .pBufferInfo = &bufferInfo,
+            .pImageInfo = NULL,      // Optional
+            .pTexelBufferView = NULL // Optional
+        };
+
+        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, NULL);
+    }
+
     /* layout */
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 0,
+        .setLayoutCount = 1,
+        .pSetLayouts = &pipeline->descriptorSetLayout,
         .pushConstantRangeCount = 0,
     };
 
@@ -93,8 +178,8 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = VK_POLYGON_MODE_FILL,
         .lineWidth = 1.0f,
-        .cullMode = VK_CULL_MODE_BACK_BIT,
-        .frontFace = VK_FRONT_FACE_CLOCKWISE,
+        .cullMode = config->cullMode,
+        .frontFace = config->frontFace,
         .depthBiasEnable = VK_FALSE
     };
 
@@ -180,6 +265,32 @@ void ignisDestroyPipeline(IgnisPipeline* pipeline)
     VkDevice device = ignisGetVkDevice();
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
 
+    for (size_t i = 0; i < IGNIS_MAX_FRAMES_IN_FLIGHT; ++i)
+        ignisDestroyBuffer(&pipeline->uniformBuffers[i]);
+
     vkDestroyPipeline(device, pipeline->handle, allocator);
     vkDestroyPipelineLayout(device, pipeline->layout, allocator);
+
+    vkDestroyDescriptorPool(device, pipeline->descriptorPool, allocator);
+    vkDestroyDescriptorSetLayout(device, pipeline->descriptorSetLayout, allocator);
+}
+
+void ignisBindPipeline(VkCommandBuffer commandBuffer, IgnisPipeline* pipeline)
+{
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->handle);
+
+    uint32_t frame = ignisGetCurrentFrame();
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout, 0, 1, &pipeline->descriptorSets[frame], 0, NULL);
+}
+
+uint8_t ignisPipelinePushUniform(IgnisPipeline* pipeline, const void* data, uint32_t size, uint32_t offset)
+{
+    if (offset + size > pipeline->uniformBufferSize)
+        return IGNIS_FAIL;
+
+    uint32_t frame = ignisGetCurrentFrame();
+
+    memcpy((char*)pipeline->uniformBufferData[frame] + offset, data, size);
+
+    return IGNIS_OK;
 }
