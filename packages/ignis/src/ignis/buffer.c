@@ -2,20 +2,6 @@
 
 #include "ignis.h"
 
-static uint8_t ignisWriteBuffer(const void* data, size_t size, IgnisBuffer* buffer)
-{
-    VkDevice device = ignisGetVkDevice();
-
-    void* mapped;
-    vkMapMemory(device, buffer->memory, 0, size, 0, &mapped);
-
-    memcpy(mapped, data, size);
-
-    vkUnmapMemory(device, buffer->memory);
-
-    return IGNIS_OK;
-}
-
 uint8_t ignisCreateBuffer(const void* data, size_t size, VkBufferUsageFlags usage, IgnisBuffer* buffer)
 {
     VkDevice device = ignisGetVkDevice();
@@ -59,4 +45,18 @@ void ignisDestroyBuffer(IgnisBuffer* buffer)
 
     vkDestroyBuffer(device, buffer->handle, allocator);
     vkFreeMemory(device, buffer->memory, allocator);
+}
+
+uint8_t ignisWriteBuffer(const void* data, size_t size, IgnisBuffer* buffer)
+{
+    VkDevice device = ignisGetVkDevice();
+
+    void* mapped;
+    vkMapMemory(device, buffer->memory, 0, size, 0, &mapped);
+
+    memcpy(mapped, data, size);
+
+    vkUnmapMemory(device, buffer->memory);
+
+    return IGNIS_OK;
 }

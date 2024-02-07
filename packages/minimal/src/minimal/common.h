@@ -6,25 +6,6 @@
 #include <stdint.h>
 #include <string.h>
 
-// Platform detection
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) // Windows
-    #define MINIMAL_PLATFORM_WINDOWS 1
-    #ifndef _WIN64
-        #error "64-bit is required on Windows!"
-    #endif
-// Linux
-#elif defined(__linux__) || defined(__gnu_linux__)
-    #define MINIMAL_PLATFORM_LINUX 1
-// Catch anything not caught by the above.
-#elif defined(__unix__)
-    #define MINIMAL_PLATFORM_UNIX 1
-// Posix
-#elif defined(_POSIX_VERSION)
-    #define MINIMAL_PLATFORM_POSIX 1
-#else
-    #error "Unknown platform!"
-#endif
-
 #define MINIMAL_FAIL    0
 #define MINIMAL_OK      1
 

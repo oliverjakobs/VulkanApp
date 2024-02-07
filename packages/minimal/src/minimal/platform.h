@@ -3,6 +3,14 @@
 
 #include "common.h"
 
+/*
+ Possible platforms
+
+#define MINIMAL_PLATFORM_WIN32
+#define MINIMAL_PLATFORM_WGL
+#define MINIMAL_PLATFORM_GLFW
+*/
+
 uint8_t minimalPlatformInit();
 uint8_t minimalPlatformTerminate();
 

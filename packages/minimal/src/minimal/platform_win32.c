@@ -1,6 +1,6 @@
 #include "platform.h"
 
-#ifdef MINIMAL_PLATFORM_WINDOWS
+#ifdef MINIMAL_PLATFORM_WIN32
 
 #include "common.h"
 #include "minimal.h"

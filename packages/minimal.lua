@@ -24,7 +24,7 @@ project "minimal"
 
     defines
     {
-        "MINIMAL_PLATFORM_WINDOWS",
+        "MINIMAL_PLATFORM_WIN32",
         "MINIMAL_VULKAN"
     }
 

@@ -19,4 +19,6 @@ uint8_t ignisCreateBuffer(const void* data, size_t size, VkBufferUsageFlags usag
 
 void ignisDestroyBuffer(IgnisBuffer* buffer);
 
+uint8_t ignisWriteBuffer(const void* data, size_t size, IgnisBuffer* buffer);
+
 #endif /* !IGNIS_BUFFER_H */
