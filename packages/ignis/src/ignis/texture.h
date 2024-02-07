@@ -7,11 +7,10 @@ typedef struct
 {
     VkImage image;
     VkImageView view;
-    VkSampler sampler;
-
     VkDeviceMemory memory;
 
-    int width, height;
+    VkSampler sampler;
+    VkExtent3D extent;
 } IgnisTexture;
 
 

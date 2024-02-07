@@ -30,33 +30,52 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
 
     /* descriptor layout */
-    VkDescriptorSetLayoutBinding descriptorBinding = {
-        .binding = 0,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-        .pImmutableSamplers = NULL
+    VkDescriptorSetLayoutBinding descriptorBindings[] = {
+        {
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+            .pImmutableSamplers = NULL
+        },
+        {
+            .binding = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .pImmutableSamplers = NULL
+        }
     };
+
+    uint32_t bindingCount = sizeof(descriptorBindings) / sizeof(VkDescriptorSetLayoutBinding);
 
     VkDescriptorSetLayoutCreateInfo layoutInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .bindingCount = 1,
-        .pBindings = &descriptorBinding
+        .bindingCount = bindingCount,
+        .pBindings = descriptorBindings
     };
 
     if (vkCreateDescriptorSetLayout(device, &layoutInfo, allocator, &pipeline->descriptorSetLayout) != VK_SUCCESS)
         return IGNIS_FAIL;
 
     /* descriptor pool */
-    VkDescriptorPoolSize poolSize = {
-        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = IGNIS_MAX_FRAMES_IN_FLIGHT
+    VkDescriptorPoolSize poolSizes[] = {
+        {
+            .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = IGNIS_MAX_FRAMES_IN_FLIGHT
+        },
+        {
+            .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = IGNIS_MAX_FRAMES_IN_FLIGHT
+        }
     };
+
+    uint32_t poolSizeCount = sizeof(poolSizes) / sizeof(VkDescriptorPoolSize);
 
     VkDescriptorPoolCreateInfo poolInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .poolSizeCount = 1,
-        .pPoolSizes = &poolSize,
+        .poolSizeCount = poolSizeCount,
+        .pPoolSizes = poolSizes,
         .maxSets = IGNIS_MAX_FRAMES_IN_FLIGHT
     };
 
@@ -102,9 +121,7 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
             .dstArrayElement = 0,
             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
             .descriptorCount = 1,
-            .pBufferInfo = &bufferInfo,
-            .pImageInfo = NULL,      // Optional
-            .pTexelBufferView = NULL // Optional
+            .pBufferInfo = &bufferInfo
         };
 
         vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, NULL);
@@ -289,6 +306,35 @@ uint8_t ignisPipelinePushUniform(IgnisPipeline* pipeline, const void* data, uint
     uint32_t frame = ignisGetCurrentFrame();
 
     memcpy((char*)pipeline->uniformBufferData[frame] + offset, data, size);
+
+    return IGNIS_OK;
+}
+
+uint8_t ignisPipelineBindTexture(IgnisPipeline* pipeline, const IgnisTexture* texture, uint32_t binding)
+{
+    VkDevice device = ignisGetVkDevice();
+
+    for (size_t i = 0; i < IGNIS_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+
+        VkDescriptorImageInfo imageInfo = {
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .imageView = texture->view,
+            .sampler = texture->sampler,
+        };
+
+        VkWriteDescriptorSet descriptorWrite = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = pipeline->descriptorSets[i],
+            .dstBinding = binding,
+            .dstArrayElement = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1,
+            .pImageInfo = &imageInfo
+        };
+
+        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, NULL);
+    }
 
     return IGNIS_OK;
 }

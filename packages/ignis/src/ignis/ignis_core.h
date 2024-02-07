@@ -32,6 +32,8 @@ typedef enum
 
 VkDeviceMemory ignisAllocateDeviceMemory(VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, const VkAllocationCallbacks* allocator);
 
+VkCommandBuffer ignisBeginOneTimeCommandBuffer();
+void ignisEndOneTimeCommandBuffer(VkCommandBuffer commandBuffer);
 
 uint8_t ignisResize(uint32_t width, uint32_t height);
 

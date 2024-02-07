@@ -330,6 +330,13 @@ uint8_t ignisCreateDevice()
         if (!ignisCheckDeviceExtensionSupport(devices[i]))
             continue;
 
+        // skip if sampler anisotropy is not supported
+        VkPhysicalDeviceFeatures supportedFeatures;
+        vkGetPhysicalDeviceFeatures(devices[i], &supportedFeatures);
+
+        if (!supportedFeatures.samplerAnisotropy)
+            continue;
+
         // suitable device found
         context.physicalDevice = devices[i];
         context.queueFamiliesSet = familiesSet;
@@ -363,7 +370,9 @@ uint8_t ignisCreateDevice()
         };
     }
 
-    VkPhysicalDeviceFeatures deviceFeatures = { 0 };
+    VkPhysicalDeviceFeatures deviceFeatures = {
+        .samplerAnisotropy = VK_TRUE
+    };
 
     VkDeviceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -522,7 +531,43 @@ VkDeviceMemory ignisAllocateDeviceMemory(VkMemoryRequirements requirements, VkMe
 }
 
 
+VkCommandBuffer ignisBeginOneTimeCommandBuffer()
+{
+    VkCommandBufferAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandPool = context.commandPool,
+        .commandBufferCount = 1
+    };
 
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(context.device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    return commandBuffer;
+}
+
+void ignisEndOneTimeCommandBuffer(VkCommandBuffer commandBuffer)
+{
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &commandBuffer,
+    };
+
+    vkQueueSubmit(context.queues[IGNIS_QUEUE_GRAPHICS], 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(context.queues[IGNIS_QUEUE_GRAPHICS]);
+
+    vkFreeCommandBuffers(context.device, context.commandPool, 1, &commandBuffer);
+}
 
 
 
