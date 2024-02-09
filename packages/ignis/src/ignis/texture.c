@@ -5,10 +5,8 @@
 
 #include "buffer.h"
 
-static uint8_t ignisTransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+static uint8_t ignisTransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
-    VkCommandBuffer commandBuffer = ignisBeginOneTimeCommandBuffer();
-
     VkImageMemoryBarrier barrier = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
         .oldLayout = oldLayout,
@@ -50,8 +48,6 @@ static uint8_t ignisTransitionImageLayout(VkImage image, VkFormat format, VkImag
     }
 
     vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, NULL, 0, NULL, 1, &barrier);
-
-    ignisEndOneTimeCommandBuffer(commandBuffer);
 
     return IGNIS_OK;
 }
@@ -122,10 +118,10 @@ uint8_t ignisCreateTexture(const char* path, IgnisTexture* texture)
 
     vkBindImageMemory(device, texture->image, texture->memory, 0);
 
-    ignisTransitionImageLayout(texture->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
     /* copy buffer to image */
     VkCommandBuffer commandBuffer = ignisBeginOneTimeCommandBuffer();
+
+    ignisTransitionImageLayout(commandBuffer, texture->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     VkBufferImageCopy region = {
         .bufferOffset = 0,
@@ -141,9 +137,9 @@ uint8_t ignisCreateTexture(const char* path, IgnisTexture* texture)
 
     vkCmdCopyBufferToImage(commandBuffer, stagingBuffer.handle, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-    ignisEndOneTimeCommandBuffer(commandBuffer);
+    ignisTransitionImageLayout(commandBuffer, texture->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    ignisTransitionImageLayout(texture->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    ignisEndOneTimeCommandBuffer(commandBuffer);
 
     ignisDestroyBuffer(&stagingBuffer);
 

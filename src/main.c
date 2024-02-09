@@ -112,9 +112,6 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
     if (!ignisCreateTexture("./res/texture.png", &texture))
         return MINIMAL_FAIL;
 
-    ignisPipelineBindTexture(&pipeline, &texture, 1);
-
-
     MINIMAL_INFO("[Minimal] Version: %s", minimalGetVersionString());
     
     return MINIMAL_OK;
@@ -161,6 +158,8 @@ void onTick(void* context, const MinimalFrameData* framedata)
 
         ignisBindPipeline(commandBuffer, &pipeline);
 
+        ignisBindTexture(&pipeline, &texture, 1);
+
         UniformBufferObject ubo = { 0 };
 
         mat4 model = mat4_rotation((vec3) { 0.0f, 0.0f, 1.0f }, minimalGetTime() * degToRad(90.0f));
@@ -172,9 +171,9 @@ void onTick(void* context, const MinimalFrameData* framedata)
         // mat4 view = mat4_identity();
         // mat4 proj = mat4_identity();
 
-        ignisPipelinePushUniform(&pipeline, &model, sizeof(mat4), 0 * sizeof(mat4));
-        ignisPipelinePushUniform(&pipeline, &view, sizeof(mat4), 1 * sizeof(mat4));
-        ignisPipelinePushUniform(&pipeline, &proj, sizeof(mat4), 2 * sizeof(mat4));
+        ignisPushUniform(&pipeline, &model, sizeof(mat4), 0 * sizeof(mat4));
+        ignisPushUniform(&pipeline, &view, sizeof(mat4), 1 * sizeof(mat4));
+        ignisPushUniform(&pipeline, &proj, sizeof(mat4), 2 * sizeof(mat4));
 
 
         VkBuffer vertexBuffers[] = {vertexBuffer.handle};

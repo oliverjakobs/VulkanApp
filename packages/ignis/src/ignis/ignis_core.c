@@ -281,7 +281,8 @@ void ignisDestroyContext()
 
 // Device requirements
 static const char* const REQ_EXTENSIONS[] = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    "VK_KHR_dynamic_rendering"
 };
 
 static const uint32_t REQ_EXTENSION_COUNT = sizeof(REQ_EXTENSIONS) / sizeof(REQ_EXTENSIONS[0]);
@@ -330,11 +331,18 @@ uint8_t ignisCreateDevice()
         if (!ignisCheckDeviceExtensionSupport(devices[i]))
             continue;
 
-        // skip if sampler anisotropy is not supported
-        VkPhysicalDeviceFeatures supportedFeatures;
-        vkGetPhysicalDeviceFeatures(devices[i], &supportedFeatures);
+        VkPhysicalDeviceDescriptorIndexingFeatures indexing_features = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT
+        };
 
-        if (!supportedFeatures.samplerAnisotropy)
+        VkPhysicalDeviceFeatures2 supportedFeatures = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+            .pNext = &indexing_features
+        };
+        vkGetPhysicalDeviceFeatures2(devices[i], &supportedFeatures);
+
+        // skip if sampler anisotropy is not supported
+        if (!supportedFeatures.features.samplerAnisotropy)
             continue;
 
         // suitable device found
@@ -370,17 +378,21 @@ uint8_t ignisCreateDevice()
         };
     }
 
-    VkPhysicalDeviceFeatures deviceFeatures = {
-        .samplerAnisotropy = VK_TRUE
+    VkPhysicalDeviceFeatures2 deviceFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+    vkGetPhysicalDeviceFeatures2(context.physicalDevice, &deviceFeatures);
+
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+        .dynamicRendering = VK_TRUE,
     };
 
     VkDeviceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pQueueCreateInfos = queueCreateInfos,
         .queueCreateInfoCount = queueCount,
-        .pEnabledFeatures = &deviceFeatures,
         .ppEnabledExtensionNames = REQ_EXTENSIONS,
-        .enabledExtensionCount = REQ_EXTENSION_COUNT
+        .enabledExtensionCount = REQ_EXTENSION_COUNT,
+        .pNext = &deviceFeatures
     };
 
     VkResult result = vkCreateDevice(context.physicalDevice, &createInfo, ignisGetAllocator(), &context.device);

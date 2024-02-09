@@ -45,6 +45,8 @@ void minimalRun(MinimalWindow* window, MinimalTickCB on_tick, void* context)
             seconds += 1.0;
             framedata.fps = frames;
             frames = 0;
+
+            MINIMAL_TRACE("FPS: %d", framedata.fps);
         }
     }
 }

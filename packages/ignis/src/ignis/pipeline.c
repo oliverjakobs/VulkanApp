@@ -298,7 +298,7 @@ void ignisBindPipeline(VkCommandBuffer commandBuffer, IgnisPipeline* pipeline)
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout, 0, 1, &pipeline->descriptorSets[frame], 0, NULL);
 }
 
-uint8_t ignisPipelinePushUniform(IgnisPipeline* pipeline, const void* data, uint32_t size, uint32_t offset)
+uint8_t ignisPushUniform(IgnisPipeline* pipeline, const void* data, uint32_t size, uint32_t offset)
 {
     if (offset + size > pipeline->uniformBufferSize)
         return IGNIS_FAIL;
@@ -310,31 +310,28 @@ uint8_t ignisPipelinePushUniform(IgnisPipeline* pipeline, const void* data, uint
     return IGNIS_OK;
 }
 
-uint8_t ignisPipelineBindTexture(IgnisPipeline* pipeline, const IgnisTexture* texture, uint32_t binding)
+uint8_t ignisBindTexture(IgnisPipeline* pipeline, const IgnisTexture* texture, uint32_t binding)
 {
     VkDevice device = ignisGetVkDevice();
+    uint32_t frame = ignisGetCurrentFrame();
 
-    for (size_t i = 0; i < IGNIS_MAX_FRAMES_IN_FLIGHT; ++i)
-    {
+    VkDescriptorImageInfo imageInfo = {
+        .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        .imageView = texture->view,
+        .sampler = texture->sampler,
+    };
 
-        VkDescriptorImageInfo imageInfo = {
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            .imageView = texture->view,
-            .sampler = texture->sampler,
-        };
+    VkWriteDescriptorSet descriptorWrite = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = pipeline->descriptorSets[frame],
+        .dstBinding = binding,
+        .dstArrayElement = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorCount = 1,
+        .pImageInfo = &imageInfo
+    };
 
-        VkWriteDescriptorSet descriptorWrite = {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = pipeline->descriptorSets[i],
-            .dstBinding = binding,
-            .dstArrayElement = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = 1,
-            .pImageInfo = &imageInfo
-        };
-
-        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, NULL);
-    }
+    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, NULL);
 
     return IGNIS_OK;
 }

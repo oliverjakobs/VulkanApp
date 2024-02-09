@@ -50,8 +50,8 @@ void ignisDestroyPipeline(IgnisPipeline* pipeline);
 
 void ignisBindPipeline(VkCommandBuffer commandBuffer, IgnisPipeline* pipeline);
 
-uint8_t ignisPipelinePushUniform(IgnisPipeline* pipeline, const void* data, uint32_t size, uint32_t offset);
+uint8_t ignisPushUniform(IgnisPipeline* pipeline, const void* data, uint32_t size, uint32_t offset);
 
-uint8_t ignisPipelineBindTexture(IgnisPipeline* pipeline, const IgnisTexture* texture, uint32_t binding);
+uint8_t ignisBindTexture(IgnisPipeline* pipeline, const IgnisTexture* texture, uint32_t binding);
 
 #endif /* !IGNIS_PIPELINE_H */
