@@ -248,6 +248,17 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         .pDynamicStates = dynamicStates
     };
 
+    // TODO
+    VkFormat imageFormat = ignisGetSwapchainImageFormat();
+    VkFormat depthFormat = ignisGetSwapchainDepthFormat();
+
+    const VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+        .colorAttachmentCount = 1,
+        .pColorAttachmentFormats = &imageFormat,
+        .depthAttachmentFormat = depthFormat
+    };
+
     /* create pipeline */
     VkGraphicsPipelineCreateInfo pipelineInfo = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -262,9 +273,10 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         .pColorBlendState = &colorBlending,
         .pDynamicState = &dynamicStateInfo,
         .layout = pipeline->layout,
-        .renderPass = ignisGetVkRenderPass(),
+        .renderPass = NULL,
         .subpass = 0,
-        .basePipelineHandle = VK_NULL_HANDLE
+        .basePipelineHandle = VK_NULL_HANDLE,
+        .pNext = &pipelineRenderingInfo
     };
 
     VkResult result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, allocator, &pipeline->handle);

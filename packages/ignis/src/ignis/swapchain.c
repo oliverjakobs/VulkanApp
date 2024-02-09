@@ -93,73 +93,6 @@ static VkExtent2D ignisClampExtent2D(VkExtent2D extent, VkExtent2D min, VkExtent
     };
 }
 
-static uint8_t ignisCreateSwapchainRenderPass(VkDevice device, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
-{
-    VkAttachmentDescription attachments[] = {
-        {
-            // colorAttachment
-            .format = swapchain->imageFormat,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-        },
-        {
-            // depthAttachment
-            .format = swapchain->depthFormat,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        }
-    };
-
-    VkAttachmentReference attachmentRefs[] = {
-        { .attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
-        { .attachment = 1, .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL }
-    };
-
-    VkSubpassDescription subpass = {
-        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-        .pColorAttachments = attachmentRefs,
-        .colorAttachmentCount = 1,
-        .pDepthStencilAttachment = &attachmentRefs[1]
-    };
-
-    VkSubpassDependency dependency = {
-        .srcSubpass = VK_SUBPASS_EXTERNAL,
-        .dstSubpass = 0,
-        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        .srcAccessMask = 0,
-        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-    };
-
-    VkRenderPassCreateInfo renderPassInfo = {
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .pAttachments = attachments,
-        .attachmentCount = sizeof(attachments) / sizeof(VkAttachmentDescription),
-        .pSubpasses = &subpass,
-        .subpassCount = 1,
-        .pDependencies = &dependency,
-        .dependencyCount = 1
-    };
-
-    if (vkCreateRenderPass(device, &renderPassInfo, allocator, &swapchain->renderPass) != VK_SUCCESS)
-    {
-        IGNIS_ERROR("failed to create render pass!");
-        return IGNIS_FAIL;
-    }
-
-    return IGNIS_OK;
-}
-
 static uint8_t ignisCreateSwapchainImages(VkDevice device, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
 {
     /* create images */
@@ -281,38 +214,6 @@ static uint8_t ignisCreateSwapchainDepthImages(VkDevice device, const VkAllocati
     return IGNIS_OK;
 }
 
-static uint8_t ignisCreateSwapchainFramebuffers(VkDevice device, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
-{
-    swapchain->framebuffers = ignisAlloc(swapchain->imageCount * sizeof(VkFramebuffer));
-    if (!swapchain->framebuffers) return IGNIS_FAIL;
-
-    for (size_t i = 0; i < swapchain->imageCount; ++i)
-    {
-        VkImageView attachments[] = {
-            swapchain->imageViews[i],
-            swapchain->depthImageViews[i]
-        };
-
-        VkFramebufferCreateInfo info = {
-            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .renderPass = swapchain->renderPass,
-            .pAttachments = attachments,
-            .attachmentCount = sizeof(attachments) / sizeof(VkImageView),
-            .width = swapchain->extent.width,
-            .height = swapchain->extent.height,
-            .layers = 1
-        };
-
-        if (vkCreateFramebuffer(device, &info, allocator, &swapchain->framebuffers[i]) != VK_SUCCESS)
-        {
-            IGNIS_ERROR("failed to create framebuffer");
-            return IGNIS_FAIL;
-        }
-    }
-
-    return IGNIS_OK;
-}
-
 uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfaceKHR surface, VkSwapchainKHR old, VkExtent2D extent, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
 {
     /* choose swap chain surface format */
@@ -391,9 +292,6 @@ uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfa
     swapchain->imageFormat = surfaceFormat.format;
     swapchain->depthFormat = depthFormat;
 
-    if (!ignisCreateSwapchainRenderPass(device, allocator, swapchain))
-        return IGNIS_FAIL;
-
     /* create frambuffers */
     if (!ignisCreateSwapchainImages(device, allocator, swapchain))
         return IGNIS_FAIL;
@@ -401,24 +299,11 @@ uint8_t ignisCreateSwapchain(VkDevice device, VkPhysicalDevice physical, VkSurfa
     if (!ignisCreateSwapchainDepthImages(device, allocator, swapchain))
         return IGNIS_FAIL;
 
-    if (!ignisCreateSwapchainFramebuffers(device, allocator, swapchain))
-        return IGNIS_FAIL;
-
     return IGNIS_OK;
 }
 
 void ignisDestroySwapchain(VkDevice device, const VkAllocationCallbacks* allocator, IgnisSwapchain* swapchain)
 {
-    vkDestroyRenderPass(device, swapchain->renderPass, allocator);
-
-    if (swapchain->framebuffers)
-    {
-        for (size_t i = 0; i < swapchain->imageCount; ++i)
-            vkDestroyFramebuffer(device, swapchain->framebuffers[i], allocator);
-
-        ignisFree(swapchain->framebuffers, swapchain->imageCount * sizeof(VkFramebuffer));
-    }
-
     /* destroy depth images */
     if (swapchain->depthImages)
     {
@@ -515,9 +400,6 @@ uint8_t ignisAcquireNextImage(VkDevice device, IgnisSwapchain* swapchain, uint32
 
 uint8_t ingisSubmitFrame(VkQueue graphics, VkCommandBuffer buffer, uint32_t frame, IgnisSwapchain* swapchain)
 {
-    if (vkEndCommandBuffer(buffer) != VK_SUCCESS)
-        IGNIS_WARN("failed to record command buffer!");
-
     VkSemaphore waitSemaphores[] = { swapchain->imageAvailable[frame] };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     

@@ -120,7 +120,7 @@ uint8_t ignisCreateInstance(const char* name, const char* const* extensions, uin
 
     VkApplicationInfo appInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .apiVersion = VK_API_VERSION_1_2,
+        .apiVersion = VK_API_VERSION_1_3,
         .pApplicationName = name,
         .applicationVersion = VK_MAKE_API_VERSION(1,0,0,0),
         .pEngineName = "ignis",
@@ -282,7 +282,7 @@ void ignisDestroyContext()
 // Device requirements
 static const char* const REQ_EXTENSIONS[] = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-    "VK_KHR_dynamic_rendering"
+    VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
 };
 
 static const uint32_t REQ_EXTENSION_COUNT = sizeof(REQ_EXTENSIONS) / sizeof(REQ_EXTENSIONS[0]);
@@ -331,13 +331,13 @@ uint8_t ignisCreateDevice()
         if (!ignisCheckDeviceExtensionSupport(devices[i]))
             continue;
 
-        VkPhysicalDeviceDescriptorIndexingFeatures indexing_features = {
+        VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures = {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT
         };
 
         VkPhysicalDeviceFeatures2 supportedFeatures = {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-            .pNext = &indexing_features
+            .pNext = &indexingFeatures
         };
         vkGetPhysicalDeviceFeatures2(devices[i], &supportedFeatures);
 
@@ -378,13 +378,19 @@ uint8_t ignisCreateDevice()
         };
     }
 
-    VkPhysicalDeviceFeatures2 deviceFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
-    vkGetPhysicalDeviceFeatures2(context.physicalDevice, &deviceFeatures);
-
-    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature = {
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
         .dynamicRendering = VK_TRUE,
     };
+
+    VkPhysicalDeviceFeatures2 deviceFeatures = { 
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+        .features = {
+            .samplerAnisotropy = VK_TRUE
+        },
+        .pNext = &dynamicRenderingFeatures
+    };
+    //vkGetPhysicalDeviceFeatures2(context.physicalDevice, &deviceFeatures);
 
     VkDeviceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -644,33 +650,170 @@ VkCommandBuffer ignisBeginCommandBuffer()
         return VK_NULL_HANDLE;
     }
 
+    VkImageMemoryBarrier imageBarrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = context.swapchain.images[context.imageIndex],
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        }
+    };
+
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,  // srcStageMask
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // dstStageMask
+        0,
+        0,
+        NULL,
+        0,
+        NULL,
+        1, // imageMemoryBarrierCount
+        &imageBarrier // pImageMemoryBarriers
+    );
+
+    VkImageMemoryBarrier depthImageBarrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = context.swapchain.depthImages[context.imageIndex],
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        }
+    };
+
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,  // srcStageMask
+        VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, // dstStageMask
+        0,
+        0,
+        NULL,
+        0,
+        NULL,
+        1, // imageMemoryBarrierCount
+        &depthImageBarrier // pImageMemoryBarriers
+    );
+
     // set dynamic state
     vkCmdSetViewport(commandBuffer, 0, 1, &context.viewport);
     vkCmdSetScissor(commandBuffer, 0, 1, &context.scissor);
 
-    // begin render pass
-    VkClearValue clearValues[] = {
-        context.clearColor,
-        context.depthStencil
+    // begin dynamic rendering
+    VkRenderingAttachmentInfo colorAttachmentInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
+        .imageView = context.swapchain.imageViews[context.imageIndex],
+        .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = context.clearColor,
     };
 
-    VkRenderPassBeginInfo renderPassInfo = {
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .renderPass = context.swapchain.renderPass,
-        .framebuffer = context.swapchain.framebuffers[context.imageIndex],
+    VkRenderingAttachmentInfo depthAttachmentInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
+        .imageView = context.swapchain.depthImageViews[context.imageIndex],
+        .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = context.depthStencil,
+    };
+
+    VkRenderingInfo renderInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
         .renderArea.offset = { 0, 0 },
         .renderArea.extent = context.swapchain.extent,
-        .pClearValues = clearValues,
-        .clearValueCount = 2
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &colorAttachmentInfo,
+        .pDepthAttachment = &depthAttachmentInfo
     };
 
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRendering(commandBuffer, &renderInfo);
+
     return commandBuffer;
 }
 
 void ignisEndCommandBuffer(VkCommandBuffer commandBuffer)
 {
-    vkCmdEndRenderPass(commandBuffer);
+    vkCmdEndRendering(commandBuffer);
+
+    VkImageMemoryBarrier imageBarrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = context.swapchain.images[context.imageIndex],
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        }
+    };
+
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // srcStageMask
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, // dstStageMask
+        0,
+        0,
+        NULL,
+        0,
+        NULL,
+        1, // imageMemoryBarrierCount
+        &imageBarrier // pImageMemoryBarriers
+    );
+
+    VkImageMemoryBarrier depthImageBarrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+        .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = context.swapchain.depthImages[context.imageIndex],
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        }
+    };
+
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,  // srcStageMask
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, // dstStageMask
+        0,
+        0,
+        NULL,
+        0,
+        NULL,
+        1, // imageMemoryBarrierCount
+        &depthImageBarrier // pImageMemoryBarriers
+    );
+
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
+        IGNIS_WARN("failed to record command buffer!");
 
     VkQueue graphicsQueue = context.queues[IGNIS_QUEUE_GRAPHICS];
     if (!ingisSubmitFrame(graphicsQueue, commandBuffer, context.currentFrame, &context.swapchain))
@@ -715,12 +858,12 @@ void ignisEndOneTimeCommandBuffer(VkCommandBuffer commandBuffer)
     vkFreeCommandBuffers(context.device, context.commandPool, 1, &commandBuffer);
 }
 
-
-
 VkInstance       ignisGetVkInstance()       { return context.instance; }
 VkDevice         ignisGetVkDevice()         { return context.device; }
 VkPhysicalDevice ignisGetVkPhysicalDevice() { return context.physicalDevice; }
-VkRenderPass     ignisGetVkRenderPass()     { return context.swapchain.renderPass; }
+
+VkFormat ignisGetSwapchainImageFormat() { return context.swapchain.imageFormat; }
+VkFormat ignisGetSwapchainDepthFormat() { return context.swapchain.depthFormat; }
 
 uint32_t ignisGetCurrentFrame() { return context.currentFrame; }
 
@@ -778,7 +921,6 @@ void ignisPrintInfo()
             IGNIS_INFO("    Shared: %.2f GiB", memory_size_gib);
     }
 
-    
     IGNIS_INFO("Queues:");
     IGNIS_INFO("  > Graphics: %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_GRAPHICS_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_GRAPHICS]);
     IGNIS_INFO("  > Transfer: %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_TRANSFER_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_TRANSFER]);

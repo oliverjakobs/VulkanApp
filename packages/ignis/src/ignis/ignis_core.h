@@ -56,7 +56,9 @@ void ignisEndOneTimeCommandBuffer(VkCommandBuffer commandBuffer);
 VkInstance       ignisGetVkInstance();
 VkDevice         ignisGetVkDevice();
 VkPhysicalDevice ignisGetVkPhysicalDevice();
-VkRenderPass     ignisGetVkRenderPass();
+
+VkFormat ignisGetSwapchainImageFormat();
+VkFormat ignisGetSwapchainDepthFormat();
 
 uint32_t ignisGetCurrentFrame();
 uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family);

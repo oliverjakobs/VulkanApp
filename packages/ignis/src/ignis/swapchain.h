@@ -13,8 +13,6 @@ typedef struct
     VkFormat depthFormat;
     VkExtent2D extent;
 
-    VkRenderPass renderPass;
-
     uint32_t imageCount;
 
     VkImage*        images;
@@ -23,8 +21,6 @@ typedef struct
     VkImage*        depthImages;
     VkImageView*    depthImageViews;
     VkDeviceMemory* depthImageMemories;
-
-    VkFramebuffer* framebuffers;
 
     /* Sync objects */
     VkSemaphore imageAvailable[IGNIS_MAX_FRAMES_IN_FLIGHT];
