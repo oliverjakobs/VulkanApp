@@ -543,45 +543,6 @@ VkDeviceMemory ignisAllocateDeviceMemory(VkMemoryRequirements requirements, VkMe
 }
 
 
-VkCommandBuffer ignisBeginOneTimeCommandBuffer()
-{
-    VkCommandBufferAllocateInfo allocInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandPool = context.commandPool,
-        .commandBufferCount = 1
-    };
-
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(context.device, &allocInfo, &commandBuffer);
-
-    VkCommandBufferBeginInfo beginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-    };
-
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-    return commandBuffer;
-}
-
-void ignisEndOneTimeCommandBuffer(VkCommandBuffer commandBuffer)
-{
-    vkEndCommandBuffer(commandBuffer);
-
-    VkSubmitInfo submitInfo = {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &commandBuffer,
-    };
-
-    vkQueueSubmit(context.queues[IGNIS_QUEUE_GRAPHICS], 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(context.queues[IGNIS_QUEUE_GRAPHICS]);
-
-    vkFreeCommandBuffers(context.device, context.commandPool, 1, &commandBuffer);
-}
-
-
 
 uint8_t ignisResize(uint32_t width, uint32_t height)
 {
@@ -650,6 +611,24 @@ uint8_t ignisBeginFrame()
     if (!ignisAcquireNextImage(context.device, &context.swapchain, context.currentFrame, &context.imageIndex))
         return IGNIS_FAIL;
 
+    return IGNIS_OK;
+}
+
+uint8_t ignisEndFrame()
+{
+    VkQueue presentQueue = context.queues[IGNIS_QUEUE_PRESENT];
+    if (!ignisPresentFrame(presentQueue, context.imageIndex, context.currentFrame, &context.swapchain))
+        IGNIS_WARN("failed to present frame");
+    
+    /* next frame */
+    context.currentFrame = (context.currentFrame + 1) % IGNIS_MAX_FRAMES_IN_FLIGHT;
+
+    return IGNIS_OK;
+}
+
+
+VkCommandBuffer ignisBeginCommandBuffer()
+{
     // Begin recording commands.
     VkCommandBuffer commandBuffer = context.commandBuffers[context.currentFrame];
     vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
@@ -662,7 +641,7 @@ uint8_t ignisBeginFrame()
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
     {
         IGNIS_WARN("failed to begin recording command buffer!");
-        return IGNIS_FAIL;
+        return VK_NULL_HANDLE;
     }
 
     // set dynamic state
@@ -686,34 +665,62 @@ uint8_t ignisBeginFrame()
     };
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    return IGNIS_OK;
+    return commandBuffer;
 }
 
-uint8_t ignisEndFrame()
+void ignisEndCommandBuffer(VkCommandBuffer commandBuffer)
 {
-    VkCommandBuffer commandBuffer = context.commandBuffers[context.currentFrame];
     vkCmdEndRenderPass(commandBuffer);
 
     VkQueue graphicsQueue = context.queues[IGNIS_QUEUE_GRAPHICS];
     if (!ingisSubmitFrame(graphicsQueue, commandBuffer, context.currentFrame, &context.swapchain))
         IGNIS_WARN("failed to submit frame");
-
-    VkQueue presentQueue = context.queues[IGNIS_QUEUE_PRESENT];
-    if (!ignisPresentFrame(presentQueue, context.imageIndex, context.currentFrame, &context.swapchain))
-        IGNIS_WARN("failed to present frame");
-    
-    /* next frame */
-    context.currentFrame = (context.currentFrame + 1) % IGNIS_MAX_FRAMES_IN_FLIGHT;
-
-    return IGNIS_OK;
 }
+
+VkCommandBuffer ignisBeginOneTimeCommandBuffer()
+{
+    VkCommandBufferAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandPool = context.commandPool,
+        .commandBufferCount = 1
+    };
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(context.device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    return commandBuffer;
+}
+
+void ignisEndOneTimeCommandBuffer(VkCommandBuffer commandBuffer)
+{
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &commandBuffer,
+    };
+
+    vkQueueSubmit(context.queues[IGNIS_QUEUE_GRAPHICS], 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(context.queues[IGNIS_QUEUE_GRAPHICS]);
+
+    vkFreeCommandBuffers(context.device, context.commandPool, 1, &commandBuffer);
+}
+
+
 
 VkInstance       ignisGetVkInstance()       { return context.instance; }
 VkDevice         ignisGetVkDevice()         { return context.device; }
 VkPhysicalDevice ignisGetVkPhysicalDevice() { return context.physicalDevice; }
 VkRenderPass     ignisGetVkRenderPass()     { return context.swapchain.renderPass; }
-VkCommandBuffer  ignisGetCommandBuffer()    { return context.commandBuffers[context.currentFrame]; }
 
 uint32_t ignisGetCurrentFrame() { return context.currentFrame; }
 

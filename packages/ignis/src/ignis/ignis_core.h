@@ -32,8 +32,6 @@ typedef enum
 
 VkDeviceMemory ignisAllocateDeviceMemory(VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, const VkAllocationCallbacks* allocator);
 
-VkCommandBuffer ignisBeginOneTimeCommandBuffer();
-void ignisEndOneTimeCommandBuffer(VkCommandBuffer commandBuffer);
 
 uint8_t ignisResize(uint32_t width, uint32_t height);
 
@@ -46,12 +44,19 @@ void ignisSetScissor(int32_t x, int32_t y, uint32_t w, uint32_t h);
 uint8_t ignisBeginFrame();
 uint8_t ignisEndFrame();
 
+/* command buffers */
+VkCommandBuffer ignisBeginCommandBuffer();
+void ignisEndCommandBuffer(VkCommandBuffer commandBuffer);
+
+VkCommandBuffer ignisBeginOneTimeCommandBuffer();
+void ignisEndOneTimeCommandBuffer(VkCommandBuffer commandBuffer);
+
+
+/* utils */
 VkInstance       ignisGetVkInstance();
 VkDevice         ignisGetVkDevice();
 VkPhysicalDevice ignisGetVkPhysicalDevice();
 VkRenderPass     ignisGetVkRenderPass();
-
-VkCommandBuffer  ignisGetCommandBuffer();
 
 uint32_t ignisGetCurrentFrame();
 uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family);
