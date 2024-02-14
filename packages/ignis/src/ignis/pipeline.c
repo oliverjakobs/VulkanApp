@@ -248,11 +248,10 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         .pDynamicStates = dynamicStates
     };
 
-    // TODO
     VkFormat imageFormat = ignisGetSwapchainImageFormat();
     VkFormat depthFormat = ignisGetSwapchainDepthFormat();
 
-    const VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
+    VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
         .colorAttachmentCount = 1,
         .pColorAttachmentFormats = &imageFormat,
@@ -273,7 +272,7 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         .pColorBlendState = &colorBlending,
         .pDynamicState = &dynamicStateInfo,
         .layout = pipeline->layout,
-        .renderPass = NULL,
+        .renderPass = VK_NULL_HANDLE,
         .subpass = 0,
         .basePipelineHandle = VK_NULL_HANDLE,
         .pNext = &pipelineRenderingInfo

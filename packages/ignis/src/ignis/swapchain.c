@@ -2,6 +2,11 @@
 
 static VkSurfaceFormatKHR ignisChooseSurfaceFormat(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
+    VkSurfaceFormatKHR wantedFormat = {
+        .format = VK_FORMAT_B8G8R8A8_UNORM,
+        .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+    };
+
     uint32_t count;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, NULL);
     if (!count) return (VkSurfaceFormatKHR){VK_FORMAT_UNDEFINED, 0};
@@ -15,8 +20,7 @@ static VkSurfaceFormatKHR ignisChooseSurfaceFormat(VkPhysicalDevice device, VkSu
     VkSurfaceFormatKHR format = formats[0];
     for (uint32_t i = 0; i < count; ++i)
     {
-        if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM
-            && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        if (formats[i].format == wantedFormat.format && formats[i].colorSpace == wantedFormat.colorSpace)
         {
             format = formats[i];
             break;
@@ -29,6 +33,9 @@ static VkSurfaceFormatKHR ignisChooseSurfaceFormat(VkPhysicalDevice device, VkSu
 
 static VkPresentModeKHR ignisChoosePresentMode(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
+    VkPresentModeKHR wantedMode = VK_PRESENT_MODE_MAILBOX_KHR;
+    //VkPresentModeKHR wantedMode = VK_PRESENT_MODE_FIFO_KHR;
+
     uint32_t count;
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, NULL);
     if (!count) return VK_PRESENT_MODE_FIFO_KHR;
@@ -42,7 +49,7 @@ static VkPresentModeKHR ignisChoosePresentMode(VkPhysicalDevice device, VkSurfac
     VkPresentModeKHR mode = VK_PRESENT_MODE_FIFO_KHR;
     for (uint32_t i = 0; i < count; ++i)
     {
-        if (modes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
+        if (modes[i] == wantedMode)
         {
             mode = modes[i];
             break;

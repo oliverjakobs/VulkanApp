@@ -2,6 +2,8 @@
 
 #include "swapchain.h"
 
+#include "texture.h"
+
 typedef struct
 {
     VkInstance instance;
@@ -26,6 +28,8 @@ typedef struct
 
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffers[IGNIS_MAX_FRAMES_IN_FLIGHT];
+
+    // VkCommandPool transferPool;
 
     uint32_t currentFrame;
     uint32_t imageIndex;
@@ -196,13 +200,13 @@ uint8_t ignisCreateContext(VkSurfaceKHR surface, VkExtent2D extent)
     }
 
     /* create command pool */
-    VkCommandPoolCreateInfo info = {
+    VkCommandPoolCreateInfo commandPoolInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
         .queueFamilyIndex = context.queueFamilyIndices[IGNIS_QUEUE_GRAPHICS]
     };
 
-    if (vkCreateCommandPool(context.device, &info, allocator, &context.commandPool) != VK_SUCCESS)
+    if (vkCreateCommandPool(context.device, &commandPoolInfo, allocator, &context.commandPool) != VK_SUCCESS)
     {
         IGNIS_ERROR("failed to create device command pool!");
         return IGNIS_FAIL;
@@ -222,6 +226,22 @@ uint8_t ignisCreateContext(VkSurfaceKHR surface, VkExtent2D extent)
         return IGNIS_FAIL;
     }
 
+    /* create transfer pool */
+    /*
+    VkCommandPoolCreateInfo transferPoolInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+        .queueFamilyIndex = context.queueFamilyIndices[IGNIS_QUEUE_TRANSFER]
+    };
+
+    if (vkCreateCommandPool(context.device, &transferPoolInfo, allocator, &context.transferPool) != VK_SUCCESS)
+    {
+        IGNIS_ERROR("failed to create transfer command pool!");
+        return IGNIS_FAIL;
+    }
+    */
+
+    /* create swapchain */
     if (!ignisCreateSwapchain(context.device, context.physicalDevice, context.surface, VK_NULL_HANDLE, extent, allocator, &context.swapchain))
     {
         IGNIS_CRITICAL("failed to create swapchain");
@@ -255,8 +275,9 @@ void ignisDestroyContext()
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
 
     ignisDestroySwapchainSyncObjects(context.device, allocator, &context.swapchain);
-    vkFreeCommandBuffers(context.device, context.commandPool, IGNIS_MAX_FRAMES_IN_FLIGHT, context.commandBuffers);
+
     vkDestroyCommandPool(context.device, context.commandPool, allocator);
+    // vkDestroyCommandPool(context.device, context.transferPool, allocator);
 
     ignisDestroySwapchain(context.device, allocator, &context.swapchain);
 
@@ -282,7 +303,7 @@ void ignisDestroyContext()
 // Device requirements
 static const char* const REQ_EXTENSIONS[] = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-    VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
+    VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
 };
 
 static const uint32_t REQ_EXTENSION_COUNT = sizeof(REQ_EXTENSIONS) / sizeof(REQ_EXTENSIONS[0]);
@@ -650,64 +671,20 @@ VkCommandBuffer ignisBeginCommandBuffer()
         return VK_NULL_HANDLE;
     }
 
-    VkImageMemoryBarrier imageBarrier = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .image = context.swapchain.images[context.imageIndex],
-        .subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        }
-    };
-
-    vkCmdPipelineBarrier(
+    ignisTransitionImageLayout(
         commandBuffer,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,  // srcStageMask
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // dstStageMask
-        0,
-        0,
-        NULL,
-        0,
-        NULL,
-        1, // imageMemoryBarrierCount
-        &imageBarrier // pImageMemoryBarriers
+        context.swapchain.images[context.imageIndex],
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     );
 
-    VkImageMemoryBarrier depthImageBarrier = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .image = context.swapchain.depthImages[context.imageIndex],
-        .subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        }
-    };
-
-    vkCmdPipelineBarrier(
+    ignisTransitionImageLayout(
         commandBuffer,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,  // srcStageMask
-        VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, // dstStageMask
-        0,
-        0,
-        NULL,
-        0,
-        NULL,
-        1, // imageMemoryBarrierCount
-        &depthImageBarrier // pImageMemoryBarriers
+        context.swapchain.depthImages[context.imageIndex],
+        VK_IMAGE_ASPECT_DEPTH_BIT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
     );
 
     // set dynamic state
@@ -752,64 +729,20 @@ void ignisEndCommandBuffer(VkCommandBuffer commandBuffer)
 {
     vkCmdEndRendering(commandBuffer);
 
-    VkImageMemoryBarrier imageBarrier = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .image = context.swapchain.images[context.imageIndex],
-        .subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        }
-    };
-
-    vkCmdPipelineBarrier(
+    ignisTransitionImageLayout(
         commandBuffer,
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // srcStageMask
-        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, // dstStageMask
-        0,
-        0,
-        NULL,
-        0,
-        NULL,
-        1, // imageMemoryBarrierCount
-        &imageBarrier // pImageMemoryBarriers
+        context.swapchain.images[context.imageIndex],
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
     );
 
-    VkImageMemoryBarrier depthImageBarrier = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-        .oldLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-        .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .image = context.swapchain.depthImages[context.imageIndex],
-        .subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        }
-    };
-
-    vkCmdPipelineBarrier(
+    ignisTransitionImageLayout(
         commandBuffer,
-        VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,  // srcStageMask
-        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, // dstStageMask
-        0,
-        0,
-        NULL,
-        0,
-        NULL,
-        1, // imageMemoryBarrierCount
-        &depthImageBarrier // pImageMemoryBarriers
+        context.swapchain.depthImages[context.imageIndex],
+        VK_IMAGE_ASPECT_DEPTH_BIT,
+        VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
     );
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
@@ -825,6 +758,7 @@ VkCommandBuffer ignisBeginOneTimeCommandBuffer()
     VkCommandBufferAllocateInfo allocInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        //.commandPool = context.transferPool,
         .commandPool = context.commandPool,
         .commandBufferCount = 1
     };
@@ -856,6 +790,13 @@ void ignisEndOneTimeCommandBuffer(VkCommandBuffer commandBuffer)
     vkQueueWaitIdle(context.queues[IGNIS_QUEUE_GRAPHICS]);
 
     vkFreeCommandBuffers(context.device, context.commandPool, 1, &commandBuffer);
+
+    /*
+    vkQueueSubmit(context.queues[IGNIS_QUEUE_TRANSFER], 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(context.queues[IGNIS_QUEUE_TRANSFER]);
+    
+    vkFreeCommandBuffers(context.device, context.transferPool, 1, &commandBuffer);
+    */
 }
 
 VkInstance       ignisGetVkInstance()       { return context.instance; }
