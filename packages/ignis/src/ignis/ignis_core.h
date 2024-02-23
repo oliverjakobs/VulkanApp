@@ -5,8 +5,6 @@
 
 #include "common.h"
 
-#define IGNIS_VK_PFN(instance, name) ((PFN_##name)vkGetInstanceProcAddr((instance), (#name)))
-
 /* --------------------------| context |--------------------------------- */
 uint8_t ignisCreateInstance(const char* name, const char* const* extensions, uint32_t count);
 uint8_t ignisCreateContext(VkSurfaceKHR surface, VkExtent2D extent);
@@ -59,6 +57,8 @@ VkPhysicalDevice ignisGetVkPhysicalDevice();
 
 VkFormat ignisGetSwapchainImageFormat();
 VkFormat ignisGetSwapchainDepthFormat();
+
+uint32_t ignisGetMaxSamplerAnisotropy();
 
 uint32_t ignisGetCurrentFrame();
 uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family);

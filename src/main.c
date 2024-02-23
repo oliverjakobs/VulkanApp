@@ -37,8 +37,6 @@ const uint32_t indices[] = {
 
 static size_t indexCount = sizeof(indices) / sizeof(uint32_t);
 
-uint8_t onEvent(void* context, const MinimalEvent* e);
-
 uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
 {
     /* minimal initialization */
@@ -55,9 +53,6 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
         MINIMAL_ERROR("[App] Failed to create Minimal window");
         return MINIMAL_FAIL;
     }
-    
-    minimalSetCurrentContext(window);
-    minimalSetEventHandler(NULL, (MinimalEventCB)onEvent);
 
     IgnisPlatform platform = {
         .createSurface = (ignisCreateSurfaceFn)minimalCreateWindowSurface,
@@ -109,7 +104,7 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
         return MINIMAL_FAIL;
 
     // create texture
-    if (!ignisCreateTexture("./res/texture.png", &texture))
+    if (!ignisCreateTexture("./res/texture.png", &texture, NULL))
         return MINIMAL_FAIL;
 
     MINIMAL_INFO("[Minimal] Version: %s", minimalGetVersionString());
@@ -192,7 +187,11 @@ void onTick(void* context, const MinimalFrameData* framedata)
 int main(void)
 {
     if (onLoad("Vulkan Test", 100, 100, 1280, 720))
+    {
+        minimalSetCurrentContext(window);
+        minimalSetEventHandler(NULL, (MinimalEventCB)onEvent);
         minimalRun(window, (MinimalTickCB)onTick, NULL);
+    }
 
     onDestroy();
 

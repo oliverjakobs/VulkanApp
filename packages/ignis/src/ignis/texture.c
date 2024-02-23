@@ -105,10 +105,12 @@ uint8_t ignisTransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image,
     return IGNIS_OK;
 }
 
-uint8_t ignisCreateTexture(const char* path, IgnisTexture* texture)
+uint8_t ignisCreateTexture(const char* path, IgnisTexture* texture, IgnisTextureConfig* configPtr)
 {
     VkDevice device = ignisGetVkDevice();
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
+
+    IgnisTextureConfig config = configPtr ? *configPtr : IGNIS_DEFAULT_CONFIG;
 
     size_t dataSize;
     char* data = ignisReadFile(path, &dataSize);
@@ -119,7 +121,7 @@ uint8_t ignisCreateTexture(const char* path, IgnisTexture* texture)
         return IGNIS_FAIL;
     }
 
-    //stbi_set_flip_vertically_on_load(config.flip_on_load);
+    stbi_set_flip_vertically_on_load(config.flipOnLoad);
 
     int bpp = 0;
     int width, height;
@@ -150,7 +152,7 @@ uint8_t ignisCreateTexture(const char* path, IgnisTexture* texture)
         .extent = texture->extent,
         .mipLevels = 1,
         .arrayLayers = 1,
-        .format = VK_FORMAT_R8G8B8A8_SRGB,
+        .format = config.format,
         .tiling = VK_IMAGE_TILING_OPTIMAL,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
@@ -201,7 +203,7 @@ uint8_t ignisCreateTexture(const char* path, IgnisTexture* texture)
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .image = texture->image,
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        .format = VK_FORMAT_R8G8B8A8_SRGB,
+        .format = config.format,
         .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
         .subresourceRange.baseMipLevel = 0,
         .subresourceRange.levelCount = 1,
@@ -216,18 +218,15 @@ uint8_t ignisCreateTexture(const char* path, IgnisTexture* texture)
     }
 
     /* create sampler */
-    VkPhysicalDeviceProperties properties = { 0 };
-    vkGetPhysicalDeviceProperties(ignisGetVkPhysicalDevice(), &properties);
-
     VkSamplerCreateInfo samplerInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-        .magFilter = VK_FILTER_LINEAR,
-        .minFilter = VK_FILTER_LINEAR,
-        .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .minFilter = config.minFilter,
+        .magFilter = config.magFilter,
+        .addressModeU = config.addressMode,
+        .addressModeV = config.addressMode,
+        .addressModeW = config.addressMode,
         .anisotropyEnable = VK_TRUE,
-        .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+        .maxAnisotropy = ignisGetMaxSamplerAnisotropy(),
         .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
         .unnormalizedCoordinates = VK_FALSE,
         .compareEnable = VK_FALSE,

@@ -1,5 +1,7 @@
 #include "ignis_core.h"
 
+#include "utils.h"
+
 #include "swapchain.h"
 
 #include "texture.h"
@@ -23,6 +25,11 @@ typedef struct
 
     IgnisSwapchain swapchain;
 
+    /* Sync objects */
+    VkSemaphore imageAvailable[IGNIS_MAX_FRAMES_IN_FLIGHT];
+    VkSemaphore renderFinished[IGNIS_MAX_FRAMES_IN_FLIGHT];
+    VkFence     inFlightFences[IGNIS_MAX_FRAMES_IN_FLIGHT];
+
     uint16_t swapchainGeneration;
     uint16_t swapchainLastGeneration;
 
@@ -40,6 +47,7 @@ typedef struct
     VkClearValue clearColor;
     VkClearValue depthStencil;
 } IgnisContext;
+
 
 #ifdef IGNIS_DEBUG
 
@@ -76,37 +84,6 @@ static const char* const VALIDATION_LAYERS[] = {
 
 static const uint32_t VALIDATION_LAYER_COUNT = sizeof(VALIDATION_LAYERS) / sizeof(VALIDATION_LAYERS[0]);
 
-static uint8_t ignisCheckValidationLayerSupport()
-{
-    uint32_t count;
-    vkEnumerateInstanceLayerProperties(&count, NULL);
-    if (!count || VALIDATION_LAYER_COUNT > count) return IGNIS_FAIL;
-
-    VkLayerProperties* properties = ignisAlloc(sizeof(VkLayerProperties) * count);
-    if (!properties) return IGNIS_FAIL;
-
-    vkEnumerateInstanceLayerProperties(&count, properties);
-
-    uint8_t found = IGNIS_FAIL;
-    for (size_t i = 0; i < VALIDATION_LAYER_COUNT; ++i)
-    {
-        found = IGNIS_FAIL;
-        for (size_t j = 0; j < count; ++j)
-        {
-            if (strcmp(VALIDATION_LAYERS[i], properties[j].layerName) == 0)
-            {
-                found = IGNIS_OK;
-                break;
-            }
-        }
-
-        if (!found) break;
-    }
-
-    ignisFree(properties, sizeof(VkLayerProperties) * count);
-    return found;
-}
-
 static IgnisContext context;
 static VkExtent2D cachedExtent;
 
@@ -115,7 +92,7 @@ uint8_t ignisCreateInstance(const char* name, const char* const* extensions, uin
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
 
 #ifdef IGNIS_DEBUG
-    if (!ignisCheckValidationLayerSupport())
+    if (!ignisCheckValidationLayerSupport(VALIDATION_LAYERS, VALIDATION_LAYER_COUNT))
     {
         IGNIS_ERROR("validation layers requested, but not available!");
         return IGNIS_FAIL;
@@ -185,6 +162,7 @@ uint8_t ignisCreateInstance(const char* name, const char* const* extensions, uin
 }
 
 static uint8_t ignisCreateDevice();
+static uint8_t ignisCreateSwapchainSyncObjects();
 
 uint8_t ignisCreateContext(VkSurfaceKHR surface, VkExtent2D extent)
 {
@@ -247,8 +225,9 @@ uint8_t ignisCreateContext(VkSurfaceKHR surface, VkExtent2D extent)
         IGNIS_CRITICAL("failed to create swapchain");
         return IGNIS_FAIL;
     }
-
-    if (!ignisCreateSwapchainSyncObjects(context.device, allocator, &context.swapchain))
+    
+    /* create swapchain */
+    if (!ignisCreateSwapchainSyncObjects())
     {
         IGNIS_CRITICAL("failed to create swapchain sync objects");
         return IGNIS_FAIL;
@@ -274,7 +253,12 @@ void ignisDestroyContext()
 {
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
 
-    ignisDestroySwapchainSyncObjects(context.device, allocator, &context.swapchain);
+    for (size_t i = 0; i < IGNIS_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        vkDestroySemaphore(context.device, context.imageAvailable[i], allocator);
+        vkDestroySemaphore(context.device, context.renderFinished[i], allocator);
+        vkDestroyFence(context.device, context.inFlightFences[i], allocator);
+    }
 
     vkDestroyCommandPool(context.device, context.commandPool, allocator);
     // vkDestroyCommandPool(context.device, context.transferPool, allocator);
@@ -314,7 +298,6 @@ static const uint32_t REQ_QUEUE_FAMILIES = IGNIS_QUEUE_GRAPHICS_BIT
 
 static uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t* indices);
 static uint8_t ignisQuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
-static uint8_t ignisCheckDeviceExtensionSupport(VkPhysicalDevice device);
 
 static uint8_t ignisArrayCheckUnique(uint32_t arr[], uint32_t size)
 {
@@ -349,7 +332,7 @@ uint8_t ignisCreateDevice()
             continue;
 
         // skip device if required extensions are not supported
-        if (!ignisCheckDeviceExtensionSupport(devices[i]))
+        if (!ignisCheckDeviceExtensionSupport(devices[i], REQ_EXTENSIONS, REQ_EXTENSION_COUNT))
             continue;
 
         VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures = {
@@ -503,36 +486,33 @@ uint8_t ignisQuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface
     return formatCount > 0 && presentModeCount > 0;
 }
 
-uint8_t ignisCheckDeviceExtensionSupport(VkPhysicalDevice device)
+/* ---------------------------------| Swapchain |--------------------------------------- */
+uint8_t ignisCreateSwapchainSyncObjects()
 {
-    uint32_t count = 0;
-    vkEnumerateDeviceExtensionProperties(device, NULL, &count, NULL);
-    if (!count || REQ_EXTENSION_COUNT > count) return IGNIS_FAIL;
+    VkSemaphoreCreateInfo semaphoreInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+    };
 
-    VkExtensionProperties* properties = ignisAlloc(sizeof(VkExtensionProperties) * count);
-    if (!properties) return IGNIS_FAIL;
+    VkFenceCreateInfo fenceInfo = {
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .flags = VK_FENCE_CREATE_SIGNALED_BIT
+    };
 
-    vkEnumerateDeviceExtensionProperties(device, NULL, &count, properties);
-
-    uint8_t found = IGNIS_FAIL;
-    for (size_t i = 0; i < REQ_EXTENSION_COUNT; ++i)
+    const VkAllocationCallbacks* allocator = ignisGetAllocator();
+    for (size_t i = 0; i < IGNIS_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        found = IGNIS_FAIL;
-        for (size_t j = 0; j < count; ++j)
-        {
-            if (strcmp(REQ_EXTENSIONS[i], properties[j].extensionName) == 0)
-            {
-                found = IGNIS_OK;
-                break;
-            }
-        }
-        if (!found) break;
+        if (vkCreateSemaphore(context.device, &semaphoreInfo, allocator, &context.imageAvailable[i]) != VK_SUCCESS)
+            return IGNIS_FAIL;
+
+        if (vkCreateSemaphore(context.device, &semaphoreInfo, allocator, &context.renderFinished[i]) != VK_SUCCESS)
+            return IGNIS_FAIL;
+
+        if (vkCreateFence(context.device, &fenceInfo, allocator, &context.inFlightFences[i]) != VK_SUCCESS)
+            return IGNIS_FAIL;
     }
 
-    ignisFree(properties, sizeof(VkExtensionProperties) * count);
-    return found;
+    return IGNIS_OK;
 }
-
 
 
 VkDeviceMemory ignisAllocateDeviceMemory(VkMemoryRequirements requirements, VkMemoryPropertyFlags properties, const VkAllocationCallbacks* allocator)
@@ -580,42 +560,6 @@ uint8_t ignisResize(uint32_t width, uint32_t height)
     return IGNIS_OK;
 }
 
-void ignisSetClearColor(float r, float g, float b, float a)
-{
-    context.clearColor.color.float32[0] = r;
-    context.clearColor.color.float32[1] = g;
-    context.clearColor.color.float32[2] = b;
-    context.clearColor.color.float32[3] = a;
-}
-
-void ignisSetDepthStencil(float depth, uint32_t stencil)
-{
-    context.depthStencil.depthStencil.depth = depth;
-    context.depthStencil.depthStencil.stencil = stencil;
-}
-
-void ignisSetViewport(float x, float y, float width, float height)
-{
-    context.viewport.x = x;
-    context.viewport.y = y;
-    context.viewport.width = width;
-    context.viewport.height = height;
-}
-
-void ignisSetDepthRange(float nearVal, float farVal)
-{
-    context.viewport.minDepth = nearVal;
-    context.viewport.maxDepth = farVal;
-}
-
-void ignisSetScissor(int32_t x, int32_t y, uint32_t w, uint32_t h)
-{
-    context.scissor.offset.x = x;
-    context.scissor.offset.y = y;
-    context.scissor.extent.width = w;
-    context.scissor.extent.height = h;
-}
-
 uint8_t ignisBeginFrame()
 {
     // Check if swapchain is out of date.
@@ -635,18 +579,36 @@ uint8_t ignisBeginFrame()
         IGNIS_TRACE("Recreated Swapchchain");
     }
 
-    if (!ignisAcquireNextImage(context.device, &context.swapchain, context.currentFrame, &context.imageIndex))
+    // acquire next image index
+    vkWaitForFences(context.device, 1, &context.inFlightFences[context.currentFrame], VK_TRUE, -1);
+
+    VkSemaphore semaphore = context.imageAvailable[context.currentFrame];
+    VkResult result = vkAcquireNextImageKHR(context.device, context.swapchain.handle, -1, semaphore, VK_NULL_HANDLE, &context.imageIndex);
+
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
         return IGNIS_FAIL;
+
+    vkResetFences(context.device, 1, &context.inFlightFences[context.currentFrame]);
 
     return IGNIS_OK;
 }
 
 uint8_t ignisEndFrame()
 {
-    VkQueue presentQueue = context.queues[IGNIS_QUEUE_PRESENT];
-    if (!ignisPresentFrame(presentQueue, context.imageIndex, context.currentFrame, &context.swapchain))
+    VkSemaphore waitSemaphores[] = { context.renderFinished[context.currentFrame] };
+
+    VkPresentInfoKHR presentInfo = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .pWaitSemaphores = waitSemaphores,
+        .waitSemaphoreCount = 1,
+        .pSwapchains = &context.swapchain.handle,
+        .swapchainCount = 1,
+        .pImageIndices = &context.imageIndex
+    };
+
+    if (vkQueuePresentKHR(context.queues[IGNIS_QUEUE_PRESENT], &presentInfo) != VK_SUCCESS)
         IGNIS_WARN("failed to present frame");
-    
+
     /* next frame */
     context.currentFrame = (context.currentFrame + 1) % IGNIS_MAX_FRAMES_IN_FLIGHT;
 
@@ -749,7 +711,24 @@ void ignisEndCommandBuffer(VkCommandBuffer commandBuffer)
         IGNIS_WARN("failed to record command buffer!");
 
     VkQueue graphicsQueue = context.queues[IGNIS_QUEUE_GRAPHICS];
-    if (!ingisSubmitFrame(graphicsQueue, commandBuffer, context.currentFrame, &context.swapchain))
+
+    VkSemaphore waitSemaphores[] = { context.imageAvailable[context.currentFrame] };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+    VkSemaphore signalSemaphores[] = { context.renderFinished[context.currentFrame] };
+
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pWaitSemaphores = waitSemaphores,
+        .pWaitDstStageMask = waitStages,
+        .waitSemaphoreCount = 1,
+        .pCommandBuffers = &commandBuffer,
+        .commandBufferCount = 1,
+        .pSignalSemaphores = signalSemaphores,
+        .signalSemaphoreCount = 1
+    };
+
+    if (vkQueueSubmit(context.queues[IGNIS_QUEUE_GRAPHICS], 1, &submitInfo, context.inFlightFences[context.currentFrame]) != VK_SUCCESS)
         IGNIS_WARN("failed to submit frame");
 }
 
@@ -806,6 +785,13 @@ VkPhysicalDevice ignisGetVkPhysicalDevice() { return context.physicalDevice; }
 VkFormat ignisGetSwapchainImageFormat() { return context.swapchain.imageFormat; }
 VkFormat ignisGetSwapchainDepthFormat() { return context.swapchain.depthFormat; }
 
+uint32_t ignisGetMaxSamplerAnisotropy()
+{
+    VkPhysicalDeviceProperties properties = { 0 };
+    vkGetPhysicalDeviceProperties(context.physicalDevice, &properties);
+    return properties.limits.maxSamplerAnisotropy;
+}
+
 uint32_t ignisGetCurrentFrame() { return context.currentFrame; }
 
 uint32_t ignisGetQueueFamilyIndex(IgnisQueueFamily family) { return context.queueFamilyIndices[family]; }
@@ -818,6 +804,42 @@ float ignisGetAspectRatio()
 
 const VkAllocationCallbacks* ignisGetAllocator() { return NULL; }
 
+
+void ignisSetClearColor(float r, float g, float b, float a)
+{
+    context.clearColor.color.float32[0] = r;
+    context.clearColor.color.float32[1] = g;
+    context.clearColor.color.float32[2] = b;
+    context.clearColor.color.float32[3] = a;
+}
+
+void ignisSetDepthStencil(float depth, uint32_t stencil)
+{
+    context.depthStencil.depthStencil.depth = depth;
+    context.depthStencil.depthStencil.stencil = stencil;
+}
+
+void ignisSetViewport(float x, float y, float width, float height)
+{
+    context.viewport.x = x;
+    context.viewport.y = y;
+    context.viewport.width = width;
+    context.viewport.height = height;
+}
+
+void ignisSetDepthRange(float nearVal, float farVal)
+{
+    context.viewport.minDepth = nearVal;
+    context.viewport.maxDepth = farVal;
+}
+
+void ignisSetScissor(int32_t x, int32_t y, uint32_t w, uint32_t h)
+{
+    context.scissor.offset.x = x;
+    context.scissor.offset.y = y;
+    context.scissor.extent.width = w;
+    context.scissor.extent.height = h;
+}
 
 void ignisPrintInfo()
 {
