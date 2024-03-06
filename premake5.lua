@@ -29,7 +29,6 @@ output_dir = "%{cfg.buildcfg}"
 group "Packages"
 
 include "packages/ignis.lua"
-include "packages/minimal.lua"
 
 group ""
 
@@ -55,20 +54,20 @@ project "IgnisApp"
     links
     {
         "ignis",
-        "minimal",
         "$(VULKAN_SDK)/lib/vulkan-1.lib"
     }
     
     defines
     {
-        "MINIMAL_VULKAN"
+        "MINIMAL_VULKAN",
+        "MINIMAL_PLATFORM_WINDOWS",
     }
 
     includedirs
     {
         "src",
-        "packages/Ignis/src",
-        "packages/Minimal/src",
+        "packages/ignis/src",
+        "packages/minimal/",
         "$(VULKAN_SDK)/include"
     }
 

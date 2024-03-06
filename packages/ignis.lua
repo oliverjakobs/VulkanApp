@@ -1,6 +1,7 @@
 project "ignis"
     kind "StaticLib"
     language "C"
+    location "./ignis"
     
     targetdir ("build/bin/" .. output_dir .. "/%{prj.name}")
     objdir ("build/bin-int/" .. output_dir .. "/%{prj.name}")

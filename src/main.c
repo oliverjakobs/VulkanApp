@@ -1,4 +1,6 @@
-#include "minimal/minimal.h"
+#define MINIMAL_IMPLEMENTATION
+#include "minimal.h"
+
 #include "ignis/ignis.h"
 
 #include "ignis/pipeline.h"

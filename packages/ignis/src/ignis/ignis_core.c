@@ -36,8 +36,6 @@ typedef struct
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffers[IGNIS_MAX_FRAMES_IN_FLIGHT];
 
-    // VkCommandPool transferPool;
-
     uint32_t currentFrame;
     uint32_t imageIndex;
 
@@ -204,21 +202,6 @@ uint8_t ignisCreateContext(VkSurfaceKHR surface, VkExtent2D extent)
         return IGNIS_FAIL;
     }
 
-    /* create transfer pool */
-    /*
-    VkCommandPoolCreateInfo transferPoolInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-        .queueFamilyIndex = context.queueFamilyIndices[IGNIS_QUEUE_TRANSFER]
-    };
-
-    if (vkCreateCommandPool(context.device, &transferPoolInfo, allocator, &context.transferPool) != VK_SUCCESS)
-    {
-        IGNIS_ERROR("failed to create transfer command pool!");
-        return IGNIS_FAIL;
-    }
-    */
-
     /* create swapchain */
     if (!ignisCreateSwapchain(context.device, context.physicalDevice, context.surface, VK_NULL_HANDLE, extent, allocator, &context.swapchain))
     {
@@ -261,7 +244,6 @@ void ignisDestroyContext()
     }
 
     vkDestroyCommandPool(context.device, context.commandPool, allocator);
-    // vkDestroyCommandPool(context.device, context.transferPool, allocator);
 
     ignisDestroySwapchain(context.device, allocator, &context.swapchain);
 
@@ -883,10 +865,4 @@ void ignisPrintInfo()
         else
             IGNIS_INFO("    Shared: %.2f GiB", memory_size_gib);
     }
-
-    IGNIS_INFO("Queues:");
-    IGNIS_INFO("  > Graphics: %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_GRAPHICS_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_GRAPHICS]);
-    IGNIS_INFO("  > Transfer: %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_TRANSFER_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_TRANSFER]);
-    IGNIS_INFO("  > Compute:  %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_COMPUTE_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_COMPUTE]);
-    IGNIS_INFO("  > Present:  %s (%d)", context.queueFamiliesSet & IGNIS_QUEUE_PRESENT_BIT ? "true" : "false", context.queueFamilyIndices[IGNIS_QUEUE_PRESENT]);
 }
