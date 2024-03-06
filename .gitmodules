@@ -1,0 +1,3 @@
+[submodule "packages/minimal"]
+	path = packages/minimal
+	url = https://github.com/oliverjakobs/minimal
