@@ -105,40 +105,17 @@ uint8_t ignisTransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image,
     return IGNIS_OK;
 }
 
-uint8_t ignisCreateTexture(const char* path, IgnisTexture* texture, IgnisTextureConfig* configPtr)
+uint8_t ignisCreateTexture(const void* pixels, uint32_t width, uint32_t height, IgnisTextureConfig* configPtr, IgnisTexture* texture)
 {
     VkDevice device = ignisGetVkDevice();
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
 
     IgnisTextureConfig config = configPtr ? *configPtr : IGNIS_DEFAULT_CONFIG;
 
-    size_t dataSize;
-    char* data = ignisReadFile(path, &dataSize);
-
-    if (!data)
-    {
-        IGNIS_ERROR("[Texture] Failed to read image file: %s", path);
-        return IGNIS_FAIL;
-    }
-
-    stbi_set_flip_vertically_on_load(config.flipOnLoad);
-
-    int bpp = 0;
-    int width, height;
-    uint8_t* pixels = stbi_load_from_memory(data, (int)dataSize, &width, &height, &bpp, STBI_rgb_alpha);
-
-    if (!pixels)
-    {
-        IGNIS_ERROR("[Texture] Failed to load texture: %s", stbi_failure_reason());
-        return IGNIS_FAIL;
-    }
-
     VkDeviceSize imageSize = (VkDeviceSize)width * height * 4;
 
     IgnisBuffer stagingBuffer;
     ignisCreateBuffer(pixels, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &stagingBuffer);
-
-    stbi_image_free(pixels);
 
     texture->extent = (VkExtent3D){
         .width = width,
@@ -244,6 +221,36 @@ uint8_t ignisCreateTexture(const char* path, IgnisTexture* texture, IgnisTexture
     }
 
     return IGNIS_OK;
+}
+
+uint8_t ignisLoadTexture(const char* path, IgnisTextureConfig* configPtr, uint8_t flipOnLoad, IgnisTexture* texture)
+{
+    size_t dataSize;
+    char* data = ignisReadFile(path, &dataSize);
+
+    if (!data)
+    {
+        IGNIS_ERROR("[Texture] Failed to read image file: %s", path);
+        return IGNIS_FAIL;
+    }
+
+    stbi_set_flip_vertically_on_load(flipOnLoad);
+
+    int bpp = 0;
+    int width, height;
+    uint8_t* pixels = stbi_load_from_memory(data, (int)dataSize, &width, &height, &bpp, STBI_rgb_alpha);
+
+    if (!pixels)
+    {
+        IGNIS_ERROR("[Texture] Failed to load texture: %s", stbi_failure_reason());
+        return IGNIS_FAIL;
+    }
+
+    uint8_t result = ignisCreateTexture(pixels, width, height, configPtr, texture);
+
+    stbi_image_free(pixels);
+
+    return result;
 }
 
 void ignisDestroyTexture(IgnisTexture* texture)

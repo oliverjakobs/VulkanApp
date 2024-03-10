@@ -5,8 +5,6 @@
 
 typedef uint32_t IgnisRune;
 
-#define IGNIS_ASSERT(expr)
-
 typedef struct
 {
     IgnisRune codepoint;

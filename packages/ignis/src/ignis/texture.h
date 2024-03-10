@@ -11,11 +11,9 @@ typedef struct
     VkFilter magFilter;
 
     VkSamplerAddressMode addressMode;
-
-    uint8_t flipOnLoad;
 } IgnisTextureConfig;
 
-#define IGNIS_DEFAULT_CONFIG (IgnisTextureConfig){ VK_FORMAT_R8G8B8A8_SRGB, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, 0 }
+#define IGNIS_DEFAULT_CONFIG (IgnisTextureConfig){ VK_FORMAT_R8G8B8A8_SRGB, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT }
 
 typedef struct
 {
@@ -28,8 +26,10 @@ typedef struct
 } IgnisTexture;
 
 
-uint8_t ignisCreateTexture(const char* path, IgnisTexture* texture, IgnisTextureConfig* configPtr);
+uint8_t ignisCreateTexture(const void* pixels, uint32_t width, uint32_t height, IgnisTextureConfig* configPtr, IgnisTexture* texture);
 void ignisDestroyTexture(IgnisTexture* texture);
+
+uint8_t ignisLoadTexture(const char* path, IgnisTextureConfig* configPtr, uint8_t flipOnLoad, IgnisTexture* texture);
 
 uint8_t ignisTransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldLayout, VkImageLayout newLayout);
 

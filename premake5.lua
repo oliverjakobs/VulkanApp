@@ -1,6 +1,6 @@
-workspace "IgnisApp"
+workspace "VulkanApp"
     architecture "x64"
-    startproject "IgnisApp"
+    startproject "VulkanApp"
 
     configurations
     {
@@ -32,7 +32,7 @@ include "packages/ignis.lua"
 
 group ""
 
-project "IgnisApp"
+project "VulkanApp"
     kind "ConsoleApp"
     language "C"
     cdialect "C99"

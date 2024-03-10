@@ -767,7 +767,7 @@ VkPhysicalDevice ignisGetVkPhysicalDevice() { return context.physicalDevice; }
 VkFormat ignisGetSwapchainImageFormat() { return context.swapchain.imageFormat; }
 VkFormat ignisGetSwapchainDepthFormat() { return context.swapchain.depthFormat; }
 
-uint32_t ignisGetMaxSamplerAnisotropy()
+float ignisGetMaxSamplerAnisotropy()
 {
     VkPhysicalDeviceProperties properties = { 0 };
     vkGetPhysicalDeviceProperties(context.physicalDevice, &properties);

@@ -24,7 +24,7 @@ static VkShaderModule ignisCreateShaderModule(VkDevice device, const char* path,
     return module;
 }
 
-uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pipeline)
+uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, const char* vertPath, const char* fragPath, IgnisPipeline* pipeline)
 {
     VkDevice device = ignisGetVkDevice();
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
@@ -80,7 +80,7 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
     };
 
     /* uniform buffer */
-    pipeline->uniformBufferSize = sizeof(UniformBufferObject);
+    pipeline->uniformBufferSize = config->uniformBufferSize;
 
     for (size_t i = 0; i < IGNIS_MAX_FRAMES_IN_FLIGHT; ++i)
     {
@@ -139,8 +139,8 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
         return IGNIS_FAIL;
 
     /* shader */
-    VkShaderModule vertModule = ignisCreateShaderModule(device, config->vertPath, allocator);
-    VkShaderModule fragModule = ignisCreateShaderModule(device, config->fragPath, allocator);
+    VkShaderModule vertModule = ignisCreateShaderModule(device, vertPath, allocator);
+    VkShaderModule fragModule = ignisCreateShaderModule(device, fragPath, allocator);
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {
         {
@@ -221,7 +221,13 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pi
                         | VK_COLOR_COMPONENT_G_BIT
                         | VK_COLOR_COMPONENT_B_BIT
                         | VK_COLOR_COMPONENT_A_BIT,
-        .blendEnable = VK_FALSE
+        .blendEnable =  VK_TRUE,
+        .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+        .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+        .colorBlendOp = VK_BLEND_OP_ADD,
+        .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+        .alphaBlendOp = VK_BLEND_OP_ADD
     };
 
     VkPipelineColorBlendStateCreateInfo colorBlending = {

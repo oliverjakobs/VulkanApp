@@ -16,6 +16,8 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "external/stb_truetype.h"
 
+#define IGNIS_ASSERT(expr)
+
 /*
  * ==============================================================
  *
@@ -41,14 +43,17 @@ static size_t ignisRangeGlyphCount(const IgnisRune* range, size_t count)
         IgnisRune f = range[(i * 2) + 0];
         IgnisRune t = range[(i * 2) + 1];
         IGNIS_ASSERT(t >= f);
-        total_glyphs += (int)((t - f) + 1);
+        total_glyphs += (t - f) + 1;
     }
     return total_glyphs;
 }
 
 const IgnisRune* ignisGlyphRangeDefault()
 {
-    static const IgnisRune ranges[] = { 0x0020, 0x00FF, 0 };
+    static const IgnisRune ranges[] = { 
+        0x0020, 0x00FF, 
+        0
+    };
     return ranges;
 }
 
@@ -405,18 +410,15 @@ uint8_t ignisFontAtlasBake(IgnisFontAtlas* atlas, IgnisFontConfig* configs, size
         goto failed;
 
     /* create texture */
-    /*
     IgnisTextureConfig tex_config = IGNIS_DEFAULT_CONFIG;
     if (fmt == IGNIS_FONT_FORMAT_ALPHA8)
     {
-        tex_config.internal_format = GL_R8;
-        tex_config.format = GL_RED;
+        tex_config.format = VK_FORMAT_R8_SRGB;
     }
-    ignisGenerateTexture2D(&atlas->texture, width, height, pixels, &tex_config);
-    */
+    ignisCreateTexture(pixels, width, height, &tex_config, &atlas->texture);
 
     /* initialize each font */
-    atlas->fonts = malloc(sizeof(IgnisFont) * count);
+    atlas->fonts = ignisAlloc(sizeof(IgnisFont) * count);
     atlas->font_count = count;
 
     IGNIS_ASSERT(atlas->fonts);
@@ -519,7 +521,7 @@ void ignisFontConfigClear(IgnisFontConfig* config, size_t count)
     for (size_t i = 0; i < count; ++i)
     {
         IgnisFontConfig* cfg = &config[i];
-        if (cfg->ttf_blob) free((void*)cfg->ttf_blob);
+        if (cfg->ttf_blob) ignisFree((void*)cfg->ttf_blob, cfg->ttf_size);
     }
 }
 

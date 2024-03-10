@@ -7,22 +7,14 @@
 #include "texture.h"
 #include "swapchain.h"
 
-typedef struct
-{
-    float model[4][4];
-    float view[4][4];
-    float proj[4][4];
-} UniformBufferObject;
-
 
 typedef struct
 {
-    const char* vertPath;
-    const char* fragPath;
-
     VkVertexInputAttributeDescription* vertexAttributes;
     size_t attributeCount;
     uint32_t vertexStride;
+
+    uint32_t uniformBufferSize;
 
     /* rasterizer */
     VkCullModeFlags cullMode;
@@ -45,7 +37,7 @@ typedef struct
     uint32_t    uniformBufferSize;
 } IgnisPipeline;
 
-uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, IgnisPipeline* pipeline);
+uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, const char* vertPath, const char* fragPath, IgnisPipeline* pipeline);
 void ignisDestroyPipeline(IgnisPipeline* pipeline);
 
 void ignisBindPipeline(VkCommandBuffer commandBuffer, IgnisPipeline* pipeline);

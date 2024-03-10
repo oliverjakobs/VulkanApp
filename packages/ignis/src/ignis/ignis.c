@@ -37,3 +37,22 @@ void ignisTerminate()
 {
     ignisDestroyContext();
 }
+
+/* ---------------------| color |----------------------------------------------*/
+IgnisColorRGBA IGNIS_WHITE = { 1.0f, 1.0f, 1.0f, 1.0f };
+IgnisColorRGBA IGNIS_BLACK = { 0.0f, 0.0f, 0.0f, 1.0f };
+IgnisColorRGBA IGNIS_RED = { 1.0f, 0.0f, 0.0f, 1.0f };
+IgnisColorRGBA IGNIS_GREEN = { 0.0f, 1.0f, 0.0f, 1.0f };
+IgnisColorRGBA IGNIS_BLUE = { 0.0f, 0.0f, 1.0f, 1.0f };
+IgnisColorRGBA IGNIS_CYAN = { 0.0f, 1.0f, 1.0f, 1.0f };
+IgnisColorRGBA IGNIS_MAGENTA = { 1.0f, 0.0f, 1.0f, 1.0f };
+IgnisColorRGBA IGNIS_YELLOW = { 1.0f, 1.0f, 0.0f, 1.0f };
+
+IgnisColorRGBA IGNIS_DARK_GREY = { 0.2f, 0.2f, 0.2f, 1.0f };
+IgnisColorRGBA IGNIS_LIGHT_GREY = { 0.75f, 0.75f, 0.75f, 1.0f };
+
+IgnisColorRGBA* ignisBlendColorRGBA(IgnisColorRGBA* color, float alpha)
+{
+    color->a = alpha;
+    return color;
+}

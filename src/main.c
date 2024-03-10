@@ -7,6 +7,8 @@
 #include "ignis/buffer.h"
 #include "ignis/texture.h"
 
+#include "font_renderer.h"
+
 #include "math/math.h"
 
 static MinimalWindow* window;
@@ -15,6 +17,7 @@ static IgnisPipeline pipeline;
 static IgnisBuffer vertexBuffer;
 static IgnisBuffer indexBuffer;
 static IgnisTexture texture;
+static IgnisFontAtlas fontAtlas;
 
 #define VERTEX_SIZE ((3 + 3 + 2) * sizeof(float))
 
@@ -38,6 +41,15 @@ const uint32_t indices[] = {
 };
 
 static size_t indexCount = sizeof(indices) / sizeof(uint32_t);
+
+mat4 screen_projection;
+
+typedef struct
+{
+    float model[4][4];
+    float view[4][4];
+    float proj[4][4];
+} UniformBufferObject;
 
 uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
 {
@@ -83,16 +95,15 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
     uint32_t attributeCount = sizeof(attributes) / sizeof(VkVertexInputAttributeDescription);
 
     IgnisPipelineConfig pipelineConfig = {
-        .vertPath = "./res/shader/vert.spv",
-        .fragPath = "./res/shader/frag.spv",
         .vertexAttributes = attributes,
         .attributeCount = attributeCount,
         .vertexStride = VERTEX_SIZE,
+        .uniformBufferSize = sizeof(UniformBufferObject),
         .cullMode = VK_CULL_MODE_BACK_BIT,
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
     };
 
-    if (!ignisCreatePipeline(&pipelineConfig, &pipeline))
+    if (!ignisCreatePipeline(&pipelineConfig, "./res/shader/shader.vert.spv", "./res/shader/shader.frag.spv", &pipeline))
     {
         MINIMAL_CRITICAL("failed to create pipeline");
         return MINIMAL_FAIL;
@@ -106,8 +117,25 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
         return MINIMAL_FAIL;
 
     // create texture
-    if (!ignisCreateTexture("./res/texture.png", &texture, NULL))
+    if (!ignisLoadTexture("./res/texture.png", NULL, 0, &texture))
         return MINIMAL_FAIL;
+
+    // font
+    IgnisFontConfig config = { 0 };
+    if (!ignisFontAtlasLoadFromFile(&config, "./res/fonts/ProggyClean.ttf", 23))
+        MINIMAL_WARN("Failed to load font");
+
+    if (!ignisFontAtlasBake(&fontAtlas, &config, 1, IGNIS_FONT_FORMAT_RGBA32))
+        MINIMAL_WARN("Failed to bake fontatlas");
+
+    MINIMAL_INFO("Loaded %d font(s)", fontAtlas.font_count);
+
+    ignisFontConfigClear(&config, 1);
+
+    ignisFontRendererInit();
+    ignisFontRendererBindFont(&fontAtlas.fonts[0], IGNIS_WHITE);
+
+    screen_projection = mat4_ortho(0.0f, w, 0.0f, h, -1.0f, 1.0f);
 
     MINIMAL_INFO("[Minimal] Version: %s", minimalGetVersionString());
     
@@ -117,6 +145,9 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
 void onDestroy()
 {
     vkDeviceWaitIdle(ignisGetVkDevice());
+
+    ignisFontAtlasClear(&fontAtlas);
+    ignisFontRendererDestroy();
 
     ignisDestroyTexture(&texture);
 
@@ -153,12 +184,6 @@ void onTick(void* context, const MinimalFrameData* framedata)
     {
         VkCommandBuffer commandBuffer = ignisBeginCommandBuffer();
 
-        ignisBindPipeline(commandBuffer, &pipeline);
-
-        ignisBindTexture(&pipeline, &texture, 1);
-
-        UniformBufferObject ubo = { 0 };
-
         mat4 model = mat4_rotation((vec3) { 0.0f, 0.0f, 1.0f }, minimalGetTime() * degToRad(90.0f));
         mat4 view = mat4_look_at((vec3) { 2.0f, 2.0f, 2.0f }, (vec3) { 0.0f }, (vec3) { 0.0f, 0.0f, 1.0f });
         mat4 proj = mat4_perspective(degToRad(45.0f), ignisGetAspectRatio(), 0.1f, 10.0f);
@@ -172,6 +197,8 @@ void onTick(void* context, const MinimalFrameData* framedata)
         ignisPushUniform(&pipeline, &view, sizeof(mat4), 1 * sizeof(mat4));
         ignisPushUniform(&pipeline, &proj, sizeof(mat4), 2 * sizeof(mat4));
 
+        ignisBindPipeline(commandBuffer, &pipeline);
+        ignisBindTexture(&pipeline, &texture, 1);
 
         VkBuffer vertexBuffers[] = {vertexBuffer.handle};
         VkDeviceSize offsets[] = {0};
@@ -179,6 +206,17 @@ void onTick(void* context, const MinimalFrameData* framedata)
 
         vkCmdBindIndexBuffer(commandBuffer, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
+
+
+        // font rendering
+        ignisFontRendererSetProjection(&screen_projection.v[0][0]);
+
+        ignisFontRendererStart(commandBuffer);
+
+        ignisFontRendererRenderTextFmt(commandBuffer, 10.0f, 10.0f, 20.0f, "Fps: %d asd asfasdasd1234567890", framedata->fps);
+        ignisFontRendererRenderText(commandBuffer, 10.0f, 40.0f, 20.0f, "Line 2");
+
+        // ignisFontRendererFlush(commandBuffer);
 
         ignisEndCommandBuffer(commandBuffer);
 
