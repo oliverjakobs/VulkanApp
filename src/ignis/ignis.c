@@ -1,6 +1,9 @@
 #include "ignis.h"
 
-uint8_t ignisInit(const char* name, const IgnisPlatform* platform)
+#include <Windows.h>
+#include <vulkan/vulkan_win32.h>
+
+uint8_t ignisInit(const char* name, const void* platformHandle)
 {
     // TODO: make platform agnostic
     const char* const extensions[] = {
@@ -22,7 +25,16 @@ uint8_t ignisInit(const char* name, const IgnisPlatform* platform)
 
     // Surface
     VkSurfaceKHR surface;
-    VkResult result = platform->createSurface(ignisGetVkInstance(), platform->context, ignisGetAllocator(), &surface);
+
+    // TODO: make platform agnostic
+    VkWin32SurfaceCreateInfoKHR create_info = {
+        .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+        .hinstance = GetModuleHandleW(NULL),
+        .hwnd = platformHandle,
+        .flags = 0
+    };
+
+    VkResult result = vkCreateWin32SurfaceKHR(ignisGetVkInstance(), &create_info, ignisGetAllocator(), &surface);
     if (result != VK_SUCCESS)
     {
         IGNIS_ERROR("Failed to create window surface with result: %u", result);
@@ -30,7 +42,20 @@ uint8_t ignisInit(const char* name, const IgnisPlatform* platform)
     }
 
     VkExtent2D extent = { 1280, 720 };
-    return ignisCreateContext(surface, extent);
+    if (!ignisCreateContext(surface, extent))
+    {
+        IGNIS_ERROR("Failed to create context");
+        return IGNIS_FAIL;
+    }
+
+    // set default state
+    ignisSetClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    ignisSetDepthStencil(1.0f, 0);
+    ignisSetViewport(0.0f, 0.0f, extent.width, extent.height);
+    ignisSetDepthRange(0.0f, 1.0f);
+    ignisSetScissor(0, 0, extent.width, extent.height);
+
+    return IGNIS_OK;
 }
 
 void ignisTerminate()

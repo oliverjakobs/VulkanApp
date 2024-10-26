@@ -19,7 +19,7 @@
 #define IGNIS_FONTRENDERER_MAX_LINE_LENGTH    128
 
 
-void ignisFontRendererInit();
+uint8_t ignisFontRendererInit();
 void ignisFontRendererDestroy();
 
 void ignisFontRendererBindFont(IgnisFont* font);

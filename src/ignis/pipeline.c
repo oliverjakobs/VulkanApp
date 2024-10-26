@@ -3,8 +3,11 @@
 #include "ignis.h"
 
 
-static VkShaderModule ignisCreateShaderModule(VkDevice device, const char* path, const VkAllocationCallbacks* allocator)
+VkShaderModule ignisCreateShaderModule(const char* path)
 {
+    VkDevice device = ignisGetVkDevice();
+    const VkAllocationCallbacks* allocator = ignisGetAllocator();
+
     size_t size;
     char* code = ignisReadFile(path, &size);
 
@@ -24,8 +27,22 @@ static VkShaderModule ignisCreateShaderModule(VkDevice device, const char* path,
     return module;
 }
 
-uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, const char* vertPath, const char* fragPath, IgnisPipeline* pipeline)
+void ignisDestroyShaderModule(VkShaderModule shader)
 {
+    VkDevice device = ignisGetVkDevice();
+    const VkAllocationCallbacks* allocator = ignisGetAllocator();
+
+    vkDestroyShaderModule(device, shader, allocator);
+}
+
+uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, VkShaderModule vert, VkShaderModule frag, IgnisPipeline* pipeline)
+{
+    if (!vert || !frag)
+    {
+        IGNIS_ERROR("At least one shader module is missing");
+        return IGNIS_FAIL;
+    }
+
     VkDevice device = ignisGetVkDevice();
     const VkAllocationCallbacks* allocator = ignisGetAllocator();
 
@@ -138,21 +155,18 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, const char* vertP
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, allocator, &pipeline->layout) != VK_SUCCESS)
         return IGNIS_FAIL;
 
-    /* shader */
-    VkShaderModule vertModule = ignisCreateShaderModule(device, vertPath, allocator);
-    VkShaderModule fragModule = ignisCreateShaderModule(device, fragPath, allocator);
-
+    /* shader stages */
     VkPipelineShaderStageCreateInfo shaderStages[] = {
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
             .stage = VK_SHADER_STAGE_VERTEX_BIT,
-            .module = vertModule,
+            .module = vert,
             .pName = "main",
         },
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
             .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .module = fragModule,
+            .module = frag,
             .pName = "main",
         }
     };
@@ -285,9 +299,6 @@ uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, const char* vertP
     };
 
     VkResult result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, allocator, &pipeline->handle);
-
-    vkDestroyShaderModule(device, vertModule, allocator);
-    vkDestroyShaderModule(device, fragModule, allocator);
 
     return result != VK_SUCCESS ? IGNIS_FAIL : IGNIS_OK;
 }

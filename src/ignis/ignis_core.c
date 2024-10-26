@@ -21,7 +21,8 @@ typedef struct
     uint32_t queueFamiliesSet;
     uint32_t queueFamilyIndices[IGNIS_QUEUE_FAMILY_MAX_ENUM];
 
-    VkQueue queues[IGNIS_QUEUE_FAMILY_MAX_ENUM];
+    VkQueue queueGraphics;
+    VkQueue queuePresent;
 
     IgnisSwapchain swapchain;
 
@@ -222,13 +223,6 @@ uint8_t ignisCreateContext(VkSurfaceKHR surface, VkExtent2D extent)
     context.swapchainGeneration = 0;
     context.swapchainLastGeneration = 0;
 
-    // set default state
-    ignisSetClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    ignisSetDepthStencil(1.0f, 0);
-    ignisSetViewport(0.0f, 0.0f, context.swapchain.extent.width, context.swapchain.extent.height);
-    ignisSetDepthRange(0.0f, 1.0f);
-    ignisSetScissor(0, 0, context.swapchain.extent.width, context.swapchain.extent.height);
-
     return IGNIS_OK;
 }
 
@@ -275,8 +269,8 @@ static const char* const REQ_EXTENSIONS[] = {
 static const uint32_t REQ_EXTENSION_COUNT = sizeof(REQ_EXTENSIONS) / sizeof(REQ_EXTENSIONS[0]);
 
 static const uint32_t REQ_QUEUE_FAMILIES = IGNIS_QUEUE_GRAPHICS_BIT
-                                        | IGNIS_QUEUE_TRANSFER_BIT
-                                        | IGNIS_QUEUE_PRESENT_BIT;
+                                         | IGNIS_QUEUE_TRANSFER_BIT
+                                         | IGNIS_QUEUE_PRESENT_BIT;
 
 static uint32_t ignisFindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t* indices);
 static uint8_t ignisQuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
@@ -364,6 +358,7 @@ uint8_t ignisCreateDevice()
         };
     }
 
+    // enable device features
     VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
         .dynamicRendering = VK_TRUE,
@@ -376,8 +371,8 @@ uint8_t ignisCreateDevice()
         },
         .pNext = &dynamicRenderingFeatures
     };
-    //vkGetPhysicalDeviceFeatures2(context.physicalDevice, &deviceFeatures);
 
+    // create device
     VkDeviceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pQueueCreateInfos = queueCreateInfos,
@@ -392,8 +387,8 @@ uint8_t ignisCreateDevice()
         return IGNIS_FAIL;
 
     // get queues
-    for (size_t i = 0; i < IGNIS_QUEUE_FAMILY_MAX_ENUM; ++i)
-        vkGetDeviceQueue(context.device, context.queueFamilyIndices[i], 0, &context.queues[i]);
+    vkGetDeviceQueue(context.device, context.queueFamilyIndices[IGNIS_QUEUE_GRAPHICS], 0, &context.queueGraphics);
+    vkGetDeviceQueue(context.device, context.queueFamilyIndices[IGNIS_QUEUE_PRESENT], 0, &context.queuePresent);
 
     return IGNIS_OK;
 }
@@ -588,7 +583,7 @@ uint8_t ignisEndFrame()
         .pImageIndices = &context.imageIndex
     };
 
-    if (vkQueuePresentKHR(context.queues[IGNIS_QUEUE_PRESENT], &presentInfo) != VK_SUCCESS)
+    if (vkQueuePresentKHR(context.queuePresent, &presentInfo) != VK_SUCCESS)
         IGNIS_WARN("failed to present frame");
 
     /* next frame */
@@ -692,8 +687,6 @@ void ignisEndCommandBuffer(VkCommandBuffer commandBuffer)
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
         IGNIS_WARN("failed to record command buffer!");
 
-    VkQueue graphicsQueue = context.queues[IGNIS_QUEUE_GRAPHICS];
-
     VkSemaphore waitSemaphores[] = { context.imageAvailable[context.currentFrame] };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
@@ -710,7 +703,7 @@ void ignisEndCommandBuffer(VkCommandBuffer commandBuffer)
         .signalSemaphoreCount = 1
     };
 
-    if (vkQueueSubmit(context.queues[IGNIS_QUEUE_GRAPHICS], 1, &submitInfo, context.inFlightFences[context.currentFrame]) != VK_SUCCESS)
+    if (vkQueueSubmit(context.queueGraphics, 1, &submitInfo, context.inFlightFences[context.currentFrame]) != VK_SUCCESS)
         IGNIS_WARN("failed to submit frame");
 }
 
@@ -719,7 +712,6 @@ VkCommandBuffer ignisBeginOneTimeCommandBuffer()
     VkCommandBufferAllocateInfo allocInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        //.commandPool = context.transferPool,
         .commandPool = context.commandPool,
         .commandBufferCount = 1
     };
@@ -747,17 +739,10 @@ void ignisEndOneTimeCommandBuffer(VkCommandBuffer commandBuffer)
         .pCommandBuffers = &commandBuffer,
     };
 
-    vkQueueSubmit(context.queues[IGNIS_QUEUE_GRAPHICS], 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(context.queues[IGNIS_QUEUE_GRAPHICS]);
+    vkQueueSubmit(context.queueGraphics, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(context.queueGraphics);
 
     vkFreeCommandBuffers(context.device, context.commandPool, 1, &commandBuffer);
-
-    /*
-    vkQueueSubmit(context.queues[IGNIS_QUEUE_TRANSFER], 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(context.queues[IGNIS_QUEUE_TRANSFER]);
-    
-    vkFreeCommandBuffers(context.device, context.transferPool, 1, &commandBuffer);
-    */
 }
 
 VkInstance       ignisGetVkInstance()       { return context.instance; }
@@ -804,9 +789,9 @@ void ignisSetDepthStencil(float depth, uint32_t stencil)
 void ignisSetViewport(float x, float y, float width, float height)
 {
     context.viewport.x = x;
-    context.viewport.y = y;
+    context.viewport.y = y + height;
     context.viewport.width = width;
-    context.viewport.height = height;
+    context.viewport.height = -height;
 }
 
 void ignisSetDepthRange(float nearVal, float farVal)

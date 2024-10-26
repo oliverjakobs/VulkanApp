@@ -40,12 +40,13 @@ void ignisGenerateQuadIndices(uint32_t* indices, size_t max)
     }
 }
 
-void ignisFontRendererInit()
+uint8_t ignisFontRendererInit()
 {
     size_t size = IGNIS_FONTRENDERER_BUFFER_SIZE * sizeof(float);
     if (!ignisCreateBuffer(NULL, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &render_data.vertexBuffer))
     {
         IGNIS_ERROR("failed to create vertex buffer");
+        return IGNIS_FAIL;
     }
 
     vkMapMemory(ignisGetVkDevice(), render_data.vertexBuffer.memory, 0, size, 0, &render_data.vertices);
@@ -56,6 +57,7 @@ void ignisFontRendererInit()
     if (!ignisCreateIndexBuffer(indices, IGNIS_FONTRENDERER_INDEX_COUNT, &render_data.indexBuffer))
     {
         IGNIS_ERROR("failed to create index buffer");
+        return IGNIS_FAIL;
     }
 
     render_data.index = 0;
@@ -81,13 +83,19 @@ void ignisFontRendererInit()
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
     };
 
-    const char* vertPath = "./res/shader/font.vert.spv";
-    const char* fragPath = "./res/shader/font.frag.spv";
+    VkShaderModule vertShader = ignisCreateShaderModule("./res/shader/font.vert.spv");
+    VkShaderModule fragShader = ignisCreateShaderModule("./res/shader/font.frag.spv");
 
-    if (!ignisCreatePipeline(&pipelineConfig, vertPath, fragPath, &render_data.pipeline))
+    if (!ignisCreatePipeline(&pipelineConfig, vertShader, fragShader, &render_data.pipeline))
     {
         IGNIS_ERROR("failed to create pipeline");
+        return IGNIS_FAIL;
     }
+
+    ignisDestroyShaderModule(vertShader);
+    ignisDestroyShaderModule(fragShader);
+
+    return IGNIS_OK;
 }
 
 void ignisFontRendererDestroy()
@@ -170,7 +178,7 @@ void ignisFontRendererRenderText(VkCommandBuffer commandBuffer, float x, float y
     for (size_t i = 0; i < strlen(text); i++)
     {
         if (render_data.index + IGNIS_FONTRENDERER_QUAD_SIZE >= IGNIS_FONTRENDERER_BUFFER_SIZE)
-            ignisFontRendererFlush(commandBuffer);
+            break;
 
         const IgnisGlyph* glyph = ignisFontFindGlyph(render_data.font, text[i]);
         if (!ignisFontRendererLoadGlyph(render_data.index, glyph, x, y, scale))
@@ -179,15 +187,8 @@ void ignisFontRendererRenderText(VkCommandBuffer commandBuffer, float x, float y
         if (glyph == render_data.font->fallback)
             IGNIS_WARN("[FontRenderer] Used fallback for %c", text[i]);
 
-        VkBuffer vertexBuffers[] = { render_data.vertexBuffer.handle };
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
-        vkCmdBindIndexBuffer(commandBuffer, render_data.indexBuffer.handle, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(commandBuffer, IGNIS_INDICES_PER_QUAD, 1, 0, 0, 0);
-
         x += glyph->xadvance * scale;
-        //render_data.index += IGNIS_FONTRENDERER_QUAD_SIZE;
+        render_data.index += IGNIS_FONTRENDERER_QUAD_SIZE;
         render_data.quad_count++;
     }
 }

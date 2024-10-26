@@ -26,12 +26,6 @@ workspace "VulkanApp"
 
 output_dir = "%{cfg.buildcfg}"
 
-group "Packages"
-
-include "packages/ignis.lua"
-
-group ""
-
 project "VulkanApp"
     kind "ConsoleApp"
     language "C"
@@ -53,20 +47,12 @@ project "VulkanApp"
 
     links
     {
-        "ignis",
         "$(VULKAN_SDK)/lib/vulkan-1.lib"
-    }
-    
-    defines
-    {
-        "MINIMAL_VULKAN",
-        "MINIMAL_PLATFORM_WINDOWS",
     }
 
     includedirs
     {
         "src",
-        "packages/ignis/src",
         "packages/minimal/",
         "$(VULKAN_SDK)/include"
     }

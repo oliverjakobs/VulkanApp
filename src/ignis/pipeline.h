@@ -7,6 +7,8 @@
 #include "texture.h"
 #include "swapchain.h"
 
+VkShaderModule ignisCreateShaderModule(const char* path);
+void ignisDestroyShaderModule(VkShaderModule shader);
 
 typedef struct
 {
@@ -37,7 +39,7 @@ typedef struct
     uint32_t    uniformBufferSize;
 } IgnisPipeline;
 
-uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, const char* vertPath, const char* fragPath, IgnisPipeline* pipeline);
+uint8_t ignisCreatePipeline(const IgnisPipelineConfig* config, VkShaderModule vert, VkShaderModule frag, IgnisPipeline* pipeline);
 void ignisDestroyPipeline(IgnisPipeline* pipeline);
 
 void ignisBindPipeline(VkCommandBuffer commandBuffer, IgnisPipeline* pipeline);

@@ -1,3 +1,6 @@
+
+#define MINIMAL_NO_CONTEXT
+#define MINIMAL_PLATFORM_WINDOWS
 #define MINIMAL_IMPLEMENTATION
 #include "minimal.h"
 
@@ -68,13 +71,7 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
         return MINIMAL_FAIL;
     }
 
-    IgnisPlatform platform = {
-        .createSurface = (ignisCreateSurfaceFn)minimalCreateWindowSurface,
-        .queryExtensions = (ignisQueryExtensionFn)minimalQueryRequiredExtensions,
-        .context = window
-    };
-
-    if (!ignisInit("VulkanApp", &platform))
+    if (!ignisInit("VulkanApp", minimalGetNativeWindowHandle(window)))
     {
         MINIMAL_CRITICAL("Failed to create ignis context.");
         return MINIMAL_FAIL;
@@ -103,11 +100,17 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
     };
 
-    if (!ignisCreatePipeline(&pipelineConfig, "./res/shader/shader.vert.spv", "./res/shader/shader.frag.spv", &pipeline))
+    VkShaderModule vertShader = ignisCreateShaderModule("./res/shader/shader.vert.spv");
+    VkShaderModule fragShader = ignisCreateShaderModule("./res/shader/shader.frag.spv");
+
+    if (!ignisCreatePipeline(&pipelineConfig, vertShader, fragShader, &pipeline))
     {
         MINIMAL_CRITICAL("failed to create pipeline");
         return MINIMAL_FAIL;
     }
+
+    ignisDestroyShaderModule(vertShader);
+    ignisDestroyShaderModule(fragShader);
 
     // create buffer
     if (!ignisCreateVertexBuffer(vertices, vertexCount * VERTEX_SIZE, &vertexBuffer))
@@ -135,7 +138,7 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
     ignisFontRendererInit();
     ignisFontRendererBindFont(&fontAtlas.fonts[0], IGNIS_WHITE);
 
-    screen_projection = mat4_ortho(0.0f, w, 0.0f, h, -1.0f, 1.0f);
+    screen_projection = mat4_ortho(0.0f, w, h, 0.0f, -1.0f, 1.0f);
 
     MINIMAL_INFO("[Minimal] Version: %s", minimalGetVersionString());
     
@@ -187,7 +190,6 @@ void onTick(void* context, const MinimalFrameData* framedata)
         mat4 model = mat4_rotation((vec3) { 0.0f, 0.0f, 1.0f }, minimalGetTime() * degToRad(90.0f));
         mat4 view = mat4_look_at((vec3) { 2.0f, 2.0f, 2.0f }, (vec3) { 0.0f }, (vec3) { 0.0f, 0.0f, 1.0f });
         mat4 proj = mat4_perspective(degToRad(45.0f), ignisGetAspectRatio(), 0.1f, 10.0f);
-        proj.v[1][1] *= -1;
 
         // mat4 model = mat4_identity();
         // mat4 view = mat4_identity();
@@ -213,10 +215,24 @@ void onTick(void* context, const MinimalFrameData* framedata)
 
         ignisFontRendererStart(commandBuffer);
 
-        ignisFontRendererRenderTextFmt(commandBuffer, 10.0f, 10.0f, 20.0f, "Fps: %d asd asfasdasd1234567890", framedata->fps);
+        ignisFontRendererRenderTextFmt(commandBuffer, 10.0f, 10.0f, 20.0f, "Fps: %d asdasd ", framedata->fps);
+        //ignisFontRendererRenderText(commandBuffer, 10.0f, 40.0f, 20.0f, "Line 2");
+
+        ignisFontRendererFlush(commandBuffer);
+
+        ignisEndCommandBuffer(commandBuffer);
+
+
+
+        commandBuffer = ignisBeginCommandBuffer();
+        ignisFontRendererSetProjection(&screen_projection.v[0][0]);
+
+        ignisFontRendererStart(commandBuffer);
+
+        //ignisFontRendererRenderTextFmt(commandBuffer, 10.0f, 10.0f, 20.0f, "Fps: %d asdasd ", framedata->fps);
         ignisFontRendererRenderText(commandBuffer, 10.0f, 40.0f, 20.0f, "Line 2");
 
-        // ignisFontRendererFlush(commandBuffer);
+        ignisFontRendererFlush(commandBuffer);
 
         ignisEndCommandBuffer(commandBuffer);
 
