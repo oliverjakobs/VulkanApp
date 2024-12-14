@@ -215,22 +215,7 @@ void onTick(void* context, const MinimalFrameData* framedata)
 
         ignisFontRendererStart(commandBuffer);
 
-        ignisFontRendererRenderTextFmt(commandBuffer, 10.0f, 10.0f, 20.0f, "Fps: %d asdasd ", framedata->fps);
-        //ignisFontRendererRenderText(commandBuffer, 10.0f, 40.0f, 20.0f, "Line 2");
-
-        ignisFontRendererFlush(commandBuffer);
-
-        ignisEndCommandBuffer(commandBuffer);
-
-
-
-        commandBuffer = ignisBeginCommandBuffer();
-        ignisFontRendererSetProjection(&screen_projection.v[0][0]);
-
-        ignisFontRendererStart(commandBuffer);
-
-        //ignisFontRendererRenderTextFmt(commandBuffer, 10.0f, 10.0f, 20.0f, "Fps: %d asdasd ", framedata->fps);
-        ignisFontRendererRenderText(commandBuffer, 10.0f, 40.0f, 20.0f, "Line 2");
+        ignisRenderTextFmt(commandBuffer, 10.0f, 10.0f, 20.0f, "Fps: %d", framedata->fps);
 
         ignisFontRendererFlush(commandBuffer);
 

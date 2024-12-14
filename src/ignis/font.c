@@ -461,7 +461,7 @@ const IgnisGlyph* ignisFontFindGlyph(const IgnisFont* font, IgnisRune unicode)
 {
     IGNIS_ASSERT(font);
     IGNIS_ASSERT(font->glyphs);
-    if (!font || !font->glyphs) return 0;
+    if (!font || !font->glyphs) return NULL;
 
     size_t total_glyphs = 0;
     size_t count = ignisRangeCount(font->range);
