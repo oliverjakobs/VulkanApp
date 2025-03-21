@@ -71,7 +71,7 @@ uint8_t onLoad(const char* title,  int32_t x, int32_t y, uint32_t w, uint32_t h)
         return MINIMAL_FAIL;
     }
 
-    if (!ignisInit("VulkanApp", minimalGetNativeWindowHandle(window)))
+    if (!ignisInit("VulkanApp", w, h, minimalGetNativeWindowHandle(window)))
     {
         MINIMAL_CRITICAL("Failed to create ignis context.");
         return MINIMAL_FAIL;
@@ -171,8 +171,12 @@ uint8_t onEvent(void* context, const MinimalEvent* e)
     uint32_t width, height;
     if (minimalEventWindowSize(e, &width, &height))
     {
+        MINIMAL_TRACE("Resize.");
         ignisResize(width, height);
         ignisSetViewport(0.0f, 0.0f, width, height);
+        ignisSetScissor(0, 0, width, height);
+
+        screen_projection = mat4_ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f);
     }
 
     if (minimalEventKeyPressed(e) == MINIMAL_KEY_ESCAPE)
@@ -202,9 +206,7 @@ void onTick(void* context, const MinimalFrameData* framedata)
         ignisBindPipeline(commandBuffer, &pipeline);
         ignisBindTexture(&pipeline, &texture, 1);
 
-        VkBuffer vertexBuffers[] = {vertexBuffer.handle};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.handle, IGNIS_OFFSET64(0));
 
         vkCmdBindIndexBuffer(commandBuffer, indexBuffer.handle, 0, VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
@@ -231,6 +233,9 @@ int main(void)
     {
         minimalSetCurrentContext(window);
         minimalSetEventHandler(NULL, (MinimalEventCB)onEvent);
+
+        minimalMaximize(window);
+
         minimalRun(window, (MinimalTickCB)onTick, NULL);
     }
 

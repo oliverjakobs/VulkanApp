@@ -3,9 +3,8 @@
 
 #include "ignis_core.h"
 
-uint8_t ignisInit(const char* name, const void* platformHandle);
+uint8_t ignisInit(const char* name, uint32_t width, uint32_t height, const void* platformHandle);
 void ignisTerminate();
-
 
 /*
  * --------------------------------------------------------------

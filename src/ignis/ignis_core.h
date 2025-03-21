@@ -51,12 +51,17 @@ void ignisEndOneTimeCommandBuffer(VkCommandBuffer commandBuffer);
 
 
 /* utils */
+#define IGNIS_OFFSET64(offset) (&((uint64_t){ offset }))
+
+
 VkInstance       ignisGetVkInstance();
 VkDevice         ignisGetVkDevice();
 VkPhysicalDevice ignisGetVkPhysicalDevice();
 
 VkFormat ignisGetSwapchainImageFormat();
 VkFormat ignisGetSwapchainDepthFormat();
+
+VkExtent2D ignisGetSwapchainExtent();
 
 float ignisGetMaxSamplerAnisotropy();
 

@@ -84,7 +84,6 @@ static const char* const VALIDATION_LAYERS[] = {
 static const uint32_t VALIDATION_LAYER_COUNT = sizeof(VALIDATION_LAYERS) / sizeof(VALIDATION_LAYERS[0]);
 
 static IgnisContext context;
-static VkExtent2D cachedExtent;
 
 uint8_t ignisCreateInstance(const char* name, const char* const* extensions, uint32_t extensionCount)
 {
@@ -526,7 +525,7 @@ VkDeviceMemory ignisAllocateDeviceMemory(VkMemoryRequirements requirements, VkMe
     return memory;
 }
 
-
+static VkExtent2D cachedExtent;
 
 uint8_t ignisResize(uint32_t width, uint32_t height)
 {
@@ -751,6 +750,8 @@ VkPhysicalDevice ignisGetVkPhysicalDevice() { return context.physicalDevice; }
 
 VkFormat ignisGetSwapchainImageFormat() { return context.swapchain.imageFormat; }
 VkFormat ignisGetSwapchainDepthFormat() { return context.swapchain.depthFormat; }
+
+VkExtent2D ignisGetSwapchainExtent() { return context.swapchain.extent; }
 
 float ignisGetMaxSamplerAnisotropy()
 {

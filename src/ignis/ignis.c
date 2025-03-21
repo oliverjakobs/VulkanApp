@@ -3,7 +3,7 @@
 #include <Windows.h>
 #include <vulkan/vulkan_win32.h>
 
-uint8_t ignisInit(const char* name, const void* platformHandle)
+uint8_t ignisInit(const char* name, uint32_t width, uint32_t height, const void* platformHandle)
 {
     // TODO: make platform agnostic
     const char* const extensions[] = {
@@ -41,14 +41,15 @@ uint8_t ignisInit(const char* name, const void* platformHandle)
         return IGNIS_FAIL;
     }
 
-    VkExtent2D extent = { 1280, 720 };
-    if (!ignisCreateContext(surface, extent))
+    if (!ignisCreateContext(surface, (VkExtent2D) { width, height }))
     {
         IGNIS_ERROR("Failed to create context");
         return IGNIS_FAIL;
     }
 
     // set default state
+    VkExtent2D extent = ignisGetSwapchainExtent();
+
     ignisSetClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     ignisSetDepthStencil(1.0f, 0);
     ignisSetViewport(0.0f, 0.0f, extent.width, extent.height);
